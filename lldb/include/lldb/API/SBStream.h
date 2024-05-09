@@ -12,6 +12,7 @@
 #include <cstdio>
 
 #include "lldb/API/SBDefines.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace lldb {
 
@@ -42,6 +43,10 @@ public:
 #endif
 
   void Print(const char *str);
+
+  bool HasColor();
+
+  void FormatAnsiTerminalCodes(llvm::StringRef format);
 
   void RedirectToFile(const char *path, bool append);
 
