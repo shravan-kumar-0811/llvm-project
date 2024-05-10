@@ -37,6 +37,7 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Vectorize/EVLIndVarSimplify.h"
 #include <optional>
 using namespace llvm;
 
@@ -419,6 +420,9 @@ void RISCVPassConfig::addIRPasses() {
   }
 
   TargetPassConfig::addIRPasses();
+
+  if (getOptLevel() != CodeGenOptLevel::None)
+    addPass(createEVLIndVarSimplifyPass());
 }
 
 bool RISCVPassConfig::addPreISel() {
