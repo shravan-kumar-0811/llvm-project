@@ -153,15 +153,15 @@ struct __transform_view_iterator_concept<_View> {
   using type = forward_iterator_tag;
 };
 
-template <class, class>
+template <class, class, bool>
 struct __transform_view_iterator_category_base {};
 
-template <forward_range _View, class _Fn>
-struct __transform_view_iterator_category_base<_View, _Fn> {
+template <forward_range _View, class _Fn, bool _Const>
+struct __transform_view_iterator_category_base<_View, _Fn, _Const> {
   using _Cat = typename iterator_traits<iterator_t<_View>>::iterator_category;
 
   using iterator_category =
-      conditional_t< is_reference_v<invoke_result_t<_Fn&, range_reference_t<_View>>>,
+      conditional_t< is_reference_v<invoke_result_t<__maybe_const<_Const, _Fn>&, range_reference_t<_View>>>,
                      conditional_t< derived_from<_Cat, contiguous_iterator_tag>, random_access_iterator_tag, _Cat >,
                      input_iterator_tag >;
 };
@@ -173,7 +173,7 @@ template <input_range _View, copy_constructible _Fn>
 #  endif
   requires __transform_view_constraints<_View, _Fn>
 template <bool _Const>
-class transform_view<_View, _Fn>::__iterator : public __transform_view_iterator_category_base<_View, _Fn> {
+class transform_view<_View, _Fn>::__iterator : public __transform_view_iterator_category_base<_View, _Fn, _Const> {
 
   using _Parent = __maybe_const<_Const, transform_view>;
   using _Base   = __maybe_const<_Const, _View>;
@@ -190,7 +190,7 @@ public:
   iterator_t<_Base> __current_ = iterator_t<_Base>();
 
   using iterator_concept = typename __transform_view_iterator_concept<_View>::type;
-  using value_type       = remove_cvref_t<invoke_result_t<_Fn&, range_reference_t<_Base>>>;
+  using value_type       = remove_cvref_t<invoke_result_t<__maybe_const<_Const, _Fn>&, range_reference_t<_Base>>>;
   using difference_type  = range_difference_t<_Base>;
 
   _LIBCPP_HIDE_FROM_ABI __iterator()
