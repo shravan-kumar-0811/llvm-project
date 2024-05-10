@@ -72,7 +72,8 @@ constexpr bool test() {
 
     using CTIter = std::ranges::iterator_t<const TView>;
     static_assert(std::same_as<typename CTIter::iterator_concept, std::random_access_iterator_tag>);
-    static_assert(std::same_as<typename CTIter::iterator_category, std::input_iterator_tag>); // Note: this is now input_iterator_tag.
+    static_assert(std::same_as<typename CTIter::iterator_category,
+                               std::input_iterator_tag>); // Note: this is now input_iterator_tag.
     static_assert(std::same_as<typename CTIter::value_type, int>);
     static_assert(std::same_as<typename CTIter::difference_type, std::ptrdiff_t>);
   }
