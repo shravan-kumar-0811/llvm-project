@@ -3232,8 +3232,9 @@ void LSRInstance::GenerateIVChain(const IVChain &Chain,
       // IncExpr was the result of subtraction of two narrow values, so must
       // be signed.
       const SCEV *IncExpr = SE.getNoopOrSignExtend(Inc.IncExpr, IntTy);
-      LeftOverExpr = LeftOverExpr ?
-        SE.getAddExpr(LeftOverExpr, IncExpr) : IncExpr;
+      LeftOverExpr = LeftOverExpr
+                         ? SE.getAddExpr(LeftOverExpr, IncExpr).getPointer()
+                         : IncExpr;
     }
     if (LeftOverExpr && !LeftOverExpr->isZero()) {
       // Expand the IV increment.
@@ -3613,7 +3614,7 @@ static const SCEV *CollectSubexprs(const SCEV *S, const SCEVConstant *C,
     for (const SCEV *S : Add->operands()) {
       const SCEV *Remainder = CollectSubexprs(S, C, Ops, L, SE, Depth+1);
       if (Remainder)
-        Ops.push_back(C ? SE.getMulExpr(C, Remainder) : Remainder);
+        Ops.push_back(C ? SE.getMulExpr(C, Remainder).getPointer() : Remainder);
     }
     return nullptr;
   } else if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S)) {
@@ -3626,7 +3627,7 @@ static const SCEV *CollectSubexprs(const SCEV *S, const SCEVConstant *C,
     // Split the non-zero AddRec unless it is part of a nested recurrence that
     // does not pertain to this loop.
     if (Remainder && (AR->getLoop() == L || !isa<SCEVAddRecExpr>(Remainder))) {
-      Ops.push_back(C ? SE.getMulExpr(C, Remainder) : Remainder);
+      Ops.push_back(C ? SE.getMulExpr(C, Remainder).getPointer() : Remainder);
       Remainder = nullptr;
     }
     if (Remainder != AR->getStart()) {
