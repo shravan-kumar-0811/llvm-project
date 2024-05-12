@@ -169,12 +169,12 @@ def note_constexpr_this : Note<
 def note_constexpr_lifetime_ended : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 %select{temporary|variable}1 whose "
+  "destruction of|read of}0 %select{temporary|variable}1 whose "
   "%plural{8:storage duration|:lifetime}0 has ended">;
 def note_constexpr_access_uninit : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|"
-  "construction of subobject of|destruction of}0 "
+  "construction of subobject of|destruction of|read of}0 "
   "%select{object outside its lifetime|uninitialized object}1 "
   "is not allowed in a constant expression">;
 def note_constexpr_use_uninit_reference : Note<
@@ -185,11 +185,11 @@ def note_constexpr_modify_const_type : Note<
   "in a constant expression">;
 def note_constexpr_access_volatile_type : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
-  "<ERROR>|<ERROR>|<ERROR>|<ERROR>}0 "
+  "<ERROR>|<ERROR>|<ERROR>|<ERROR>|read of}0 "
   "volatile-qualified type %1 is not allowed in a constant expression">;
 def note_constexpr_access_volatile_obj : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
-  "<ERROR>|<ERROR>|<ERROR>|<ERROR>}0 "
+  "<ERROR>|<ERROR>|<ERROR>|<ERROR>|read of}0 "
   "volatile %select{temporary|object %2|member %2}1 is not allowed in "
   "a constant expression">;
 def note_constexpr_volatile_here : Note<
@@ -197,7 +197,7 @@ def note_constexpr_volatile_here : Note<
 def note_constexpr_access_mutable : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 "
+  "destruction of|read of}0 "
   "mutable member %1 is not allowed in a constant expression">;
 def note_constexpr_ltor_non_const_int : Note<
   "read of non-const variable %0 is not allowed in a constant expression">;
@@ -211,24 +211,24 @@ def note_constexpr_ltor_incomplete_type : Note<
 def note_constexpr_access_null : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 "
+  "destruction of|read of}0 "
   "dereferenced null pointer is not allowed in a constant expression">;
 def note_constexpr_access_past_end : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 "
+  "destruction of|read of}0 "
   "dereferenced one-past-the-end pointer is not allowed "
   "in a constant expression">;
 def note_constexpr_access_unsized_array : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 "
+  "destruction of|read of}0 "
   "element of array without known bound "
   "is not allowed in a constant expression">;
 def note_constexpr_access_inactive_union_member : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|"
-  "construction of subobject of|destruction of}0 "
+  "construction of subobject of|destruction of|read of}0 "
   "member %1 of union with %select{active member %3|no active member}2 "
   "is not allowed in a constant expression">;
 def note_constexpr_union_member_change_during_init : Note<
@@ -237,18 +237,18 @@ def note_constexpr_union_member_change_during_init : Note<
 def note_constexpr_access_static_temporary : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|reconstruction of|"
-  "destruction of}0 temporary "
+  "destruction of|read of|read of}0 temporary "
   "is not allowed in a constant expression outside the expression that "
   "created the temporary">;
 def note_constexpr_access_unreadable_object : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 "
+  "destruction of|read of}0 "
   "object '%1' whose value is not known">;
 def note_constexpr_access_deleted_object : Note<
   "%select{read of|read of|assignment to|increment of|decrement of|"
   "member call on|dynamic_cast of|typeid applied to|construction of|"
-  "destruction of}0 "
+  "destruction of|read of}0 "
   "heap allocated object that has been deleted">;
 def note_constexpr_modify_global : Note<
   "a constant expression cannot modify an object that is visible outside "
@@ -424,6 +424,10 @@ def note_unimplemented_constexpr_lambda_feature_ast : Note<
 def warn_is_constant_evaluated_always_true_constexpr : Warning<
   "'%0' will always evaluate to 'true' in a manifestly constant-evaluated expression">,
   InGroup<DiagGroup<"constant-evaluated">>;
+
+def err_invalid_is_within_lifetime : Error<
+  "'%0' cannot be called with %select{a null pointer|a function pointer|a one-past-the-end pointer|a pointer to an object whose lifetime has not begun or has ended}1"
+>;
 
 // inline asm related.
 let CategoryName = "Inline Assembly Issue" in {
