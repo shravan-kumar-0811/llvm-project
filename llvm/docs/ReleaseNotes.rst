@@ -180,6 +180,9 @@ Changes to the C API
   * ``LLVMGetCallBrNumIndirectDests``
   * ``LLVMGetCallBrIndirectDest``
 
+* Added ``LLVMDIBuilderCreateEnumeratorOfArbitraryPrecision`` for creating
+  debugging metadata of enumerators larger than 64 bits.
+
 Changes to the CodeGen infrastructure
 -------------------------------------
 
