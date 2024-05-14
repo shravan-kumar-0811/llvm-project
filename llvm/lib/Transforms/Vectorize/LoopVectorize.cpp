@@ -5955,7 +5955,20 @@ LoopVectorizationCostModel::getTailFoldMaskCost(ElementCount VF) {
   TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput;
   TailFoldingStyle Style = getTailFoldingStyle();
   LLVMContext &Context = TheLoop->getHeader()->getContext();
-  VectorType *RetTy = VectorType::get(IntegerType::getInt1Ty(Context), VF);
+  Type *I1Ty = IntegerType::getInt1Ty(Context);
+
+  if (Style == TailFoldingStyle::DataWithEVL) {
+    Type *I32Ty = IntegerType::getInt32Ty(Context);
+    IntrinsicCostAttributes Attrs(
+        Intrinsic::experimental_get_vector_length, I32Ty,
+        {PoisonValue::get(IndTy), PoisonValue::get(I32Ty),
+         PoisonValue::get(I1Ty)});
+    MaskCost = TTI.getIntrinsicInstrCost(Attrs, CostKind);
+    MaskCost += TTI.getArithmeticInstrCost(Instruction::Sub, IndTy, CostKind);
+    return MaskCost;
+  }
+
+  VectorType *RetTy = VectorType::get(I1Ty, VF);
   if (useActiveLaneMask(Style)) {
     IntrinsicCostAttributes Attrs(
         Intrinsic::get_active_lane_mask, RetTy,

@@ -2,6 +2,10 @@
 ; RUN: opt < %s -passes=loop-vectorize -prefer-predicate-over-epilogue=predicate-else-scalar-epilogue \
 ; RUN:   -mtriple riscv64-linux-gnu -mattr=+v,+f -S -disable-output -debug-only=loop-vectorize 2>&1 | FileCheck %s
 
+; RUN: opt < %s -passes=loop-vectorize -prefer-predicate-over-epilogue=predicate-else-scalar-epilogue \
+; RUN:   -mtriple riscv64-linux-gnu -force-tail-folding-style=data-with-evl -mattr=+v,+f -S \
+; RUN:   -disable-output -debug-only=loop-vectorize 2>&1 | FileCheck %s --check-prefix=EVL
+
 ; CHECK: LV: Adding cost of generating tail-fold mask for VF 1: 0
 ; CHECK: LV: Adding cost of generating tail-fold mask for VF 2: 2
 ; CHECK: LV: Adding cost of generating tail-fold mask for VF 4: 4
@@ -9,6 +13,11 @@
 ; CHECK: LV: Adding cost of generating tail-fold mask for VF vscale x 1: 2
 ; CHECK: LV: Adding cost of generating tail-fold mask for VF vscale x 2: 4
 ; CHECK: LV: Adding cost of generating tail-fold mask for VF vscale x 4: 8
+
+; EVL: LV: Adding cost of generating tail-fold mask for VF 1: 0
+; EVL: LV: Adding cost of generating tail-fold mask for VF vscale x 1: 2
+; EVL: LV: Adding cost of generating tail-fold mask for VF vscale x 2: 2
+; EVL: LV: Adding cost of generating tail-fold mask for VF vscale x 4: 2
 
 define void @simple_memset(i32 %val, ptr %ptr, i64 %n) #0 {
 entry:
