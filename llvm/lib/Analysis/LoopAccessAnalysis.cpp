@@ -1621,9 +1621,8 @@ bool llvm::sortPtrAccesses(ArrayRef<Value *> VL, Type *ElemTy,
   auto Compare = llvm::less_first();
   std::set<DistOrdPair, decltype(Compare)> Offsets(Compare);
   Offsets.emplace(0, 0);
-  int Cnt = 1;
   bool IsConsecutive = true;
-  for (auto *Ptr : VL.drop_front()) {
+  for (auto [Idx, Ptr] : drop_begin(enumerate(VL))) {
     std::optional<int> Diff = getPointersDiff(ElemTy, Ptr0, ElemTy, Ptr, DL, SE,
                                               /*StrictCheck=*/true);
     if (!Diff)
@@ -1631,22 +1630,18 @@ bool llvm::sortPtrAccesses(ArrayRef<Value *> VL, Type *ElemTy,
 
     // Check if the pointer with the same offset is found.
     int64_t Offset = *Diff;
-    auto Res = Offsets.emplace(Offset, Cnt);
-    if (!Res.second)
+    auto [It, IsInserted] = Offsets.emplace(Offset, Idx);
+    if (!IsInserted)
       return false;
     // Consecutive order if the inserted element is the last one.
-    IsConsecutive = IsConsecutive && std::next(Res.first) == Offsets.end();
-    ++Cnt;
+    IsConsecutive &= std::next(It) == Offsets.end();
   }
   SortedIndices.clear();
   if (!IsConsecutive) {
     // Fill SortedIndices array only if it is non-consecutive.
     SortedIndices.resize(VL.size());
-    Cnt = 0;
-    for (const std::pair<int64_t, int> &Pair : Offsets) {
-      SortedIndices[Cnt] = Pair.second;
-      ++Cnt;
-    }
+    for (auto [Idx, Off] : enumerate(Offsets))
+      SortedIndices[Idx] = Off.second;
   }
   return true;
 }
@@ -1991,9 +1986,6 @@ getDependenceDistanceStrideAndSize(
     return MemoryDepChecker::Dependence::Unknown;
   }
 
-  if (!isa<SCEVConstant, SCEVCouldNotCompute>(Dist))
-    Dist = SE.applyLoopGuards(Dist, InnermostLoop);
-
   uint64_t TypeByteSize = DL.getTypeAllocSize(ATy);
   bool HasSameSize =
       DL.getTypeStoreSizeInBits(ATy) == DL.getTypeStoreSizeInBits(BTy);
@@ -2019,7 +2011,7 @@ MemoryDepChecker::Dependence::DepType MemoryDepChecker::isDependent(
   if (std::holds_alternative<Dependence::DepType>(Res))
     return std::get<Dependence::DepType>(Res);
 
-  const auto &[Dist, StrideA, StrideB, TypeByteSize, AIsWrite, BIsWrite] =
+  auto &[Dist, StrideA, StrideB, TypeByteSize, AIsWrite, BIsWrite] =
       std::get<DepDistanceStrideAndSizeInfo>(Res);
   bool HasSameSize = TypeByteSize > 0;
 
@@ -2062,7 +2054,8 @@ MemoryDepChecker::Dependence::DepType MemoryDepChecker::isDependent(
       LLVM_DEBUG(dbgs() << "LAA: Strided accesses are independent\n");
       return Dependence::NoDep;
     }
-  }
+  } else
+    Dist = SE.applyLoopGuards(Dist, InnermostLoop);
 
   // Negative distances are not plausible dependencies.
   if (SE.isKnownNonPositive(Dist)) {
@@ -2641,7 +2634,7 @@ void LoopAccessInfo::analyzeLoop(AAResults *AA, LoopInfo *LI,
                                SymbolicStrides, UncomputablePtr, false);
   if (!CanDoRTIfNeeded) {
     auto *I = dyn_cast_or_null<Instruction>(UncomputablePtr);
-    recordAnalysis("CantIdentifyArrayBounds", I) 
+    recordAnalysis("CantIdentifyArrayBounds", I)
         << "cannot identify array bounds";
     LLVM_DEBUG(dbgs() << "LAA: We can't vectorize because we can't find "
                       << "the array bounds.\n");
