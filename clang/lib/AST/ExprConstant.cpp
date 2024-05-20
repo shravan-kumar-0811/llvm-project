@@ -1507,7 +1507,8 @@ CallStackFrame::~CallStackFrame() {
 }
 
 static bool isRead(AccessKinds AK) {
-  return AK == AK_Read || AK == AK_ReadObjectRepresentation || AK == AK_IsWithinLifetime;
+  return AK == AK_Read || AK == AK_ReadObjectRepresentation ||
+         AK == AK_IsWithinLifetime;
 }
 
 static bool isModification(AccessKinds AK) {
@@ -1535,7 +1536,8 @@ static bool isAnyAccess(AccessKinds AK) {
 
 /// Is this an access per the C++ definition?
 static bool isFormalAccess(AccessKinds AK) {
-  return isAnyAccess(AK) && AK != AK_Construct && AK != AK_Destroy && AK != AK_IsWithinLifetime;
+  return isAnyAccess(AK) && AK != AK_Construct && AK != AK_Destroy &&
+         AK != AK_IsWithinLifetime;
 }
 
 /// Is this kind of axcess valid on an indeterminate object value?
@@ -3655,7 +3657,8 @@ struct CompleteObject {
     // In C++14 onwards, it is permitted to read a mutable member whose
     // lifetime began within the evaluation.
     // FIXME: Should we also allow this in C++11?
-    if (!Info.getLangOpts().CPlusPlus14 && AK != AccessKinds::AK_IsWithinLifetime)
+    if (!Info.getLangOpts().CPlusPlus14 &&
+        AK != AccessKinds::AK_IsWithinLifetime)
       return false;
     return lifetimeStartedInEvaluation(Info, Base, /*MutableSubobject*/true);
   }
@@ -4093,7 +4096,7 @@ static CompleteObject findCompleteObject(EvalInfo &Info, const Expr *E,
     // started in the current evaluation.
     BaseVal = Info.EvaluatingDeclValue;
     if (AK == AccessKinds::AK_IsWithinLifetime)
-      return CompleteObject();  // Not within lifetime
+      return CompleteObject(); // Not within lifetime
   } else if (const ValueDecl *D = LVal.Base.dyn_cast<const ValueDecl *>()) {
     // Allow reading from a GUID declaration.
     if (auto *GD = dyn_cast<MSGuidDecl>(D)) {
@@ -11508,7 +11511,8 @@ public:
 
   bool ZeroInitialization(const Expr *E) { return Success(0, E); }
 
-  friend std::optional<bool> EvaluateBuiltinIsWithinLifetime(IntExprEvaluator &, const CallExpr *);
+  friend std::optional<bool> EvaluateBuiltinIsWithinLifetime(IntExprEvaluator &,
+                                                             const CallExpr *);
 
   //===--------------------------------------------------------------------===//
   //                            Visitor Methods
@@ -17030,56 +17034,70 @@ bool Expr::tryEvaluateStrLen(uint64_t &Result, ASTContext &Ctx) const {
 }
 
 namespace {
-  struct IsWithinLifetimeHandler {
-    EvalInfo &Info;
-    static constexpr AccessKinds AccessKind = AccessKinds::AK_IsWithinLifetime;
-    using result_type = std::optional<bool>;
-    std::optional<bool> failed() { return std::nullopt; }
-    template<typename T>
-    std::optional<bool> found(T &Subobj, QualType SubobjType) {
-      return true;
-    }
-  };
-
-  std::optional<bool> EvaluateBuiltinIsWithinLifetime(IntExprEvaluator &IEE, const CallExpr *E) {
-    EvalInfo& Info = IEE.Info;
-    //assert(Info.InConstantContext && "Call to consteval builtin not in constant context?");
-    assert(E->getBuiltinCallee() == Builtin::BI__builtin_is_within_lifetime);
-    const Expr *Arg = E->getArg(0);
-    if (Arg->isValueDependent())
-      return std::nullopt;
-    LValue Val;
-    if (!EvaluatePointer(Arg, Val, Info))
-      return std::nullopt;
-
-    auto Error = [&](int Diag) {
-      const auto *Callee = Info.CurrentCall->getCallee();
-      bool CalledFromStd = Callee && Callee->isInStdNamespace() && Callee->getIdentifier() && Callee->getIdentifier()->isStr("is_within_lifetime");
-      Info.report(CalledFromStd ? Info.CurrentCall->getCallRange().getBegin() : E->getExprLoc(), diag::err_invalid_is_within_lifetime)
-          << (CalledFromStd ? "std::is_within_lifetime" : "__builtin_is_within_lifetime") << Diag;
-      return std::nullopt;
-    };
-    // C++2c [meta.const.eval]p4:
-    //   During the evaluation of an expression E as a core constant expression, a call to this function is ill-formed unless p points to an object that is usable in constant expressions or whose complete object's lifetime began within E.
-
-    // Make sure it points to an object
-    // nullptr does not point to an object
-    if (Val.isNullPointer() || Val.getLValueBase().isNull())
-      return Error(0);
-    QualType T = Val.getLValueBase().getType();
-    if (T->isFunctionType())
-      return Error(1);
-    assert(T->isObjectType());
-    // Hypothetical array element is not an object
-    if (Val.getLValueDesignator().isOnePastTheEnd())
-      return Error(2);
-    assert(Val.getLValueDesignator().isValidSubobject() && "Unchecked case for valid subobject");
-    // All other ill-formed values should have failed EvaluatePointer, so the object should be a pointer to an object
-    // that is usable in a constant expression or whose complete lifetime began within the expression
-    CompleteObject CO = findCompleteObject(Info, E, AccessKinds::AK_IsWithinLifetime, Val, T);
-    if (!CO)
-      return false;
-    IsWithinLifetimeHandler handler{ Info };
-    return findSubobject(Info, E, CO, Val.getLValueDesignator(), handler);
+struct IsWithinLifetimeHandler {
+  EvalInfo &Info;
+  static constexpr AccessKinds AccessKind = AccessKinds::AK_IsWithinLifetime;
+  using result_type = std::optional<bool>;
+  std::optional<bool> failed() { return std::nullopt; }
+  template <typename T>
+  std::optional<bool> found(T &Subobj, QualType SubobjType) {
+    return true;
   }
+};
+
+std::optional<bool> EvaluateBuiltinIsWithinLifetime(IntExprEvaluator &IEE,
+                                                    const CallExpr *E) {
+  EvalInfo &Info = IEE.Info;
+  // assert(Info.InConstantContext && "Call to consteval builtin not in constant
+  // context?");
+  assert(E->getBuiltinCallee() == Builtin::BI__builtin_is_within_lifetime);
+  const Expr *Arg = E->getArg(0);
+  if (Arg->isValueDependent())
+    return std::nullopt;
+  LValue Val;
+  if (!EvaluatePointer(Arg, Val, Info))
+    return std::nullopt;
+
+  auto Error = [&](int Diag) {
+    const auto *Callee = Info.CurrentCall->getCallee();
+    bool CalledFromStd = Callee && Callee->isInStdNamespace() &&
+                         Callee->getIdentifier() &&
+                         Callee->getIdentifier()->isStr("is_within_lifetime");
+    Info.report(CalledFromStd ? Info.CurrentCall->getCallRange().getBegin()
+                              : E->getExprLoc(),
+                diag::err_invalid_is_within_lifetime)
+        << (CalledFromStd ? "std::is_within_lifetime"
+                          : "__builtin_is_within_lifetime")
+        << Diag;
+    return std::nullopt;
+  };
+  // C++2c [meta.const.eval]p4:
+  //   During the evaluation of an expression E as a core constant expression, a
+  //   call to this function is ill-formed unless p points to an object that is
+  //   usable in constant expressions or whose complete object's lifetime began
+  //   within E.
+
+  // Make sure it points to an object
+  // nullptr does not point to an object
+  if (Val.isNullPointer() || Val.getLValueBase().isNull())
+    return Error(0);
+  QualType T = Val.getLValueBase().getType();
+  if (T->isFunctionType())
+    return Error(1);
+  assert(T->isObjectType());
+  // Hypothetical array element is not an object
+  if (Val.getLValueDesignator().isOnePastTheEnd())
+    return Error(2);
+  assert(Val.getLValueDesignator().isValidSubobject() &&
+         "Unchecked case for valid subobject");
+  // All other ill-formed values should have failed EvaluatePointer, so the
+  // object should be a pointer to an object that is usable in a constant
+  // expression or whose complete lifetime began within the expression
+  CompleteObject CO =
+      findCompleteObject(Info, E, AccessKinds::AK_IsWithinLifetime, Val, T);
+  if (!CO)
+    return false;
+  IsWithinLifetimeHandler handler{Info};
+  return findSubobject(Info, E, CO, Val.getLValueDesignator(), handler);
 }
+} // namespace
