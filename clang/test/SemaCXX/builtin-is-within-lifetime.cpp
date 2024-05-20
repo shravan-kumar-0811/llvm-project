@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -std=c++2c -verify %s -fcxx-exceptions -Wno-unused -triple=x86_64-linux-gnu
+// RUN: %clang_cc1 -std=c++20 -Wno-unused %s -verify=expected,cxx20
+// RUN: %clang_cc1 -std=c++23 -Wno-unused %s -verify=expected
+// RUN: %clang_cc1 -std=c++2c -Wno-unused %s -verify=expected
 
 inline void* operator new(__SIZE_TYPE__, void* p) noexcept { return p; }
 namespace std {
@@ -11,27 +13,8 @@ struct allocator {
   constexpr T* allocate(__SIZE_TYPE__ n) { return static_cast<T*>(::operator new(n * sizeof(T))); }
   constexpr void deallocate(T* p, __SIZE_TYPE__) { ::operator delete(p); }
 };
+using nullptr_t = decltype(nullptr);
 }
-
-constexpr void check_immediate() {
-  if consteval {
-    if (false) __builtin_is_within_lifetime(static_cast<int*>(nullptr));
-  }
-}
-auto* not_escalated = &check_immediate;
-
-template<typename T>
-constexpr bool check_immediate2() { // #check_immediate2
-  T i{};
-  if (false)
-    __builtin_is_within_lifetime(&i); // #check_immediate2-call
-  return true;
-}
-static_assert(check_immediate2<int>());
-auto* escalated = &check_immediate2<int>;
-// expected-error@-1 {{cannot take address of immediate function 'check_immediate2<int>' outside of an immediate invocation}}
-//   expected-note@#check_immediate2 {{declared here}}
-//   expected-note@#check_immediate2-call {{'check_immediate2<int>' is an immediate function because its body contains a call to a consteval function '__builtin_is_within_lifetime' and that call is not a constant expression}}
 
 consteval bool test_union(int& i, char& c) {
   if (__builtin_is_within_lifetime(&i) || __builtin_is_within_lifetime(&c))
@@ -101,10 +84,70 @@ consteval bool test_dynamic() {
 }
 static_assert(test_dynamic());
 
+consteval bool test_automatic() {
+  int* p;
+  {
+    int x = 0;
+    p = &x;
+    if (!__builtin_is_within_lifetime(p))
+      return false;
+  }
+  {
+    int x = 0;
+    if (__builtin_is_within_lifetime(p))
+      return false;
+  }
+  if (__builtin_is_within_lifetime(p))
+    return false;
+  {
+    int x[4];
+    p = &x[2];
+    if (!__builtin_is_within_lifetime(p))
+      return false;
+  }
+  if (__builtin_is_within_lifetime(p))
+    return false;
+  std::nullptr_t* q;
+  {
+    std::nullptr_t np = nullptr;
+    q = &np;
+    if (!__builtin_is_within_lifetime(q))
+      return false;
+  }
+  if (__builtin_is_within_lifetime(q))
+    return false;
+  return true;
+}
+static_assert(test_automatic());
+
+consteval bool test_indeterminate() {
+  int x;
+  if (!__builtin_is_within_lifetime(&x))
+    return false;
+  bool b = true;
+  unsigned char c = __builtin_bit_cast(unsigned char, b);
+  if (!__builtin_is_within_lifetime(&c))
+    return false;
+  struct {} padding;
+  unsigned char y = __builtin_bit_cast(unsigned char, padding);
+  if (!__builtin_is_within_lifetime(&y))
+    return false;
+  return true;
+}
+static_assert(test_indeterminate());
+
+consteval bool test_volatile() {
+  int x;
+  if (!__builtin_is_within_lifetime(static_cast<volatile int*>(&x)) || !__builtin_is_within_lifetime(static_cast<volatile void*>(&x)))
+    return false;
+  volatile int y;
+  if (!__builtin_is_within_lifetime(const_cast<int*>(&y)) || !__builtin_is_within_lifetime(const_cast<void*>(static_cast<volatile void*>(&y))))
+    return false;
+  return true;
+}
+static_assert(test_volatile());
+
 constexpr bool self = __builtin_is_within_lifetime(&self);
-// expected-error@-1 {{call to consteval function '__builtin_is_within_lifetime' is not a constant expression}}
-//   expected-note@-2 {{initializer of 'self' is unknown}}
-//   expected-note@-3 {{declared here}}
 constexpr int external{};
 static_assert(__builtin_is_within_lifetime(&external));
 bool not_constexpr() {
@@ -192,7 +235,7 @@ struct OptBool {
   constexpr OptBool(bool b) : b(b) { }
 
   constexpr auto has_value() const -> bool {
-    if consteval {
+    if consteval {  // cxx20-warning {{consteval if}}
       return __builtin_is_within_lifetime(&b);   // during constant evaluation, cannot read from c
     } else {
       return c != 2;                        // during runtime, must read from c
