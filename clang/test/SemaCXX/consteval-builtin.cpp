@@ -58,4 +58,18 @@ constexpr void f3() {
   __builtin_is_within_lifetime(&i1);
 }
 void(&fp3)() = f3;
+
+constexpr void f4() {
+  &__builtin_is_within_lifetime;
+// cxx20-cxx26-error@-1 {{builtin functions must be directly called}}
+// cxx20-cxx26-error@-2 {{cannot take address of consteval function '__builtin_is_within_lifetime' outside of an immediate invocation}}
+  __builtin_is_within_lifetime();
+// cxx20-cxx26-error@-1 {{too few arguments to function call, expected 1, have 0}}
+// cxx20-cxx26-error@-2 {{cannot take address of consteval function '__builtin_is_within_lifetime' outside of an immediate invocation}}
+  int* not_constexpr;
+  __builtin_is_within_lifetime(not_constexpr);
+// cxx20-cxx26-error@-1 {{call to consteval function '__builtin_is_within_lifetime' is not a constant expression}}
+//   cxx20-cxx26-note@-2 {{read of non-constexpr variable 'not_constexpr' is not allowed in a constant expression}}
+//   cxx20-cxx26-note@-4 {{declared here}}
+}
 #endif

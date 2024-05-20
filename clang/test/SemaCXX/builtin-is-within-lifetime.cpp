@@ -150,9 +150,27 @@ static_assert(test_volatile());
 constexpr bool self = __builtin_is_within_lifetime(&self);
 constexpr int external{};
 static_assert(__builtin_is_within_lifetime(&external));
-bool not_constexpr() {
-    return __builtin_is_within_lifetime(&external);
+void not_constexpr() {
+  __builtin_is_within_lifetime(&external);
 }
+void invalid_args() {
+  __builtin_is_within_lifetime(static_cast<int*>(nullptr));
+// expected-error@-1 {{'__builtin_is_within_lifetime' cannot be called with a null pointer}}
+// expected-error@-2 {{call to consteval function '__builtin_is_within_lifetime' is not a constant expression}}
+  __builtin_is_within_lifetime(0);
+// expected-error@-1 {{non-pointer argument to '__builtin_is_within_lifetime' is not allowed}}
+// expected-error@-2 {{cannot take address of consteval function '__builtin_is_within_lifetime' outside of an immediate invocation}}
+  __builtin_is_within_lifetime();
+// expected-error@-1 {{too few arguments to function call, expected 1, have 0}}
+// expected-error@-2 {{cannot take address of consteval function '__builtin_is_within_lifetime' outside of an immediate invocation}}
+  __builtin_is_within_lifetime(1, 2);
+// expected-error@-1 {{too many arguments to function call, expected 1, have 2}}
+// expected-error@-2 {{cannot take address of consteval function '__builtin_is_within_lifetime' outside of an immediate invocation}}
+  __builtin_is_within_lifetime(&external, &external);
+// expected-error@-1 {{too many arguments to function call, expected 1, have 2}}
+// expected-error@-2 {{cannot take address of consteval function '__builtin_is_within_lifetime' outside of an immediate invocation}}
+}
+
 constexpr struct {
   union {
     int i;
