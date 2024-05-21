@@ -343,21 +343,23 @@ void GCNRPTracker::reset(const MachineInstr &MI,
   MaxPressure = CurPressure = getRegPressure(*MRI, LiveRegs);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// GCNUpwardRPTracker
-
-void GCNUpwardRPTracker::reset(const MachineRegisterInfo &MRI_,
-                               const LiveRegSet &LiveRegs_) {
+void GCNRPTracker::reset(const MachineRegisterInfo &MRI_,
+                         const LiveRegSet &LiveRegs_) {
   MRI = &MRI_;
   LiveRegs = LiveRegs_;
   LastTrackedMI = nullptr;
   MaxPressure = CurPressure = getRegPressure(MRI_, LiveRegs_);
 }
 
-void GCNUpwardRPTracker::recede(const MachineInstr &MI) {
+////////////////////////////////////////////////////////////////////////////////
+// GCNUpwardRPTracker
+
+void GCNUpwardRPTracker::recede(const MachineInstr &MI,
+                                bool UseInternalIterator) {
   assert(MRI && "call reset first");
 
-  LastTrackedMI = &MI;
+  if (UseInternalIterator)
+    LastTrackedMI = &MI;
 
   if (MI.isDebugInstr())
     return;
@@ -430,28 +432,44 @@ bool GCNDownwardRPTracker::reset(const MachineInstr &MI,
   return true;
 }
 
-bool GCNDownwardRPTracker::advanceBeforeNext() {
+bool GCNDownwardRPTracker::advanceBeforeNext(MachineInstr *MI,
+                                             bool UseInternalIterator,
+                                             LiveIntervals *TheLIS) {
   assert(MRI && "call reset first");
-  if (!LastTrackedMI)
-    return NextMI == MBBEnd;
+  SlotIndex SI;
+  LiveIntervals *CurrLIS;
+  MachineInstr *CurrMI;
+  if (UseInternalIterator) {
+    if (!LastTrackedMI)
+      return NextMI == MBBEnd;
 
-  assert(NextMI == MBBEnd || !NextMI->isDebugInstr());
+    assert(NextMI == MBBEnd || !NextMI->isDebugInstr());
+    CurrLIS = const_cast<LiveIntervals *>(&LIS);
+    CurrMI = const_cast<MachineInstr *>(LastTrackedMI);
 
-  SlotIndex SI = NextMI == MBBEnd
-                     ? LIS.getInstructionIndex(*LastTrackedMI).getDeadSlot()
-                     : LIS.getInstructionIndex(*NextMI).getBaseIndex();
+    SI = NextMI == MBBEnd
+             ? CurrLIS->getInstructionIndex(*LastTrackedMI).getDeadSlot()
+             : CurrLIS->getInstructionIndex(*NextMI).getBaseIndex();
+  } else { //! UseInternalIterator
+    CurrLIS = TheLIS;
+    SI = CurrLIS->getInstructionIndex(*MI).getBaseIndex();
+    CurrMI = MI;
+  }
+
   assert(SI.isValid());
 
   // Remove dead registers or mask bits.
   SmallSet<Register, 8> SeenRegs;
-  for (auto &MO : LastTrackedMI->operands()) {
+  for (auto &MO : CurrMI->operands()) {
     if (!MO.isReg() || !MO.getReg().isVirtual())
       continue;
     if (MO.isUse() && !MO.readsReg())
       continue;
+    if (!UseInternalIterator && MO.isDef())
+      continue;
     if (!SeenRegs.insert(MO.getReg()).second)
       continue;
-    const LiveInterval &LI = LIS.getInterval(MO.getReg());
+    const LiveInterval &LI = CurrLIS->getInterval(MO.getReg());
     if (LI.hasSubRanges()) {
       auto It = LiveRegs.end();
       for (const auto &S : LI.subranges()) {
@@ -481,15 +499,21 @@ bool GCNDownwardRPTracker::advanceBeforeNext() {
 
   LastTrackedMI = nullptr;
 
-  return NextMI == MBBEnd;
+  return UseInternalIterator && (NextMI == MBBEnd);
 }
 
-void GCNDownwardRPTracker::advanceToNext() {
-  LastTrackedMI = &*NextMI++;
-  NextMI = skipDebugInstructionsForward(NextMI, MBBEnd);
+void GCNDownwardRPTracker::advanceToNext(MachineInstr *MI,
+                                         bool UseInternalIterator) {
+  if (UseInternalIterator) {
+    LastTrackedMI = &*NextMI++;
+    NextMI = skipDebugInstructionsForward(NextMI, MBBEnd);
+  }
+
+  MachineInstr *CurrMI =
+      UseInternalIterator ? const_cast<MachineInstr *>(LastTrackedMI) : MI;
 
   // Add new registers or mask bits.
-  for (const auto &MO : LastTrackedMI->all_defs()) {
+  for (const auto &MO : CurrMI->all_defs()) {
     Register Reg = MO.getReg();
     if (!Reg.isVirtual())
       continue;
@@ -502,11 +526,12 @@ void GCNDownwardRPTracker::advanceToNext() {
   MaxPressure = max(MaxPressure, CurPressure);
 }
 
-bool GCNDownwardRPTracker::advance() {
-  if (NextMI == MBBEnd)
+bool GCNDownwardRPTracker::advance(MachineInstr *MI, bool UseInternalIterator,
+                                   LiveIntervals *TheLIS) {
+  if (UseInternalIterator && NextMI == MBBEnd)
     return false;
-  advanceBeforeNext();
-  advanceToNext();
+  advanceBeforeNext(MI, UseInternalIterator, TheLIS);
+  advanceToNext(MI, UseInternalIterator);
   return true;
 }
 
