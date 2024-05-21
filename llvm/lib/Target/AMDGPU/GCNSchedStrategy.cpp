@@ -58,6 +58,11 @@ static cl::opt<bool>
                         "Wave Limited (amdgpu-limit-wave-threshold)."),
                cl::init(false));
 
+static cl::opt<bool> GCNTrackers(
+    "amdgpu-use-amdgpu-trackers", cl::Hidden,
+    cl::desc("Use the AMDGPU specific RPTrackers during scheduling"),
+    cl::init(false));
+
 const unsigned ScheduleMetrics::ScaleFactor = 100;
 
 GCNSchedStrategy::GCNSchedStrategy(const MachineSchedContext *C)
@@ -571,7 +576,8 @@ GCNScheduleDAGMILive::GCNScheduleDAGMILive(
     MachineSchedContext *C, std::unique_ptr<MachineSchedStrategy> S)
     : ScheduleDAGMILive(C, std::move(S)), ST(MF.getSubtarget<GCNSubtarget>()),
       MFI(*MF.getInfo<SIMachineFunctionInfo>()),
-      StartingOccupancy(MFI.getOccupancy()), MinOccupancy(StartingOccupancy) {
+      StartingOccupancy(MFI.getOccupancy()), MinOccupancy(StartingOccupancy),
+      RegionLiveOuts(this, /*IsLiveOut=*/true) {
 
   LLVM_DEBUG(dbgs() << "Starting occupancy is " << StartingOccupancy << ".\n");
   if (RelaxedOcc) {
@@ -611,6 +617,14 @@ GCNScheduleDAGMILive::getRealRegPressure(unsigned RegionIdx) const {
   GCNDownwardRPTracker RPTracker(*LIS);
   RPTracker.advance(begin(), end(), &LiveIns[RegionIdx]);
   return RPTracker.moveMaxPressure();
+}
+
+static MachineInstr *getLastMIForRegion(MachineBasicBlock::iterator RegionBegin,
+                                        MachineBasicBlock::iterator RegionEnd) {
+  auto REnd = RegionEnd == RegionBegin->getParent()->end()
+                  ? std::prev(RegionEnd)
+                  : RegionEnd;
+  return &*skipDebugInstructionsBackward(REnd, RegionBegin);
 }
 
 void GCNScheduleDAGMILive::computeBlockPressure(unsigned RegionIdx,
@@ -700,7 +714,31 @@ GCNScheduleDAGMILive::getBBLiveInMap() const {
       ++I;
     } while (I != E && I->first->getParent() == BB);
   } while (I != E);
-  return getLiveRegMap(BBStarters, false /*After*/, *LIS);
+  return getLiveRegMap(BBStarters, /*After=*/false, *LIS);
+}
+
+DenseMap<MachineInstr *, GCNRPTracker::LiveRegSet>
+GCNScheduleDAGMILive::getBBLiveOutMap() const {
+  assert(!Regions.empty());
+  std::vector<MachineInstr *> BBEnders;
+  BBEnders.reserve(Regions.size());
+  for (auto &[RegionBegin, RegionEnd] : reverse(Regions))
+    BBEnders.push_back(getLastMIForRegion(RegionBegin, RegionEnd));
+
+  return getLiveRegMap(BBEnders, /*After= */ true, *LIS);
+}
+
+void RegionPressureMap::buildLiveRegMap() {
+  IdxToInstruction.clear();
+
+  BBLiveRegMap = IsLiveOut ? DAG->getBBLiveOutMap() : DAG->getBBLiveInMap();
+  for (unsigned I = 0; I < DAG->Regions.size(); I++) {
+    MachineInstr *RegionKey =
+        IsLiveOut
+            ? getLastMIForRegion(DAG->Regions[I].first, DAG->Regions[I].second)
+            : &*DAG->Regions[I].first;
+    IdxToInstruction[I] = RegionKey;
+  }
 }
 
 void GCNScheduleDAGMILive::finalizeSchedule() {
@@ -726,8 +764,11 @@ void GCNScheduleDAGMILive::finalizeSchedule() {
 void GCNScheduleDAGMILive::runSchedStages() {
   LLVM_DEBUG(dbgs() << "All regions recorded, starting actual scheduling.\n");
 
-  if (!Regions.empty())
+  if (!Regions.empty()) {
     BBLiveInMap = getBBLiveInMap();
+    if (GCNTrackers)
+      RegionLiveOuts.buildLiveRegMap();
+  }
 
   GCNSchedStrategy &S = static_cast<GCNSchedStrategy &>(*SchedImpl);
   while (S.advanceStage()) {
