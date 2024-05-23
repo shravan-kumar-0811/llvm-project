@@ -206,6 +206,9 @@
 // - `array`.
 // #define _LIBCPP_ABI_BOUNDED_ITERATORS
 
+// Tracks the bounds of the array owned by std::unique_ptr<T[]>, allowing it to trap when accessed out-of-bounds.
+// #define _LIBCPP_ABI_BOUNDED_UNIQUE_PTR
+
 // } ABI
 
 // HARDENING {

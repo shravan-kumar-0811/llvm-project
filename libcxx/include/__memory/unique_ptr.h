@@ -39,6 +39,7 @@
 #include <__type_traits/type_identity.h>
 #include <__utility/forward.h>
 #include <__utility/move.h>
+#include <__utility/private_constructor_tag.h>
 #include <cstddef>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
@@ -301,6 +302,21 @@ public:
 
 private:
   __compressed_pair<pointer, deleter_type> __ptr_;
+#ifdef _LIBCPP_ABI_BOUNDED_UNIQUE_PTR
+  // Under the "bounded unique_ptr" ABI, we store the size of the allocation when it is known.
+  // The size of the allocation can be known when unique_ptr is created via make_unique or a
+  // similar API, however it can't be known when constructed with e.g.
+  //
+  //    unique_ptr<T[]> ptr(new T[3]);
+  //
+  // In that case, we don't know the size of the allocation from within the unique_ptr.
+  // Semantically, we'd need to store `optional<size_t>`. However, since that is really
+  // heavy weight, we instead store a size_t and use 0 as a magic value meaning that we
+  // don't know the size. This means that we can't catch OOB accesses inside a unique_ptr
+  // with a 0-sized allocation, however since this is a degenerate case, it doesn't matter
+  // in practice.
+  size_t __size_ = 0;
+#endif
 
   template <class _From>
   struct _CheckArrayPointerConversion : is_same<_From, pointer> {};
@@ -397,6 +413,18 @@ public:
   _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 unique_ptr(unique_ptr&& __u) _NOEXCEPT
       : __ptr_(__u.release(), std::forward<deleter_type>(__u.get_deleter())) {}
 
+  // Constructor used by make_unique & friends to pass the size that was allocated
+  template <class _Ptr>
+  _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 explicit unique_ptr(
+      __private_constructor_tag, _Ptr __ptr, size_t __size) _NOEXCEPT
+      : __ptr_(__ptr, __value_init_tag())
+#ifdef _LIBCPP_ABI_BOUNDED_UNIQUE_PTR
+      ,
+        __size_(__size)
+#endif
+  {
+  }
+
   _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 unique_ptr& operator=(unique_ptr&& __u) _NOEXCEPT {
     reset(__u.release());
     __ptr_.second() = std::forward<deleter_type>(__u.get_deleter());
@@ -434,6 +462,10 @@ public:
   }
 
   _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 __add_lvalue_reference_t<_Tp> operator[](size_t __i) const {
+#ifdef _LIBCPP_ABI_BOUNDED_UNIQUE_PTR
+    _LIBCPP_ASSERT_VALID_ELEMENT_ACCESS(
+        __size_ == 0 || __i < __size_, "unique_ptr<T[]>::operator[](index): index out of range");
+#endif
     return __ptr_.first()[__i];
   }
   _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 pointer get() const _NOEXCEPT { return __ptr_.first(); }
@@ -624,7 +656,7 @@ template <class _Tp>
 inline _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 typename __unique_if<_Tp>::__unique_array_unknown_bound
 make_unique(size_t __n) {
   typedef __remove_extent_t<_Tp> _Up;
-  return unique_ptr<_Tp>(new _Up[__n]());
+  return unique_ptr<_Tp>(__private_constructor_tag(), new _Up[__n](), __n);
 }
 
 template <class _Tp, class... _Args>
@@ -643,7 +675,7 @@ make_unique_for_overwrite() {
 template <class _Tp>
 _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR_SINCE_CXX23 typename __unique_if<_Tp>::__unique_array_unknown_bound
 make_unique_for_overwrite(size_t __n) {
-  return unique_ptr<_Tp>(new __remove_extent_t<_Tp>[__n]);
+  return unique_ptr<_Tp>(__private_constructor_tag(), new __remove_extent_t<_Tp>[__n], __n);
 }
 
 template <class _Tp, class... _Args>
