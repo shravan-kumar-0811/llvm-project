@@ -10,7 +10,9 @@
 #define MLIR_TABLEGEN_GENINFO_H_
 
 #include "mlir/Support/LLVM.h"
+
 #include "llvm/ADT/StringRef.h"
+
 #include <functional>
 #include <utility>
 
