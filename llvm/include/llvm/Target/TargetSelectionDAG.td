@@ -318,7 +318,7 @@ def SDTAtomicStore : SDTypeProfile<0, 2, [
   SDTCisInt<0>, SDTCisPtrTy<1>
 ]>;
 def SDTAtomicLoad : SDTypeProfile<1, 1, [
-  SDTCisInt<0>, SDTCisPtrTy<1>
+  SDTCisPtrTy<1>
 ]>;
 
 class SDCallSeqStart<list<SDTypeConstraint> constraints> :
@@ -789,6 +789,16 @@ def assertsext : SDNode<"ISD::AssertSext", SDT_assert>;
 def assertzext : SDNode<"ISD::AssertZext", SDT_assert>;
 def assertalign : SDNode<"ISD::AssertAlign", SDT_assert>;
 
+def convergencectrl_anchor : SDNode<"ISD::CONVERGENCECTRL_ANCHOR",
+                                    SDTypeProfile<1, 0, [SDTCisVT<0,untyped>]>>;
+def convergencectrl_entry  : SDNode<"ISD::CONVERGENCECTRL_ENTRY",
+                                    SDTypeProfile<1, 0, [SDTCisVT<0,untyped>]>>;
+def convergencectrl_loop   : SDNode<"ISD::CONVERGENCECTRL_LOOP",
+                                    SDTypeProfile<1, 1,
+                                      [SDTCisVT<0,untyped>, SDTCisVT<1,untyped>]>>;
+def convergencectrl_glue   : SDNode<"ISD::CONVERGENCECTRL_GLUE",
+                                    SDTypeProfile<0, 1, [SDTCisVT<0, untyped>]>>;
+
 //===----------------------------------------------------------------------===//
 // Selection DAG Condition Codes
 
@@ -874,6 +884,9 @@ class PatFrags<dag ops, list<dag> frags, code pred = [{}],
   // If set to true, a predicate is added that checks for the absence of use of
   // the first result.
   bit HasNoUse = ?;
+  // If set to true, a predicate is added that checks for the sole use of
+  // the first result.
+  bit HasOneUse = ?;
 
   // Is the desired pre-packaged predicate for a load?
   bit IsLoad = ?;
@@ -1969,6 +1982,7 @@ class Pattern<dag patternToMatch, list<dag> resultInstrs> {
   list<dag>       ResultInstrs    = resultInstrs;
   list<Predicate> Predicates      = [];  // See class Instruction in Target.td.
   int             AddedComplexity = 0;   // See class Instruction in Target.td.
+  bit           GISelShouldIgnore = 0;
 }
 
 // Pat - A simple (but common) form of a pattern, which produces a simple result

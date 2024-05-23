@@ -276,7 +276,6 @@ SerializeGPUModuleBase::assembleIsa(StringRef isa) {
       target->createMCRegInfo(targetTriple));
   std::unique_ptr<llvm::MCAsmInfo> mai(
       target->createMCAsmInfo(*mri, targetTriple, mcOptions));
-  mai->setRelaxELFRelocations(true);
   std::unique_ptr<llvm::MCSubtargetInfo> sti(
       target->createMCSubtargetInfo(targetTriple, chip, features));
 
@@ -300,7 +299,6 @@ SerializeGPUModuleBase::assembleIsa(StringRef isa) {
       mab->createObjectWriter(os), std::unique_ptr<llvm::MCCodeEmitter>(ce),
       *sti, mcOptions.MCRelaxAll, mcOptions.MCIncrementalLinkerCompatible,
       /*DWARFMustBeAtTheEnd*/ false));
-  mcStreamer->setUseAssemblerInfoForParsing(true);
 
   std::unique_ptr<llvm::MCAsmParser> parser(
       createMCAsmParser(srcMgr, ctx, *mcStreamer, *mai));
