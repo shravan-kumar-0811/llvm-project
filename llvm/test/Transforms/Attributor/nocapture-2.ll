@@ -612,14 +612,14 @@ entry:
 define ptr @not_captured_by_readonly_call_not_returned_either1(ptr %b, ptr returned %r) {
 ; TUNIT: Function Attrs: nosync nounwind memory(read)
 ; TUNIT-LABEL: define ptr @not_captured_by_readonly_call_not_returned_either1
-; TUNIT-SAME: (ptr nocapture readonly [[B:%.*]], ptr nocapture readonly returned [[R:%.*]]) #[[ATTR8:[0-9]+]] {
+; TUNIT-SAME: (ptr nocapture readonly [[B:%.*]], ptr readonly returned [[R:%.*]]) #[[ATTR8:[0-9]+]] {
 ; TUNIT-NEXT:  entry:
 ; TUNIT-NEXT:    [[CALL:%.*]] = call ptr @readonly_unknown(ptr readonly [[B]], ptr readonly [[R]]) #[[ATTR8]]
 ; TUNIT-NEXT:    ret ptr [[CALL]]
 ;
 ; CGSCC: Function Attrs: nosync nounwind memory(read)
 ; CGSCC-LABEL: define ptr @not_captured_by_readonly_call_not_returned_either1
-; CGSCC-SAME: (ptr nocapture readonly [[B:%.*]], ptr nocapture readonly returned [[R:%.*]]) #[[ATTR9:[0-9]+]] {
+; CGSCC-SAME: (ptr nocapture readonly [[B:%.*]], ptr readonly returned [[R:%.*]]) #[[ATTR9:[0-9]+]] {
 ; CGSCC-NEXT:  entry:
 ; CGSCC-NEXT:    [[CALL:%.*]] = call ptr @readonly_unknown(ptr readonly [[B]], ptr readonly [[R]]) #[[ATTR9]]
 ; CGSCC-NEXT:    ret ptr [[CALL]]
@@ -633,14 +633,14 @@ declare ptr @readonly_unknown_r1a(ptr, ptr returned) readonly
 define ptr @not_captured_by_readonly_call_not_returned_either2(ptr %b, ptr %r) {
 ; TUNIT: Function Attrs: nosync nounwind memory(read)
 ; TUNIT-LABEL: define ptr @not_captured_by_readonly_call_not_returned_either2
-; TUNIT-SAME: (ptr nocapture readonly [[B:%.*]], ptr nocapture readonly [[R:%.*]]) #[[ATTR8]] {
+; TUNIT-SAME: (ptr readonly [[B:%.*]], ptr readonly [[R:%.*]]) #[[ATTR8]] {
 ; TUNIT-NEXT:  entry:
 ; TUNIT-NEXT:    [[CALL:%.*]] = call ptr @readonly_unknown_r1a(ptr readonly [[B]], ptr readonly [[R]]) #[[ATTR8]]
 ; TUNIT-NEXT:    ret ptr [[CALL]]
 ;
 ; CGSCC: Function Attrs: nosync nounwind memory(read)
 ; CGSCC-LABEL: define ptr @not_captured_by_readonly_call_not_returned_either2
-; CGSCC-SAME: (ptr nocapture readonly [[B:%.*]], ptr nocapture readonly [[R:%.*]]) #[[ATTR9]] {
+; CGSCC-SAME: (ptr readonly [[B:%.*]], ptr readonly [[R:%.*]]) #[[ATTR9]] {
 ; CGSCC-NEXT:  entry:
 ; CGSCC-NEXT:    [[CALL:%.*]] = call ptr @readonly_unknown_r1a(ptr readonly [[B]], ptr readonly [[R]]) #[[ATTR9]]
 ; CGSCC-NEXT:    ret ptr [[CALL]]
@@ -654,14 +654,14 @@ declare ptr @readonly_unknown_r1b(ptr, ptr returned) readonly nounwind
 define ptr @not_captured_by_readonly_call_not_returned_either3(ptr %b, ptr %r) {
 ; TUNIT: Function Attrs: nosync nounwind memory(read)
 ; TUNIT-LABEL: define ptr @not_captured_by_readonly_call_not_returned_either3
-; TUNIT-SAME: (ptr nocapture readonly [[B:%.*]], ptr nocapture readonly [[R:%.*]]) #[[ATTR8]] {
+; TUNIT-SAME: (ptr nocapture readonly [[B:%.*]], ptr readonly [[R:%.*]]) #[[ATTR8]] {
 ; TUNIT-NEXT:  entry:
 ; TUNIT-NEXT:    [[CALL:%.*]] = call ptr @readonly_unknown_r1b(ptr nocapture readonly [[B]], ptr readonly [[R]]) #[[ATTR8]]
 ; TUNIT-NEXT:    ret ptr [[CALL]]
 ;
 ; CGSCC: Function Attrs: nosync nounwind memory(read)
 ; CGSCC-LABEL: define ptr @not_captured_by_readonly_call_not_returned_either3
-; CGSCC-SAME: (ptr nocapture readonly [[B:%.*]], ptr nocapture readonly [[R:%.*]]) #[[ATTR9]] {
+; CGSCC-SAME: (ptr nocapture readonly [[B:%.*]], ptr readonly [[R:%.*]]) #[[ATTR9]] {
 ; CGSCC-NEXT:  entry:
 ; CGSCC-NEXT:    [[CALL:%.*]] = call ptr @readonly_unknown_r1b(ptr nocapture readonly [[B]], ptr readonly [[R]]) #[[ATTR9]]
 ; CGSCC-NEXT:    ret ptr [[CALL]]

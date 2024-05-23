@@ -186,7 +186,7 @@ define ptr @lookup_bit(ptr %q, i32 %bitno) readnone nounwind {
 define i1 @c7(ptr %q, i32 %bitno) {
 ; TUNIT: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read)
 ; TUNIT-LABEL: define {{[^@]+}}@c7
-; TUNIT-SAME: (ptr nocapture nofree readonly [[Q:%.*]], i32 [[BITNO:%.*]]) #[[ATTR2]] {
+; TUNIT-SAME: (ptr nofree readonly [[Q:%.*]], i32 [[BITNO:%.*]]) #[[ATTR2]] {
 ; TUNIT-NEXT:    [[PTR:%.*]] = call ptr @lookup_bit(ptr noalias nofree readnone [[Q]], i32 [[BITNO]]) #[[ATTR18:[0-9]+]]
 ; TUNIT-NEXT:    [[VAL:%.*]] = load i1, ptr [[PTR]], align 1
 ; TUNIT-NEXT:    ret i1 [[VAL]]
@@ -792,14 +792,14 @@ entry:
 define ptr @test_returned2(ptr %A, ptr %B) {
 ; TUNIT: Function Attrs: nosync nounwind memory(read)
 ; TUNIT-LABEL: define {{[^@]+}}@test_returned2
-; TUNIT-SAME: (ptr nocapture readonly [[A:%.*]], ptr nocapture readonly [[B:%.*]]) #[[ATTR12]] {
+; TUNIT-SAME: (ptr readonly [[A:%.*]], ptr readonly [[B:%.*]]) #[[ATTR12]] {
 ; TUNIT-NEXT:  entry:
 ; TUNIT-NEXT:    [[P:%.*]] = call ptr @unknownpi8pi8(ptr readonly [[A]], ptr readonly [[B]]) #[[ATTR12]]
 ; TUNIT-NEXT:    ret ptr [[P]]
 ;
 ; CGSCC: Function Attrs: nosync nounwind memory(read)
 ; CGSCC-LABEL: define {{[^@]+}}@test_returned2
-; CGSCC-SAME: (ptr nocapture readonly [[A:%.*]], ptr nocapture readonly [[B:%.*]]) #[[ATTR15]] {
+; CGSCC-SAME: (ptr readonly [[A:%.*]], ptr readonly [[B:%.*]]) #[[ATTR15]] {
 ; CGSCC-NEXT:  entry:
 ; CGSCC-NEXT:    [[P:%.*]] = call ptr @unknownpi8pi8(ptr readonly [[A]], ptr readonly [[B]]) #[[ATTR15]]
 ; CGSCC-NEXT:    ret ptr [[P]]
