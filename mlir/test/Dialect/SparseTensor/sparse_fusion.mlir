@@ -25,7 +25,7 @@
 // CHECK-DAG:       %[[VAL_9:.*]] = sparse_tensor.positions %[[VAL_0]] {level = 0 : index} : tensor<100xf64, #sparse> to memref<?xindex>
 // CHECK-DAG:       %[[VAL_10:.*]] = sparse_tensor.coordinates %[[VAL_0]] {level = 0 : index} : tensor<100xf64, #sparse> to memref<?xindex>
 // CHECK-DAG:       %[[VAL_11:.*]] = sparse_tensor.values %[[VAL_0]] : tensor<100xf64, #sparse> to memref<?xf64>
-// CHECK-DAG:       %[[VAL_12:.*]] = bufferization.to_memref %[[VAL_8]] : memref<100xf64>
+// CHECK-DAG:       %[[VAL_12:.*]] = bufferization.to_memref %[[VAL_8]] :
 // CHECK:           linalg.fill ins(%[[VAL_4]] : f64) outs(%[[VAL_12]] : memref<100xf64>)
 // CHECK:           %[[VAL_13:.*]] = memref.load %[[VAL_9]]{{\[}}%[[VAL_3]]] : memref<?xindex>
 // CHECK:           %[[VAL_14:.*]] = memref.load %[[VAL_9]]{{\[}}%[[VAL_2]]] : memref<?xindex>
@@ -57,7 +57,7 @@
 // CHECK:           scf.for %[[VAL_31:.*]] = %[[VAL_32:.*]]#1 to %[[VAL_5]] step %[[VAL_2]] {
 // CHECK:             memref.store %[[VAL_7]], %[[VAL_12]]{{\[}}%[[VAL_31]]] : memref<100xf64>
 // CHECK:           }
-// CHECK:           %[[VAL_33:.*]] = bufferization.to_tensor %[[VAL_12]] : memref<100xf64>
+// CHECK:           %[[VAL_33:.*]] = bufferization.to_tensor %[[VAL_12]] :
 // CHECK:           return %[[VAL_33]] : tensor<100xf64>
 // CHECK:         }
 func.func @sparse_fusion(%argA: tensor<100xf64, #SV>) -> tensor<100xf64> {
