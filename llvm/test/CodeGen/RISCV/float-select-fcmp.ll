@@ -451,3 +451,21 @@ define signext i32 @select_fcmp_uge_1_2(float %a, float %b) nounwind {
   %2 = select i1 %1, i32 1, i32 2
   ret i32 %2
 }
+
+; Test from PR93414
+; Make sure that we don't use fmin.s here to handle signed zero correctly.
+define float @select_fcmp_olt_pos_zero(float %x) {
+; CHECK-LABEL: select_fcmp_olt_pos_zero:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    fmv.w.x fa5, zero
+; CHECK-NEXT:    fmin.s fa0, fa0, fa5
+; CHECK-NEXT:    ret
+;
+; CHECKZFINX-LABEL: select_fcmp_olt_pos_zero:
+; CHECKZFINX:       # %bb.0:
+; CHECKZFINX-NEXT:    fmin.s a0, a0, zero
+; CHECKZFINX-NEXT:    ret
+  %cmp = fcmp olt float %x, 0.000000
+  %sel = select i1 %cmp, float %x, float 0.000000
+  ret float %sel
+}
