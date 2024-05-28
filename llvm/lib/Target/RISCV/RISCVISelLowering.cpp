@@ -20269,12 +20269,8 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
       }
       if (VT == MVT::f32 || VT == MVT::Other)
         return std::make_pair(FReg, &RISCV::FPR32RegClass);
-      if (Subtarget.hasStdExtZfhmin() && VT == MVT::f16) {
-        unsigned RegNo = FReg - RISCV::F0_F;
-        unsigned HReg = RISCV::F0_H + RegNo;
-        return std::make_pair(HReg, &RISCV::FPR16RegClass);
-      }
-      if (Subtarget.hasStdExtZfbfmin() && VT == MVT::bf16){
+      if ((Subtarget.hasStdExtZfhmin() && VT == MVT::f16) ||
+          (Subtarget.hasStdExtZfbfmin() && VT == MVT::bf16)) {
         unsigned RegNo = FReg - RISCV::F0_F;
         unsigned HReg = RISCV::F0_H + RegNo;
         return std::make_pair(HReg, &RISCV::FPR16RegClass);
@@ -20958,7 +20954,7 @@ bool RISCVTargetLowering::splitValueIntoRegisterParts(
   // Since the inline asm only use the first type in the RegisterClass, the bf16
   // inline asm would choose the f16 from FPR16RegClass for doing the copy, and
   // we correct the behavior here to avoid generating wrong SelectionDAG.
-  if (ValueVT == MVT::bf16 && PartVT == MVT::f16){
+  if (ValueVT == MVT::bf16 && PartVT == MVT::f16) {
     Parts[0] = Val;
     return true;
   }
