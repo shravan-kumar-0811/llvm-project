@@ -8077,10 +8077,10 @@ static bool verifyValidIntegerConstantExpr(Sema &S, const ParsedAttr &Attr,
 /// match one of the standard Neon vector types.
 static void HandleNeonVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
                                      Sema &S, VectorKind VecKind) {
-  bool IsTargetCUDAAndHostARM = false;
-  if (S.getLangOpts().CUDAIsDevice) {
+  bool IsTargetDeviceAndHostARM = false;
+  if (S.getLangOpts().CUDAIsDevice || S.getLangOpts().SYCLIsDevice) {
     const TargetInfo *AuxTI = S.getASTContext().getAuxTargetInfo();
-    IsTargetCUDAAndHostARM =
+    IsTargetDeviceAndHostARM =
         AuxTI && (AuxTI->getTriple().isAArch64() || AuxTI->getTriple().isARM());
   }
 
@@ -8090,7 +8090,7 @@ static void HandleNeonVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
         S.Context.getTargetInfo().hasFeature("mve") ||
         S.Context.getTargetInfo().hasFeature("sve") ||
         S.Context.getTargetInfo().hasFeature("sme") ||
-        IsTargetCUDAAndHostARM) &&
+        IsTargetDeviceAndHostARM) &&
       VecKind == VectorKind::Neon) {
     S.Diag(Attr.getLoc(), diag::err_attribute_unsupported)
         << Attr << "'neon', 'mve', 'sve' or 'sme'";
@@ -8099,7 +8099,7 @@ static void HandleNeonVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
   }
   if (!(S.Context.getTargetInfo().hasFeature("neon") ||
         S.Context.getTargetInfo().hasFeature("mve") ||
-        IsTargetCUDAAndHostARM) &&
+        IsTargetDeviceAndHostARM) &&
       VecKind == VectorKind::NeonPoly) {
     S.Diag(Attr.getLoc(), diag::err_attribute_unsupported)
         << Attr << "'neon' or 'mve'";
@@ -8121,7 +8121,7 @@ static void HandleNeonVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
 
   // Only certain element types are supported for Neon vectors.
   if (!isPermittedNeonBaseType(CurType, VecKind, S) &&
-      !IsTargetCUDAAndHostARM) {
+      !IsTargetDeviceAndHostARM) {
     S.Diag(Attr.getLoc(), diag::err_attribute_invalid_vector_type) << CurType;
     Attr.setInvalid();
     return;
