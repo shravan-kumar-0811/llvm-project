@@ -54,6 +54,7 @@ Implemented Papers
 - P2713R1 - Escaping improvements in ``std::format``
 - P2231R1 - Missing ``constexpr`` in ``std::optional`` and ``std::variant``
 - P0019R8 - ``std::atomic_ref``
+- P0288R9 - ``move_only_function``
 
 Improvements and New Features
 -----------------------------

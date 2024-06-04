@@ -136,6 +136,7 @@
 #include <mdspan>
 #include <memory>
 #include <memory_resource>
+#include <module.modulemap.in>
 #include <mutex>
 #include <new>
 #include <numbers>
