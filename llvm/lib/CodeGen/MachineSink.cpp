@@ -820,7 +820,7 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
     if (!ProcessedBegin)
       --I;
 
-    if (MI.isDebugOrPseudoInstr()) {
+    if (MI.isDebugOrPseudoInstr() || MI.isFakeUse()) {
       if (MI.isDebugValue())
         ProcessDbgInst(MI);
       continue;
