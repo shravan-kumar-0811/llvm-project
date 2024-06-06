@@ -544,8 +544,7 @@ struct SalvageDebugInfoTest : ::testing::Test {
     const auto &CI = *cast<ConstantInt>(DI.getVariableLocationOp(0));
     if (CI.isZero())
       return DI.getExpression()->getElements().equals(
-          {dwarf::DW_OP_plus_uconst, 1, dwarf::DW_OP_plus_uconst, 2,
-           dwarf::DW_OP_stack_value});
+          {dwarf::DW_OP_plus_uconst, 3, dwarf::DW_OP_stack_value});
     else if (CI.isOneValue())
       return DI.getExpression()->getElements().equals(
           {dwarf::DW_OP_plus_uconst, 2, dwarf::DW_OP_stack_value});
@@ -1149,7 +1148,7 @@ TEST(Local, SimplifyCFGWithNullAC) {
   // Obtain BasicBlock of interest to this test, %test.bb.
   BasicBlock *TestBB = nullptr;
   for (BasicBlock &BB : F) {
-    if (BB.getName().equals("test.bb")) {
+    if (BB.getName() == "test.bb") {
       TestBB = &BB;
       break;
     }

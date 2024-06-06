@@ -3504,7 +3504,7 @@ Differences between ``*17`` and ``*23`` modes:
 - ``nullptr`` and ``nullptr_t`` are supported, only in ``*23`` mode.
 - ``ATOMIC_VAR_INIT`` is removed from ``*23`` mode.
 - ``bool``, ``true``, ``false``, ``alignas``, ``alignof``, ``static_assert``,
-  and ``thread_local` are now first-class keywords, only in ``*23`` mode.
+  and ``thread_local`` are now first-class keywords, only in ``*23`` mode.
 - ``typeof`` and ``typeof_unqual`` are supported, only ``*23`` mode.
 - Bit-precise integers (``_BitInt(N)``) are supported by default in ``*23``
   mode, and as an extension in ``*17`` and earlier modes.
@@ -4430,9 +4430,9 @@ To generate SPIR-V binaries, Clang uses the external ``llvm-spirv`` tool from th
 Prior to the generation of SPIR-V binary with Clang, ``llvm-spirv``
 should be built or installed. Please refer to `the following instructions
 <https://github.com/KhronosGroup/SPIRV-LLVM-Translator#build-instructions>`_
-for more details. Clang will expect the ``llvm-spirv`` executable to
-be present in the ``PATH`` environment variable. Clang uses ``llvm-spirv``
-with `the widely adopted assembly syntax package
+for more details. Clang will look for ``llvm-spirv-<LLVM-major-version>`` and
+``llvm-spirv`` executables, in this order, in the ``PATH`` environment variable.
+Clang uses ``llvm-spirv`` with `the widely adopted assembly syntax package
 <https://github.com/KhronosGroup/SPIRV-LLVM-Translator/#build-with-spirv-tools>`_.
 
 `The versioning

@@ -82,6 +82,7 @@
 #include "llvm/CodeGen/ExpandLargeDivRem.h"
 #include "llvm/CodeGen/ExpandLargeFpConvert.h"
 #include "llvm/CodeGen/ExpandMemCmp.h"
+#include "llvm/CodeGen/FinalizeISel.h"
 #include "llvm/CodeGen/GCMetadata.h"
 #include "llvm/CodeGen/GlobalMerge.h"
 #include "llvm/CodeGen/HardwareLoops.h"
@@ -89,10 +90,13 @@
 #include "llvm/CodeGen/InterleavedAccess.h"
 #include "llvm/CodeGen/InterleavedLoadCombine.h"
 #include "llvm/CodeGen/JMCInstrumenter.h"
+#include "llvm/CodeGen/LocalStackSlotAllocation.h"
 #include "llvm/CodeGen/LowerEmuTLS.h"
 #include "llvm/CodeGen/MIRPrinter.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/MachinePassManager.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/PreISelIntrinsicLowering.h"
 #include "llvm/CodeGen/SafeStack.h"
 #include "llvm/CodeGen/SelectOptimize.h"
 #include "llvm/CodeGen/ShadowStackGCLowering.h"
@@ -175,6 +179,7 @@
 #include "llvm/Transforms/Instrumentation/LowerAllowCheckPass.h"
 #include "llvm/Transforms/Instrumentation/MemProfiler.h"
 #include "llvm/Transforms/Instrumentation/MemorySanitizer.h"
+#include "llvm/Transforms/Instrumentation/PGOCtxProfLowering.h"
 #include "llvm/Transforms/Instrumentation/PGOForceFunctionAttrs.h"
 #include "llvm/Transforms/Instrumentation/PGOInstrumentation.h"
 #include "llvm/Transforms/Instrumentation/PoisonChecking.h"
@@ -360,6 +365,14 @@ public:
     BasicBlock &BB = F.getEntryBlock();
     new UnreachableInst(F.getContext(), BB.getTerminator()->getIterator());
     return PreservedAnalyses::none();
+  }
+
+  PreservedAnalyses run(MachineFunction &MF, MachineFunctionAnalysisManager &) {
+    // Intentionally create a virtual register and set NoVRegs property.
+    auto &MRI = MF.getRegInfo();
+    MRI.createGenericVirtualRegister(LLT::scalar(8));
+    MF.getProperties().set(MachineFunctionProperties::Property::NoVRegs);
+    return PreservedAnalyses::all();
   }
 
   static StringRef name() { return "TriggerVerifierErrorPass"; }
@@ -1129,6 +1142,24 @@ Expected<GlobalMergeOptions> parseGlobalMergeOptions(StringRef Params) {
     }
   }
   return Result;
+}
+
+Expected<SmallVector<std::string, 0>> parseInternalizeGVs(StringRef Params) {
+  SmallVector<std::string, 1> PreservedGVs;
+  while (!Params.empty()) {
+    StringRef ParamName;
+    std::tie(ParamName, Params) = Params.split(';');
+
+    if (ParamName.consume_front("preserve-gv=")) {
+      PreservedGVs.push_back(ParamName.str());
+    } else {
+      return make_error<StringError>(
+          formatv("invalid Internalize pass parameter '{0}' ", ParamName).str(),
+          inconvertibleErrorCode());
+    }
+  }
+
+  return Expected<SmallVector<std::string, 0>>(std::move(PreservedGVs));
 }
 
 } // namespace

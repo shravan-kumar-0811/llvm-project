@@ -32,8 +32,14 @@ EvalEmitter::~EvalEmitter() {
   }
 }
 
+/// Clean up all our resources. This needs to done in failed evaluations before
+/// we call InterpStack::clear(), because there might be a Pointer on the stack
+/// pointing into a Block in the EvalEmitter.
+void EvalEmitter::cleanup() { S.cleanup(); }
+
 EvaluationResult EvalEmitter::interpretExpr(const Expr *E,
                                             bool ConvertResultToRValue) {
+  S.setEvalLocation(E->getExprLoc());
   this->ConvertResultToRValue = ConvertResultToRValue;
   EvalResult.setSource(E);
 
