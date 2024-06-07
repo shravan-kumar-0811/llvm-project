@@ -479,6 +479,12 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     // FIXME: Need to promote bf16 FCOPYSIGN to f32, but the
     // DAGCombiner::visitFP_ROUND probably needs improvements first.
     setOperationAction(ISD::FCOPYSIGN, MVT::bf16, Expand);
+
+    // To fold (bf16 bitcast (copyfromreg f16)) -> (copyfromreg bf16), we have
+    // to legalize the f16 CopyFromReg for avoiding SoftPromoteHalf.
+    setOperationAction(ISD::CopyFromReg, MVT::f16, Legal);
+    // Fold the (bf16 bitcast (copyfromreg f16)) -> (copyfromreg bf16).
+    setTargetDAGCombine(ISD::BITCAST);
   }
 
   if (Subtarget.hasStdExtZfhminOrZhinxmin()) {
@@ -17088,10 +17094,30 @@ SDValue RISCVTargetLowering::PerformDAGCombine(SDNode *N,
     }
   }
   case ISD::BITCAST: {
-    assert(Subtarget.useRVVForFixedLengthVectors());
+    assert(Subtarget.useRVVForFixedLengthVectors() ||
+           Subtarget.hasStdExtZfbfmin());
     SDValue N0 = N->getOperand(0);
     EVT VT = N->getValueType(0);
     EVT SrcVT = N0.getValueType();
+
+    // Fold the (bf16 bitcast (copyfromreg f16)) -> (copyfromreg bf16).
+    if (SrcVT == MVT::f16 && VT == MVT::bf16) {
+      if (N0.getOpcode() == ISD::CopyFromReg) {
+        SDValue F16CopyFromReg = N0->getOperand(1);
+        Register BFReg = cast<RegisterSDNode>(F16CopyFromReg)->getReg();
+        SDValue Chain = N0->getOperand(0);
+        SDValue NewCopy;
+        if (F16CopyFromReg.getNumOperands() == 3) {
+          SDValue Glue = N0->getOperand(2);
+          NewCopy = DAG.getCopyFromReg(Chain, DL, BFReg, MVT::bf16, Glue);
+        } else {
+          NewCopy = DAG.getCopyFromReg(Chain, DL, BFReg, MVT::bf16);
+        }
+        DAG.ReplaceAllUsesOfValueWith(N0.getValue(1), NewCopy.getValue(1));
+        return NewCopy;
+      }
+      return SDValue();
+    }
     // If this is a bitcast between a MVT::v4i1/v2i1/v1i1 and an illegal integer
     // type, widen both sides to avoid a trip through memory.
     if ((SrcVT == MVT::v1i1 || SrcVT == MVT::v2i1 || SrcVT == MVT::v4i1) &&
