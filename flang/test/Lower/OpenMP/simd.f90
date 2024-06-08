@@ -182,3 +182,30 @@ subroutine simd_with_collapse_clause(n)
   end do
   !$OMP END SIMD
 end subroutine
+
+!CHECK: func.func @_QPlastprivate_with_simd() {
+subroutine lastprivate_with_simd
+
+!CHECK: %[[VAR_SUM:.*]] = fir.alloca f32 {bindc_name = "sum", uniq_name = "_QFlastprivate_with_simdEsum"}
+!CHECK: %[[VAR_SUM_DECLARE:.*]]:2 = hlfir.declare %[[VAR_SUM]] {{.*}}
+!CHECK: %[[VAR_SUM_PINNED:.*]] = fir.alloca f32 {bindc_name = "sum", pinned, uniq_name = "_QFlastprivate_with_simdEsum"}
+!CHECK: %[[VAR_SUM_PINNED_DECLARE:.*]]:2 = hlfir.declare %[[VAR_SUM_PINNED]] {{.*}}
+  implicit none
+  integer :: i
+  real :: sum
+
+!CHECK: omp.simd {
+!CHECK: omp.loop_nest (%[[ARG:.*]]) : i32 = ({{.*}} to ({{.*}}) inclusive step ({{.*}}) {
+!CHECK: %[[ADD_RESULT:.*]] = arith.addi {{.*}}
+!CHECK: %[[ADD_RESULT_CONVERT:.*]] = fir.convert %[[ADD_RESULT]] : (i32) -> f32
+!CHECK: hlfir.assign %[[ADD_RESULT_CONVERT]] to %[[VAR_SUM_PINNED_DECLARE]]#0 : f32, !fir.ref<f32> 
+  !$omp simd lastprivate(sum)
+  do i = 1, 100
+     sum = i + 1
+  end do
+!CHECK: %[[SELECT_RESULT:.*]] = arith.select {{.*}}, {{.*}}, {{.*}} : i1
+!CHECK: fir.if %[[SELECT_RESULT]] {
+!CHECK: %[[LOADED_SUM:.*]] = fir.load %[[VAR_SUM_PINNED_DECLARE]]#0 : !fir.ref<f32>
+!CHECK: hlfir.assign %[[LOADED_SUM]] to %[[VAR_SUM_DECLARE]]#0 temporary_lhs : f32, !fir.ref<f32>
+!CHECK: }
+end subroutine
