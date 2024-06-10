@@ -160,10 +160,10 @@ New checks
   Replaces nested ``std::min`` and ``std::max`` calls with an initializer list
   where applicable.
 
-- New :doc:`cppcoreguidelines-avoid-bounds-errors
-  <clang-tidy/checks/cppcoreguidelines/avoid-bounds-errors>` check.
+- New :doc:`cppcoreguidelines-prefer-at-over-subscript-operator
+  <clang-tidy/checks/cppcoreguidelines/prefer-at-over-subscript-operator>` check.
 
-  Flags the unsafe ``operator[]`` and replaces it with ``at()``.
+  Flags the unsafe ``operator[]`` and suggests replacing it with ``at()``.
 
 - New :doc:`modernize-use-designated-initializers
   <clang-tidy/checks/modernize/use-designated-initializers>` check.
