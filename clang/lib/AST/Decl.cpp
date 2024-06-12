@@ -687,6 +687,9 @@ LinkageComputer::getLVForNamespaceScopeDecl(const NamedDecl *D,
         (!Func || !isFirstInExternCContext(Func)))
       return LinkageInfo::internal();
   }
+  if (Context.getLangOpts().HLSL) {
+      return LinkageInfo::internal();
+  }
 
   // Set up the defaults.
 

@@ -361,10 +361,12 @@ void CGHLSLRuntime::emitFunctionProlog(const FunctionDecl *FD,
   if (FD->hasAttr<HLSLShaderAttr>()) {
     emitEntryFunction(FD, Fn);
   } else {
-    // HLSL functions defined in the current translation unit that are not
-    // shader entry points or exported have internal linkage by default.
-    if (FD->isDefined())
-      Fn->setLinkage(GlobalValue::InternalLinkage);
+    // HLSL functions declared in the current translation unit without
+    // body have external linkage by default.
+    if (!FD->isDefined())
+      Fn->setLinkage(GlobalValue::ExternalLinkage);
+
+    // FIXME: also set external linkage on exported functions
   }
 }
 
@@ -384,6 +386,7 @@ void CGHLSLRuntime::emitEntryFunction(const FunctionDecl *FD,
   setHLSLEntryAttributes(FD, EntryFn);
 
   // Set the called function as internal linkage.
+  assert(Fn->getLinkage());
   Fn->setLinkage(GlobalValue::InternalLinkage);
 
   BasicBlock *BB = BasicBlock::Create(Ctx, "entry", EntryFn);
