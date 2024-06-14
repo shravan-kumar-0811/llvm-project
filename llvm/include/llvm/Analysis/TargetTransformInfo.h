@@ -1248,6 +1248,8 @@ public:
   /// \return if target want to issue a prefetch in address space \p AS.
   bool shouldPrefetchAddressSpace(unsigned AS) const;
 
+  bool isPartialReductionSupported(const Instruction* ReductionInstr, Type* InputType, unsigned ScaleFactor, bool IsInputASignExtended, bool IsInputBSignExtended, const Instruction* BinOp = nullptr) const;
+    
   /// \return The maximum interleave factor that any transform should try to
   /// perform for this target. This number depends on the level of parallelism
   /// and the number of execution units in the CPU.
@@ -1527,10 +1529,6 @@ public:
       unsigned Opcode, bool IsUnsigned, Type *ResTy, VectorType *Ty,
       FastMathFlags FMF,
       TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput) const;
-
-  InstructionCost getPartialReductionCost(
-    unsigned Opcode, bool IsUnsigned, VectorType *ResTy, VectorType *Ty,
-    FastMathFlags FMF, TargetCostKind CostKind = TCK_RecipThroughput) const;
 
   /// \returns The cost of Intrinsic instructions. Analyses the real arguments.
   /// Three cases are handled: 1. scalar instruction 2. vector instruction
@@ -2028,6 +2026,11 @@ public:
   /// \return if target want to issue a prefetch in address space \p AS.
   virtual bool shouldPrefetchAddressSpace(unsigned AS) const = 0;
 
+  virtual bool isPartialReductionSupported(const Instruction* ReductionInstr,
+      Type* InputType, unsigned ScaleFactor,
+      bool IsInputASignExtended, bool IsInputBSignExtended,
+      const Instruction* BinOp = nullptr) const = 0;
+    
   virtual unsigned getMaxInterleaveFactor(ElementCount VF) = 0;
   virtual InstructionCost getArithmeticInstrCost(
       unsigned Opcode, Type *Ty, TTI::TargetCostKind CostKind,
@@ -2109,9 +2112,6 @@ public:
       unsigned Opcode, bool IsUnsigned, Type *ResTy, VectorType *Ty,
       FastMathFlags FMF,
       TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput) = 0;
-  virtual InstructionCost getPartialReductionCost(
-      unsigned Opcode, bool IsUnsigned, VectorType *ResTy, VectorType *Ty,
-      FastMathFlags FMF, TargetCostKind CostKind = TCK_RecipThroughput) = 0;
   virtual InstructionCost getMulAccReductionCost(
       bool IsUnsigned, Type *ResTy, VectorType *Ty,
       TTI::TargetCostKind CostKind = TTI::TCK_RecipThroughput) = 0;
@@ -2663,6 +2663,13 @@ public:
     return Impl.shouldPrefetchAddressSpace(AS);
   }
 
+  bool isPartialReductionSupported(const Instruction* ReductionInstr, Type* InputType, unsigned ScaleFactor,
+                                              bool IsInputASignExtended, bool IsInputBSignExtended,
+                                              const Instruction* BinOp = nullptr) const override
+  {
+      return Impl.isPartialReductionSupported(ReductionInstr, InputType, ScaleFactor, IsInputASignExtended, IsInputBSignExtended, BinOp);
+  }
+
   unsigned getMaxInterleaveFactor(ElementCount VF) override {
     return Impl.getMaxInterleaveFactor(VF);
   }
@@ -2797,12 +2804,6 @@ public:
                            TTI::TargetCostKind CostKind) override {
     return Impl.getExtendedReductionCost(Opcode, IsUnsigned, ResTy, Ty, FMF,
                                          CostKind);
-  }
-  InstructionCost getPartialReductionCost(unsigned Opcode, bool IsUnsigned,
-      VectorType *ResTy, VectorType *Ty, FastMathFlags FMF,
-      TargetCostKind CostKind = TCK_RecipThroughput) override {
-      return Impl.getPartialReductionCost(Opcode, IsUnsigned, ResTy, Ty, FMF,
-          CostKind);
   }
   InstructionCost
   getMulAccReductionCost(bool IsUnsigned, Type *ResTy, VectorType *Ty,
