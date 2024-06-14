@@ -9,6 +9,7 @@
 #include "llvm/BinaryFormat/XCOFF.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 
@@ -106,6 +107,19 @@ StringRef XCOFF::getNameForTracebackTableLanguageId(
   return "Unknown";
 }
 #undef LANG_CASE
+
+XCOFF::CFileCpuId XCOFF::getCpuID(StringRef CPU) {
+  return StringSwitch<XCOFF::CFileCpuId>(CPU)
+      .Case("pwr4", XCOFF::TCPU_PWR)
+      .Case("pwr5", XCOFF::TCPU_PWR5)
+      .Case("pwr6", XCOFF::TCPU_PWR6)
+      .Case("pwr5x", XCOFF::TCPU_PWR5X)
+      .Case("pwr7", XCOFF::TCPU_PWR7)
+      .Case("pwr8", XCOFF::TCPU_PWR8)
+      .Case("pwr9", XCOFF::TCPU_PWR9)
+      .Case("pwr10", XCOFF::TCPU_PWR10)
+      .Default(XCOFF::TCPU_PWR7);
+}
 
 Expected<SmallString<32>> XCOFF::parseParmsType(uint32_t Value,
                                                 unsigned FixedParmsNum,

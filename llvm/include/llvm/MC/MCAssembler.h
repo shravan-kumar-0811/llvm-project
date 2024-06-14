@@ -135,6 +135,8 @@ private:
   std::vector<std::pair<std::string, size_t>> FileNames;
   // Optional compiler version.
   std::string CompilerVersion;
+  // PPC CPU type.
+  StringRef CPU;
 
   MCDwarfLineTableParams LTParams;
 
@@ -489,6 +491,9 @@ public:
       CompilerVersion = std::move(CompilerVers);
   }
   StringRef getCompilerVersion() { return CompilerVersion; }
+
+  void setCPU(StringRef TargetCPU) { CPU = TargetCPU; }
+  StringRef getCPU() { return CPU; }
 
   /// Write the necessary bundle padding to \p OS.
   /// Expects a fragment \p F containing instructions and its size \p FSize.

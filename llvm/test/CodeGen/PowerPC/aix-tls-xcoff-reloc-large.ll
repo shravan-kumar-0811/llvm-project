@@ -215,7 +215,7 @@ entry:
 ; SYM-NEXT:     Value (SymbolTableIndex): 0x0
 ; SYM-NEXT:     Section: N_DEBUG
 ; SYM-NEXT:     Source Language ID: TB_CPLUSPLUS (0x9)
-; SYM-NEXT:     CPU Version ID: TCPU_COM (0x3)
+; SYM-NEXT:     CPU Version ID: TCPU_PWR (0x4)
 ; SYM-NEXT:     StorageClass: C_FILE (0x67)
 ; SYM-NEXT:     NumberOfAuxEntries: 2
 ; SYM-NEXT:     File Auxiliary Entry {

@@ -334,9 +334,20 @@ enum CFileLangId : uint8_t {
 };
 
 enum CFileCpuId : uint8_t {
-  TCPU_PPC64 = 2, ///< PowerPC common architecture 64-bit mode.
-  TCPU_COM = 3,   ///< POWER and PowerPC architecture common.
-  TCPU_970 = 19   ///< PPC970 - PowerPC 64-bit architecture.
+  TCPU_INVALID = 0, ///< Invalid id - assumes POWER for old objects.
+  TCPU_PPC = 1,     ///< PowerPC common architecture 32 bit mode.
+  TCPU_PPC64 = 2,   ///< PowerPC common architecture 64-bit mode.
+  TCPU_COM = 3,     ///< POWER and PowerPC architecture common.
+  TCPU_PWR = 4,     ///< POWER common architecture objects.
+  TCPU_PWR5 = 18,   ///< PWR5 - PowerPC 64-bit architecture.
+  TCPU_970 = 19,    ///< PPC970 - PowerPC 64-bit architecture.
+  TCPU_PWR6 = 20,   ///< PWR6 - PowerPC 64-bit architecture.
+  TCPU_PWR5X = 22,  ///< PWR5+ - PowerPC 64-bit architecture.
+  TCPU_PWR6E = 23,  ///< PWR6E - PowerPC 64-bit architecture.
+  TCPU_PWR7 = 24,   ///< PWR7 - PowerPC 64-bit architecture.
+  TCPU_PWR8 = 25,   ///< PWR8 - PowerPC 64-bit architecture.
+  TCPU_PWR9 = 26,   ///< PWR9 - PowerPC 64-bit architecture.
+  TCPU_PWR10 = 27,  ///< PWR10 - PowerPC 64-bit architecture.
 };
 
 enum SymbolAuxType : uint8_t {
@@ -468,6 +479,7 @@ enum ExtendedTBTableFlag : uint8_t {
 
 StringRef getNameForTracebackTableLanguageId(TracebackTable::LanguageID LangId);
 SmallString<32> getExtendedTBTableFlagString(uint8_t Flag);
+XCOFF::CFileCpuId getCpuID(StringRef CPU);
 
 struct CsectProperties {
   CsectProperties(StorageMappingClass SMC, SymbolType ST)

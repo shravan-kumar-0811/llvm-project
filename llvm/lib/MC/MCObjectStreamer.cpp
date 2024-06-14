@@ -902,6 +902,10 @@ void MCObjectStreamer::emitFileDirective(StringRef Filename,
   // with the integrated assembler.
 }
 
+void MCObjectStreamer::emitMachineDirective(StringRef CPU) {
+  getAssembler().setCPU(CPU);
+}
+
 void MCObjectStreamer::emitAddrsig() {
   getAssembler().getWriter().emitAddrsigSection();
 }

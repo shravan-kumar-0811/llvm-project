@@ -517,6 +517,11 @@ bool AsmPrinter::doInitialization(Module &M) {
   // On AIX, emit bytes for llvm.commandline metadata after .file so that the
   // C_INFO symbol is preserved if any csect is kept by the linker.
   if (TM.getTargetTriple().isOSBinFormatXCOFF()) {
+    // Emit .machine directive on AIX.
+    StringRef TargetCPU =
+        TM.getTargetCPU().empty() ? "pwr7" : TM.getTargetCPU();
+    OutStreamer->emitMachineDirective(TargetCPU);
+
     emitModuleCommandLines(M);
     // Now we can generate section information.
     OutStreamer->initSections(false, *TM.getMCSubtargetInfo());
