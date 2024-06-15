@@ -18,6 +18,8 @@
 
 namespace mlir {
 
+class ConversionTarget;
+
 /// This enum controls which ops are put on the worklist during a greedy
 /// pattern rewrite.
 enum class GreedyRewriteStrictness {
@@ -88,6 +90,8 @@ public:
   ///   were on the worklist at the very beginning) enqueued. All other ops are
   ///   excluded.
   GreedyRewriteStrictness strictMode = GreedyRewriteStrictness::AnyOp;
+
+  bool enableOperationDce = true;
 
   /// An optional listener that should be notified about IR modifications.
   RewriterBase::Listener *listener = nullptr;
@@ -198,6 +202,10 @@ applyOpPatternsAndFold(ArrayRef<Operation *> ops,
                        const FrozenRewritePatternSet &patterns,
                        GreedyRewriteConfig config = GreedyRewriteConfig(),
                        bool *changed = nullptr, bool *allErased = nullptr);
+
+LogicalResult
+applyPartialOneShotConversion(Operation *op, const ConversionTarget &target,
+                              const FrozenRewritePatternSet &patterns);
 
 } // namespace mlir
 
