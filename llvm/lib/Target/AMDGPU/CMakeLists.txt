@@ -142,6 +142,7 @@ add_llvm_target(AMDGPUCodeGen
   SIAnnotateControlFlow.cpp
   SIFixSGPRCopies.cpp
   SIFixVGPRCopies.cpp
+  AMDGPUFixLiveRangePreWaveRA.cpp
   SIFoldOperands.cpp
   SIFormMemoryClauses.cpp
   SIFrameLowering.cpp

@@ -85,15 +85,18 @@ public:
 };
 
 static bool onlyAllocateSGPRs(const TargetRegisterInfo &TRI,
-                              const TargetRegisterClass &RC) {
-  return static_cast<const SIRegisterInfo &>(TRI).isSGPRClass(&RC);
+                              const MachineRegisterInfo &MRI,
+                              const Register Reg) {
+  const TargetRegisterClass *RC = MRI.getRegClass(Reg);
+  return static_cast<const SIRegisterInfo &>(TRI).isSGPRClass(RC);
 }
 
 static bool onlyAllocateVGPRs(const TargetRegisterInfo &TRI,
-                              const TargetRegisterClass &RC) {
-  return !static_cast<const SIRegisterInfo &>(TRI).isSGPRClass(&RC);
+                              const MachineRegisterInfo &MRI,
+                              const Register Reg) {
+  const TargetRegisterClass *RC = MRI.getRegClass(Reg);
+  return !static_cast<const SIRegisterInfo &>(TRI).isSGPRClass(RC);
 }
-
 
 /// -{sgpr|vgpr}-regalloc=... command line option.
 static FunctionPass *useDefaultRegisterAllocator() { return nullptr; }
@@ -398,6 +401,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAMDGPUTarget() {
   initializeSILowerSGPRSpillsPass(*PR);
   initializeSIFixSGPRCopiesPass(*PR);
   initializeSIFixVGPRCopiesPass(*PR);
+  initializeAMDGPUFixLiveRangePreWaveRAPass(*PR);
   initializeSIFoldOperandsPass(*PR);
   initializeSIPeepholeSDWAPass(*PR);
   initializeSIShrinkInstructionsPass(*PR);
