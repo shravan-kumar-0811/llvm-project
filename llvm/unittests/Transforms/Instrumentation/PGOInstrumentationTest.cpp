@@ -180,7 +180,7 @@ TEST_P(PGOInstrumentationGenInstrumentTest, Instrumented) {
 
   const auto *IRInstrVar =
       M->getNamedGlobal(INSTR_PROF_QUOTE(INSTR_PROF_RAW_VERSION_VAR));
-  EXPECT_THAT(IRInstrVar, NotNull());
+  ASSERT_THAT(IRInstrVar, NotNull());
   EXPECT_FALSE(IRInstrVar->isDeclaration());
 }
 
@@ -217,7 +217,7 @@ TEST_P(PGOInstrumentationGenIgnoreTest, NotInstrumented) {
 
   const auto *IRInstrVar =
       M->getNamedGlobal(INSTR_PROF_QUOTE(INSTR_PROF_RAW_VERSION_VAR));
-  EXPECT_THAT(IRInstrVar, NotNull());
+  ASSERT_THAT(IRInstrVar, NotNull());
   EXPECT_FALSE(IRInstrVar->isDeclaration());
 }
 

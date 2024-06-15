@@ -1855,10 +1855,7 @@ static bool InstrumentAllFunctions(
     instrumentOneFunc(F, &M, TLI, BPI, BFI, ComdatMembers, IsCS);
     AnythingInstrumented = true;
   }
-  if (!AnythingInstrumented)
-    return false;
-
-  return true;
+  return AnythingInstrumented;
 }
 
 PreservedAnalyses
