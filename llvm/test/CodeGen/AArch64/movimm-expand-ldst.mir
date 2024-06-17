@@ -90,6 +90,13 @@ tracksRegLiveness: true
 body:             |
   bb.0:
     liveins: $x0
+    ; CHECK-LABEL: name: test_fold_repeating_constant_store_offset_min
+    ; CHECK: liveins: $x0
+    ; CHECK-NEXT: {{  $}}
+    ; CHECK-NEXT: renamable $x8 = MOVZXi 22136, 0
+    ; CHECK-NEXT: renamable $x8 = MOVKXi $x8, 4660, 16
+    ; CHECK-NEXT: STPWi killed renamable $w8, killed renamable $w8, killed renamable $x0, -64
+    ; CHECK-NEXT: RET undef $lr
     renamable $x8 = MOVZXi 22136, 0
     renamable $x8 = MOVKXi $x8, 4660, 16
     renamable $x8 = ORRXrs $x8, $x8, 32
@@ -102,6 +109,13 @@ tracksRegLiveness: true
 body:             |
   bb.0:
     liveins: $x0
+    ; CHECK-LABEL: name: test_fold_repeating_constant_store_offset_max
+    ; CHECK: liveins: $x0
+    ; CHECK-NEXT: {{  $}}
+    ; CHECK-NEXT: renamable $x8 = MOVZXi 22136, 0
+    ; CHECK-NEXT: renamable $x8 = MOVKXi $x8, 4660, 16
+    ; CHECK-NEXT: STPWi killed renamable $w8, killed renamable $w8, killed renamable $x0, 62
+    ; CHECK-NEXT: RET undef $lr
     renamable $x8 = MOVZXi 22136, 0
     renamable $x8 = MOVKXi $x8, 4660, 16
     renamable $x8 = ORRXrs $x8, $x8, 32
@@ -114,18 +128,34 @@ tracksRegLiveness: true
 body:             |
   bb.0:
     liveins: $x0
+    ; CHECK-LABEL: name: test_fold_repeating_constant_store_offset_min_lower
+    ; CHECK: liveins: $x0
+    ; CHECK-NEXT: {{  $}}
+    ; CHECK-NEXT: renamable $x8 = MOVZXi 22136, 0
+    ; CHECK-NEXT: renamable $x8 = MOVKXi $x8, 4660, 16
+    ; CHECK-NEXT: renamable $x8 = ORRXrs $x8, $x8, 32
+    ; CHECK-NEXT: STRXui killed renamable $x8, killed renamable $x0, -33
+    ; CHECK-NEXT: RET undef $lr
     renamable $x8 = MOVZXi 22136, 0
     renamable $x8 = MOVKXi $x8, 4660, 16
     renamable $x8 = ORRXrs $x8, $x8, 32
     STRXui killed renamable $x8, killed renamable $x0, -33
     RET undef $lr
 ...
----   
+---
 name: test_fold_repeating_constant_store_offset_max_over
 tracksRegLiveness: true
 body:             |
   bb.0:
     liveins: $x0
+    ; CHECK-LABEL: name: test_fold_repeating_constant_store_offset_max_over
+    ; CHECK: liveins: $x0
+    ; CHECK-NEXT: {{  $}}
+    ; CHECK-NEXT: renamable $x8 = MOVZXi 22136, 0
+    ; CHECK-NEXT: renamable $x8 = MOVKXi $x8, 4660, 16
+    ; CHECK-NEXT: renamable $x8 = ORRXrs $x8, $x8, 32
+    ; CHECK-NEXT: STRXui killed renamable $x8, killed renamable $x0, 32
+    ; CHECK-NEXT: RET undef $lr
     renamable $x8 = MOVZXi 22136, 0
     renamable $x8 = MOVKXi $x8, 4660, 16
     renamable $x8 = ORRXrs $x8, $x8, 32

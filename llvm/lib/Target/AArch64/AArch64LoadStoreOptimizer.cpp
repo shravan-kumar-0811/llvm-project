@@ -2315,11 +2315,12 @@ MachineBasicBlock::iterator AArch64LoadStoreOpt::doFoldSymmetryConstantLoad(
   const MachineOperand MO = AArch64InstrInfo::getLdStBaseOp(MI);
   Register DstRegW = TRI->getSubReg(BaseReg, AArch64::sub_32);
   unsigned DstRegState = getRegState(MI.getOperand(0));
+  int Offset = AArch64InstrInfo::getLdStOffsetOp(MI).getImm();
   BuildMI(*MBB, MI, MI.getDebugLoc(), TII->get(AArch64::STPWi))
       .addReg(DstRegW, DstRegState)
       .addReg(DstRegW, DstRegState)
       .addReg(MO.getReg(), getRegState(MO))
-      .add(AArch64InstrInfo::getLdStOffsetOp(MI))
+      .addImm(Offset * 2)
       .setMemRefs(MI.memoperands())
       .setMIFlags(MI.getFlags());
   I->eraseFromParent();
@@ -2335,6 +2336,19 @@ bool AArch64LoadStoreOpt::tryFoldSymmetryConstantLoad(
   MachineBasicBlock::iterator MBBI = I;
   MachineBasicBlock::iterator B = I->getParent()->begin();
   if (MBBI == B)
+    return false;
+
+  TypeSize Scale(0U, false), Width(0U, false);
+  int64_t MinOffset, MaxOffset;
+  if (!AArch64InstrInfo::getMemOpInfo(AArch64::STPWi, Scale, Width, MinOffset,
+                                      MaxOffset))
+    return false;
+
+  // We replace the STRX instruction, which stores 64 bits, with the STPW
+  // instruction, which stores two consecutive 32 bits. therefore, we compare
+  // the offset range with multiplied by two.
+  int Offset = AArch64InstrInfo::getLdStOffsetOp(MI).getImm();
+  if (Offset * 2 < MinOffset || Offset * 2 > MaxOffset)
     return false;
 
   Register BaseReg = getLdStRegOp(MI).getReg();
@@ -2675,7 +2689,8 @@ bool AArch64LoadStoreOpt::optimizeBlock(MachineBasicBlock &MBB,
   // STPWi killed renamable $w8, killed renamable $w8, killed renamable $x0, 0
   for (MachineBasicBlock::iterator MBBI = MBB.begin(), E = MBB.end();
        MBBI != E;) {
-    if (tryFoldSymmetryConstantLoad(MBBI, UpdateLimit))
+    if (isMergeableLdStUpdate(*MBBI) &&
+        tryFoldSymmetryConstantLoad(MBBI, UpdateLimit))
       Modified = true;
     else
       ++MBBI;
