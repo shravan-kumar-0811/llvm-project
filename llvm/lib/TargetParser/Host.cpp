@@ -1924,7 +1924,8 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
     }
 
 #if defined(__aarch64__)
-  // Keep track of which crypto features we have seen
+  // All of these are "crypto" features, but we must sift out actual features
+  // as the former meaning of "crypto" as a single feature is no more.
   enum { CAP_AES = 0x1, CAP_PMULL = 0x2, CAP_SHA1 = 0x4, CAP_SHA2 = 0x8 };
   uint32_t crypto = 0;
 #endif
@@ -1970,7 +1971,10 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   // LLVM has decided some AArch64 CPUs have all the instructions they _may_
   // have, as opposed to all the instructions they _must_ have, so allow runtime
   // information to correct us on that.
-  Features["crypto"] = (crypto == (CAP_AES | CAP_PMULL | CAP_SHA1 | CAP_SHA2));
+  uint32_t aes = CAP_AES | CAP_PMULL;
+  uint32_t sha2 = CAP_SHA1 | CAP_SHA2;
+  Features["aes"] = (crypto & aes) == aes;
+  Features["sha2"] = (crypto & sha2) == sha2;
 #endif
 
   return true;
@@ -1982,8 +1986,12 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
       IsProcessorFeaturePresent(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE);
   Features["crc"] =
       IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE);
-  Features["crypto"] =
+
+  // Avoid inferring "crypto" means more than the traditional AES + SHA2
+  bool trad_crypto =
       IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+  Features["aes"] = trad_crypto;
+  Features["sha2"] = trad_crypto;
 
   return true;
 }
