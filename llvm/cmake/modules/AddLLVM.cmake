@@ -643,6 +643,7 @@ function(llvm_add_library name)
 
   if(ARG_COMPONENT_LIB)
     set_target_properties(${name} PROPERTIES LLVM_COMPONENT TRUE)
+    target_compile_definitions(${name} PRIVATE LLVM_ABI_EXPORTS)
     set_property(GLOBAL APPEND PROPERTY LLVM_COMPONENT_LIBS ${name})
   endif()
 
@@ -740,6 +741,7 @@ function(llvm_add_library name)
   elseif (NOT ARG_COMPONENT_LIB)
     if (LLVM_LINK_LLVM_DYLIB AND NOT ARG_DISABLE_LLVM_LINK_LLVM_DYLIB)
       set(llvm_libs LLVM)
+      target_compile_definitions(${name} PRIVATE LLVM_DLL_IMPORT)
     else()
       llvm_map_components_to_libnames(llvm_libs
        ${ARG_LINK_COMPONENTS}
@@ -1111,6 +1113,10 @@ macro(add_llvm_executable name)
   endif()
 
   llvm_codesign(${name} ENTITLEMENTS ${ARG_ENTITLEMENTS} BUNDLE_PATH ${ARG_BUNDLE_PATH})
+
+  if (LLVM_LINK_LLVM_DYLIB AND NOT ARG_DISABLE_LLVM_LINK_LLVM_DYLIB)
+    target_compile_definitions(${name} PRIVATE LLVM_DLL_IMPORT)
+  endif()
 endmacro(add_llvm_executable name)
 
 # add_llvm_pass_plugin(name [NO_MODULE] ...)
