@@ -129,14 +129,8 @@
 #if (!(defined(_WIN32) || defined(__CYGWIN__)) ||                              \
      (defined(__MINGW32__) && defined(__clang__)))
 #define LLVM_LIBRARY_VISIBILITY LLVM_ATTRIBUTE_VISIBILITY_HIDDEN
-#if defined(LLVM_BUILD_LLVM_DYLIB) || defined(LLVM_BUILD_SHARED_LIBS)
-#define LLVM_EXTERNAL_VISIBILITY LLVM_ATTRIBUTE_VISIBILITY_DEFAULT
-#else
-#define LLVM_EXTERNAL_VISIBILITY
-#endif
 #else
 #define LLVM_LIBRARY_VISIBILITY
-#define LLVM_EXTERNAL_VISIBILITY
 #endif
 
 /// LLVM_ABI is the main export/visibility macro to mark something as explicitly
