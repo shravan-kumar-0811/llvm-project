@@ -1014,7 +1014,7 @@ bool AMDGPUInstructionSelector::selectDivScale(MachineInstr &MI) const {
 }
 
 bool AMDGPUInstructionSelector::selectG_INTRINSIC(MachineInstr &I) const {
-  unsigned IntrinsicID = cast<GIntrinsic>(I).getIntrinsicID();
+  Intrinsic::ID IntrinsicID = cast<GIntrinsic>(I).getIntrinsicID();
   switch (IntrinsicID) {
   case Intrinsic::amdgcn_if_break: {
     MachineBasicBlock *BB = I.getParent();
@@ -2089,14 +2089,14 @@ bool AMDGPUInstructionSelector::selectPOPSExitingWaveID(
   // intrinsic is IntrReadMem/IntrWriteMem but the instruction is not marked
   // mayLoad/mayStore and tablegen complains about the mismatch.
   auto MIB = BuildMI(*MBB, &MI, DL, TII.get(AMDGPU::S_MOV_B32), Dst)
-                 .addDef(AMDGPU::SRC_POPS_EXITING_WAVE_ID);
+                 .addReg(AMDGPU::SRC_POPS_EXITING_WAVE_ID);
   MI.eraseFromParent();
   return constrainSelectedInstRegOperands(*MIB, TII, TRI, RBI);
 }
 
 bool AMDGPUInstructionSelector::selectG_INTRINSIC_W_SIDE_EFFECTS(
     MachineInstr &I) const {
-  unsigned IntrinsicID = cast<GIntrinsic>(I).getIntrinsicID();
+  Intrinsic::ID IntrinsicID = cast<GIntrinsic>(I).getIntrinsicID();
   switch (IntrinsicID) {
   case Intrinsic::amdgcn_end_cf:
     return selectEndCfIntrinsic(I);
