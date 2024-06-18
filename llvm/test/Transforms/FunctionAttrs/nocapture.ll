@@ -371,7 +371,7 @@ define i32 @nc4(ptr %p) {
 ; ATTRIBUTOR: Function Attrs: nosync nounwind memory(read)
 ; ATTRIBUTOR-LABEL: define i32 @nc4
 ; ATTRIBUTOR-SAME: (ptr readonly [[P:%.*]]) #[[ATTR7:[0-9]+]] {
-; ATTRIBUTOR-NEXT:    [[RESULT:%.*]] = call i32 @external(ptr [[P]]) #[[ATTR7]]
+; ATTRIBUTOR-NEXT:    [[RESULT:%.*]] = call i32 @external(ptr [[P]]) #[[ATTR4]]
 ; ATTRIBUTOR-NEXT:    ret i32 [[RESULT]]
 ;
   %result = call i32 @external(ptr %p)
@@ -387,6 +387,7 @@ define void @nc5(ptr %f, ptr %p) {
 ;
 ; ATTRIBUTOR-LABEL: define void @nc5
 ; ATTRIBUTOR-SAME: (ptr nocapture nofree nonnull [[F:%.*]], ptr nocapture [[P:%.*]]) {
+; ATTRIBUTOR-NEXT:    call void [[F]](ptr [[P]]) #[[ATTR6:[0-9]+]]
 ; ATTRIBUTOR-NEXT:    call void [[F]](ptr nocapture [[P]])
 ; ATTRIBUTOR-NEXT:    ret void
 ;
@@ -499,7 +500,7 @@ define void @test4_1(ptr %x4_1, i1 %c) {
 ; ATTRIBUTOR: Function Attrs: nofree nosync nounwind memory(write)
 ; ATTRIBUTOR-LABEL: define void @test4_1
 ; ATTRIBUTOR-SAME: (ptr nocapture nofree readnone [[X4_1:%.*]], i1 [[C:%.*]]) #[[ATTR8]] {
-; ATTRIBUTOR-NEXT:    [[TMP1:%.*]] = call ptr @test4_2(ptr nocapture nofree readnone undef, ptr nofree readnone [[X4_1]], ptr nocapture nofree readnone undef, i1 [[C]]) #[[ATTR8]]
+; ATTRIBUTOR-NEXT:    [[TMP1:%.*]] = call ptr @test4_2(ptr nocapture nofree readnone [[X4_1]], ptr nofree readnone [[X4_1]], ptr nocapture nofree readnone [[X4_1]], i1 [[C]]) #[[ATTR8]]
 ; ATTRIBUTOR-NEXT:    store ptr null, ptr @g, align 8
 ; ATTRIBUTOR-NEXT:    ret void
 ;
@@ -705,7 +706,7 @@ define void @nocaptureStrip(ptr %p) {
 ; ATTRIBUTOR-LABEL: define void @nocaptureStrip
 ; ATTRIBUTOR-SAME: (ptr nocapture nofree writeonly [[P:%.*]]) #[[ATTR11:[0-9]+]] {
 ; ATTRIBUTOR-NEXT:  entry:
-; ATTRIBUTOR-NEXT:    [[B:%.*]] = call ptr @llvm.strip.invariant.group.p0(ptr [[P]]) #[[ATTR20:[0-9]+]]
+; ATTRIBUTOR-NEXT:    [[B:%.*]] = call ptr @llvm.strip.invariant.group.p0(ptr [[P]]) #[[ATTR17]]
 ; ATTRIBUTOR-NEXT:    store i8 42, ptr [[B]], align 1
 ; ATTRIBUTOR-NEXT:    ret void
 ;
@@ -727,7 +728,7 @@ define void @captureStrip(ptr %p) {
 ; ATTRIBUTOR: Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(write)
 ; ATTRIBUTOR-LABEL: define void @captureStrip
 ; ATTRIBUTOR-SAME: (ptr nofree writeonly [[P:%.*]]) #[[ATTR1]] {
-; ATTRIBUTOR-NEXT:    [[B:%.*]] = call ptr @llvm.strip.invariant.group.p0(ptr [[P]]) #[[ATTR20]]
+; ATTRIBUTOR-NEXT:    [[B:%.*]] = call ptr @llvm.strip.invariant.group.p0(ptr [[P]]) #[[ATTR17]]
 ; ATTRIBUTOR-NEXT:    store ptr [[B]], ptr @g3, align 8
 ; ATTRIBUTOR-NEXT:    ret void
 ;
@@ -892,7 +893,7 @@ define void @readnone_indirec(ptr %f, ptr %p) {
 ; ATTRIBUTOR: Function Attrs: nosync memory(none)
 ; ATTRIBUTOR-LABEL: define void @readnone_indirec
 ; ATTRIBUTOR-SAME: (ptr nocapture nofree nonnull readnone [[F:%.*]], ptr readnone [[P:%.*]]) #[[ATTR13:[0-9]+]] {
-; ATTRIBUTOR-NEXT:    call void [[F]](ptr [[P]]) #[[ATTR21:[0-9]+]]
+; ATTRIBUTOR-NEXT:    call void [[F]](ptr [[P]]) #[[ATTR20:[0-9]+]]
 ; ATTRIBUTOR-NEXT:    ret void
 ;
   call void %f(ptr %p) readnone
