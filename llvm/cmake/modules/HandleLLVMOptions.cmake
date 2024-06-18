@@ -757,6 +757,9 @@ if (MSVC)
       # This is triggered for every variable that is a template type of a class even 
       # if there private when the class is dllexport'ed
       -wd4251 # Suppress 'needs to have dll-interface to be used by clients'
+      # We only putting dll export on classes with out of line members so this 
+      # warning gets triggered a lot for bases we haven't exported'
+      -wd4275 # non dll-interface class used as base for dll-interface class
 
       # Promoted warnings.
       -w14062 # Promote 'enumerator in switch of enum is not handled' to level 1 warning.
