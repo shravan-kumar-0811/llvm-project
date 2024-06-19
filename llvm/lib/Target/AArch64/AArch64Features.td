@@ -367,6 +367,9 @@ def FeatureMTE : Extension<"mte", "MTE",
 //  Armv8.6 Architecture Extensions
 //===----------------------------------------------------------------------===//
 
+def FeatureUseFixedIfEqualToScalable : SubtargetFeature<"use-fixed-if-equal-to-scalable",
+  "UseFixedIfEqualToScalable", "true", "Prefer fixed width loop vectorization over scalable if cost-model assigns equal costs">;
+
 def FeatureBF16 : Extension<"bf16", "BF16",
     "Enable BFloat16 Extension (FEAT_BF16)", [],
     "FEAT_BF16", "+bf16", 280>;
