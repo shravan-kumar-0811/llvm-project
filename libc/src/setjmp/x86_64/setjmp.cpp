@@ -16,7 +16,8 @@
 
 namespace LIBC_NAMESPACE {
 
-__attribute__((naked)) LLVM_LIBC_FUNCTION(int, setjmp, (__jmp_buf * buf)) {
+[[gnu::naked]]
+LLVM_LIBC_FUNCTION(int, setjmp, (__jmp_buf * buf)) {
   asm("mov %%rbx, %c[rbx](%%rdi)\n\t"
       "mov %%rbp, %c[rbp](%%rdi)\n\t"
       "mov %%r12, %c[r12](%%rdi)\n\t"
