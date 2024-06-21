@@ -136,7 +136,7 @@ private:
   // Optional compiler version.
   std::string CompilerVersion;
   // PPC CPU type.
-  StringRef CPU;
+  std::string CPU;
 
   MCDwarfLineTableParams LTParams;
 
@@ -492,7 +492,7 @@ public:
   }
   StringRef getCompilerVersion() { return CompilerVersion; }
 
-  void setCPU(StringRef TargetCPU) { CPU = TargetCPU; }
+  void setCPU(std::string TargetCPU) { CPU = std::move(TargetCPU); }
   StringRef getCPU() { return CPU; }
 
   /// Write the necessary bundle padding to \p OS.

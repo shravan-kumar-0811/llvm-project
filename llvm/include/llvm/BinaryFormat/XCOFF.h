@@ -339,15 +339,25 @@ enum CFileCpuId : uint8_t {
   TCPU_PPC64 = 2,   ///< PowerPC common architecture 64-bit mode.
   TCPU_COM = 3,     ///< POWER and PowerPC architecture common.
   TCPU_PWR = 4,     ///< POWER common architecture objects.
+  TCPU_ANY = 5,     ///< Mixture of any incompatable POWER
+                    ///< and PowerPC architecture implementations.
+  TCPU_601 = 6,     ///< 601 implementation of PowerPC architecture.
+  TCPU_603 = 7,     ///< 603 implementation of PowerPC architecture.
+  TCPU_604 = 8,     ///< 604 implementation of PowerPC architecture.
+  TCPU_PWR1 = 10,   ///< RS1 implementation of POWER architecture.
+  TCPU_620 = 16,    ///< 620  - PowerPC 64-bit architecture.
+  TCPU_A35 = 17,    ///< A35  - PowerPC 64-bit architecture.
   TCPU_PWR5 = 18,   ///< PWR5 - PowerPC 64-bit architecture.
   TCPU_970 = 19,    ///< PPC970 - PowerPC 64-bit architecture.
   TCPU_PWR6 = 20,   ///< PWR6 - PowerPC 64-bit architecture.
+  TCPU_VEC = 21,    ///< PowerPC 64-bit arch with Vector Extension.
   TCPU_PWR5X = 22,  ///< PWR5+ - PowerPC 64-bit architecture.
   TCPU_PWR6E = 23,  ///< PWR6E - PowerPC 64-bit architecture.
   TCPU_PWR7 = 24,   ///< PWR7 - PowerPC 64-bit architecture.
   TCPU_PWR8 = 25,   ///< PWR8 - PowerPC 64-bit architecture.
   TCPU_PWR9 = 26,   ///< PWR9 - PowerPC 64-bit architecture.
   TCPU_PWR10 = 27,  ///< PWR10 - PowerPC 64-bit architecture.
+  TCPU_PWRX = 224   ///< RS2 implementation of POWER architecture.
 };
 
 enum SymbolAuxType : uint8_t {

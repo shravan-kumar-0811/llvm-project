@@ -514,14 +514,27 @@ bool AsmPrinter::doInitialization(Module &M) {
     }
   }
 
-  // On AIX, emit bytes for llvm.commandline metadata after .file so that the
-  // C_INFO symbol is preserved if any csect is kept by the linker.
   if (TM.getTargetTriple().isOSBinFormatXCOFF()) {
     // Emit .machine directive on AIX.
-    StringRef TargetCPU =
-        TM.getTargetCPU().empty() ? "pwr7" : TM.getTargetCPU();
+    StringRef TargetCPU;
+    // Walk through the target-cpu attribute of functions and use the newest
+    // level as the CPU of the module.
+    for (auto &F : M) {
+      StringRef FunCPU = TM.getSubtargetImpl(F)->getCPU();
+      if (XCOFF::getCpuID(FunCPU) > XCOFF::getCpuID(TargetCPU))
+        TargetCPU = FunCPU;
+    }
+    // If there is no "target-cpu" attr in functions, take the "-mcpu" value.
+    if (TargetCPU.empty()) {
+      if (!TM.getTargetCPU().empty())
+        TargetCPU = TM.getTargetCPU();
+      else
+        TargetCPU = "any";
+    }
     OutStreamer->emitMachineDirective(TargetCPU);
 
+    // On AIX, emit bytes for llvm.commandline metadata after .file so that the
+    // C_INFO symbol is preserved if any csect is kept by the linker.
     emitModuleCommandLines(M);
     // Now we can generate section information.
     OutStreamer->initSections(false, *TM.getMCSubtargetInfo());

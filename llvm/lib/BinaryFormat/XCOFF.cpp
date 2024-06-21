@@ -110,15 +110,26 @@ StringRef XCOFF::getNameForTracebackTableLanguageId(
 
 XCOFF::CFileCpuId XCOFF::getCpuID(StringRef CPU) {
   return StringSwitch<XCOFF::CFileCpuId>(CPU)
-      .Case("pwr4", XCOFF::TCPU_PWR)
-      .Case("pwr5", XCOFF::TCPU_PWR5)
-      .Case("pwr6", XCOFF::TCPU_PWR6)
-      .Case("pwr5x", XCOFF::TCPU_PWR5X)
-      .Case("pwr7", XCOFF::TCPU_PWR7)
-      .Case("pwr8", XCOFF::TCPU_PWR8)
-      .Case("pwr9", XCOFF::TCPU_PWR9)
-      .Case("pwr10", XCOFF::TCPU_PWR10)
-      .Default(XCOFF::TCPU_PWR7);
+      .Case("generic", XCOFF::TCPU_PWR7)
+      .Case("601", XCOFF::TCPU_601)
+      .Cases("602", "603", "603e", "603ev", XCOFF::TCPU_603)
+      .Cases("604", "604e", XCOFF::TCPU_604)
+      .Case("620", XCOFF::TCPU_620)
+      .Case("970", XCOFF::TCPU_970)
+      .Cases("pwr3", "power3", "pwr4", "power4", XCOFF::TCPU_PWR)
+      .Cases("pwr5", "power5", XCOFF::TCPU_PWR5)
+      .Cases("pwr5x", "power5x", XCOFF::TCPU_PWR5X)
+      .Cases("pwr6", "power6", XCOFF::TCPU_PWR6)
+      .Cases("pwr6x", "power6x", XCOFF::TCPU_PWR6E)
+      .Cases("pwr7", "power7", XCOFF::TCPU_PWR7)
+      .Cases("pwr8", "power8", XCOFF::TCPU_PWR8)
+      .Cases("pwr9", "power9", XCOFF::TCPU_PWR9)
+      .Cases("pwr10", "power10", XCOFF::TCPU_PWR10)
+      .Case("future", XCOFF::TCPU_PWRX)
+      .Cases("powerpc", "ppc", "ppc32", XCOFF::TCPU_PPC)
+      .Cases("powerpc64", "ppc64", "powerpc64le", "ppc64le", XCOFF::TCPU_PPC64)
+      .Case("any", XCOFF::TCPU_ANY)
+      .Default(XCOFF::TCPU_INVALID);
 }
 
 Expected<SmallString<32>> XCOFF::parseParmsType(uint32_t Value,
