@@ -473,6 +473,11 @@ G_FPTOSI, G_FPTOUI, G_SITOFP, G_UITOFP
 
 Convert between integer and floating point.
 
+G_FPTOSI_SAT, G_FPTOUI_SAT
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Saturating convert between integer and floating point.
+
 G_FABS
 ^^^^^^
 

@@ -1715,6 +1715,8 @@ LegalizerHelper::LegalizeResult LegalizerHelper::narrowScalar(MachineInstr &MI,
   }
   case TargetOpcode::G_FPTOUI:
   case TargetOpcode::G_FPTOSI:
+  case TargetOpcode::G_FPTOUI_SAT:
+  case TargetOpcode::G_FPTOSI_SAT:
     return narrowScalarFPTOI(MI, TypeIdx, NarrowTy);
   case TargetOpcode::G_FPEXT:
     if (TypeIdx != 0)
@@ -2358,7 +2360,8 @@ LegalizerHelper::widenScalarMulo(MachineInstr &MI, unsigned TypeIdx,
 
 LegalizerHelper::LegalizeResult
 LegalizerHelper::widenScalar(MachineInstr &MI, unsigned TypeIdx, LLT WideTy) {
-  switch (MI.getOpcode()) {
+  unsigned Opcode = MI.getOpcode();
+  switch (Opcode) {
   default:
     return UnableToLegalize;
   case TargetOpcode::G_ATOMICRMW_XCHG:
@@ -2442,13 +2445,13 @@ LegalizerHelper::widenScalar(MachineInstr &MI, unsigned TypeIdx, LLT WideTy) {
     Register SrcReg = MI.getOperand(1).getReg();
 
     // First extend the input.
-    unsigned ExtOpc = MI.getOpcode() == TargetOpcode::G_CTTZ ||
-                              MI.getOpcode() == TargetOpcode::G_CTTZ_ZERO_UNDEF
+    unsigned ExtOpc = Opcode == TargetOpcode::G_CTTZ ||
+                              Opcode == TargetOpcode::G_CTTZ_ZERO_UNDEF
                           ? TargetOpcode::G_ANYEXT
                           : TargetOpcode::G_ZEXT;
     auto MIBSrc = MIRBuilder.buildInstr(ExtOpc, {WideTy}, {SrcReg});
     LLT CurTy = MRI.getType(SrcReg);
-    unsigned NewOpc = MI.getOpcode();
+    unsigned NewOpc = Opcode;
     if (NewOpc == TargetOpcode::G_CTTZ) {
       // The count is the same in the larger type except if the original
       // value was zero.  This can be handled by setting the bit just off
@@ -2464,8 +2467,8 @@ LegalizerHelper::widenScalar(MachineInstr &MI, unsigned TypeIdx, LLT WideTy) {
     // Perform the operation at the larger size.
     auto MIBNewOp = MIRBuilder.buildInstr(NewOpc, {WideTy}, {MIBSrc});
     // This is already the correct result for CTPOP and CTTZs
-    if (MI.getOpcode() == TargetOpcode::G_CTLZ ||
-        MI.getOpcode() == TargetOpcode::G_CTLZ_ZERO_UNDEF) {
+    if (Opcode == TargetOpcode::G_CTLZ ||
+        Opcode == TargetOpcode::G_CTLZ_ZERO_UNDEF) {
       // The correct result is NewOp - (Difference in widety and current ty).
       unsigned SizeDiff = WideTy.getSizeInBits() - CurTy.getSizeInBits();
       MIBNewOp = MIRBuilder.buildSub(
@@ -2614,8 +2617,8 @@ LegalizerHelper::widenScalar(MachineInstr &MI, unsigned TypeIdx, LLT WideTy) {
     Observer.changingInstr(MI);
 
     if (TypeIdx == 0) {
-      unsigned CvtOp = MI.getOpcode() == TargetOpcode::G_ASHR ?
-        TargetOpcode::G_SEXT : TargetOpcode::G_ZEXT;
+      unsigned CvtOp = Opcode == TargetOpcode::G_ASHR ? TargetOpcode::G_SEXT
+                                                      : TargetOpcode::G_ZEXT;
 
       widenScalarSrc(MI, WideTy, 1, CvtOp);
       widenScalarDst(MI, WideTy);
@@ -2696,6 +2699,47 @@ LegalizerHelper::widenScalar(MachineInstr &MI, unsigned TypeIdx, LLT WideTy) {
       widenScalarDst(MI, WideTy, 0, TargetOpcode::G_FPTRUNC);
     else
       widenScalarSrc(MI, WideTy, 1, TargetOpcode::G_ZEXT);
+
+    Observer.changedInstr(MI);
+    return Legalized;
+  case TargetOpcode::G_FPTOSI_SAT:
+  case TargetOpcode::G_FPTOUI_SAT:
+    Observer.changingInstr(MI);
+
+    if (TypeIdx == 0) {
+      Register OldDst = MI.getOperand(0).getReg();
+      LLT Ty = MRI.getType(OldDst);
+      Register ExtReg = MRI.createGenericVirtualRegister(WideTy);
+      Register NewDst;
+      MI.getOperand(0).setReg(ExtReg);
+      uint64_t ShortBits = Ty.getScalarSizeInBits();
+      uint64_t WideBits = WideTy.getScalarSizeInBits();
+      MIRBuilder.setInsertPt(MIRBuilder.getMBB(), ++MIRBuilder.getInsertPt());
+      if (Opcode == TargetOpcode::G_FPTOSI_SAT) {
+        // z = i16 fptosi_sat(a)
+        // ->
+        // x = i32 fptosi_sat(a)
+        // y = smin(x, 32767)
+        // z = smax(y, -32768)
+        auto MaxVal = MIRBuilder.buildConstant(
+            WideTy, APInt::getSignedMaxValue(ShortBits).sext(WideBits));
+        auto MinVal = MIRBuilder.buildConstant(
+            WideTy, APInt::getSignedMinValue(ShortBits).sext(WideBits));
+        Register MidReg =
+            MIRBuilder.buildSMin(WideTy, ExtReg, MaxVal).getReg(0);
+        NewDst = MIRBuilder.buildSMax(WideTy, MidReg, MinVal).getReg(0);
+      } else {
+        // z = i16 fptoui_sat(a)
+        // ->
+        // x = i32 fptoui_sat(a)
+        // y = smin(x, 65535)
+        auto MaxVal = MIRBuilder.buildConstant(
+            WideTy, APInt::getAllOnes(ShortBits).zext(WideBits));
+        NewDst = MIRBuilder.buildUMin(WideTy, ExtReg, MaxVal).getReg(0);
+      }
+      MIRBuilder.buildTrunc(OldDst, NewDst);
+    } else
+      widenScalarSrc(MI, WideTy, 1, TargetOpcode::G_FPEXT);
 
     Observer.changedInstr(MI);
     return Legalized;
@@ -2921,7 +2965,7 @@ LegalizerHelper::widenScalar(MachineInstr &MI, unsigned TypeIdx, LLT WideTy) {
   case TargetOpcode::G_FLDEXP:
   case TargetOpcode::G_STRICT_FLDEXP: {
     if (TypeIdx == 0) {
-      if (MI.getOpcode() == TargetOpcode::G_STRICT_FLDEXP)
+      if (Opcode == TargetOpcode::G_STRICT_FLDEXP)
         return UnableToLegalize;
 
       Observer.changingInstr(MI);
@@ -3914,6 +3958,9 @@ LegalizerHelper::lower(MachineInstr &MI, unsigned TypeIdx, LLT LowerHintTy) {
     return lowerFPTOUI(MI);
   case G_FPTOSI:
     return lowerFPTOSI(MI);
+  case G_FPTOUI_SAT:
+  case G_FPTOSI_SAT:
+    return lowerFPTOINT_SAT(MI);
   case G_FPTRUNC:
     return lowerFPTRUNC(MI);
   case G_FPOWI:
@@ -4713,6 +4760,8 @@ LegalizerHelper::fewerElementsVector(MachineInstr &MI, unsigned TypeIdx,
   case G_UITOFP:
   case G_FPTOSI:
   case G_FPTOUI:
+  case G_FPTOSI_SAT:
+  case G_FPTOUI_SAT:
   case G_INTTOPTR:
   case G_PTRTOINT:
   case G_ADDRSPACE_CAST:
@@ -5504,6 +5553,8 @@ LegalizerHelper::moreElementsVector(MachineInstr &MI, unsigned TypeIdx,
   case TargetOpcode::G_FPEXT:
   case TargetOpcode::G_FPTOSI:
   case TargetOpcode::G_FPTOUI:
+  case TargetOpcode::G_FPTOSI_SAT:
+  case TargetOpcode::G_FPTOUI_SAT:
   case TargetOpcode::G_SITOFP:
   case TargetOpcode::G_UITOFP: {
     Observer.changingInstr(MI);
@@ -7008,6 +7059,102 @@ LegalizerHelper::LegalizeResult LegalizerHelper::lowerFPTOSI(MachineInstr &MI) {
   auto ZeroDstTy = MIRBuilder.buildConstant(DstTy, 0);
   MIRBuilder.buildSelect(Dst, ExponentLt0, ZeroDstTy, Ret);
 
+  MI.eraseFromParent();
+  return Legalized;
+}
+
+LegalizerHelper::LegalizeResult
+LegalizerHelper::lowerFPTOINT_SAT(MachineInstr &MI) {
+  auto [Dst, DstTy, Src, SrcTy] = MI.getFirst2RegLLTs();
+
+  bool IsSigned = MI.getOpcode() == TargetOpcode::G_FPTOSI_SAT;
+  unsigned SatWidth = DstTy.getScalarSizeInBits();
+
+  // Determine minimum and maximum integer values and their corresponding
+  // floating-point values.
+  APInt MinInt, MaxInt;
+  if (IsSigned) {
+    MinInt = APInt::getSignedMinValue(SatWidth);
+    MaxInt = APInt::getSignedMaxValue(SatWidth);
+  } else {
+    MinInt = APInt::getMinValue(SatWidth);
+    MaxInt = APInt::getMaxValue(SatWidth);
+  }
+
+  const fltSemantics &Semantics = getFltSemanticForLLT(SrcTy.getScalarType());
+  APFloat MinFloat(Semantics);
+  APFloat MaxFloat(Semantics);
+
+  APFloat::opStatus MinStatus =
+      MinFloat.convertFromAPInt(MinInt, IsSigned, APFloat::rmTowardZero);
+  APFloat::opStatus MaxStatus =
+      MaxFloat.convertFromAPInt(MaxInt, IsSigned, APFloat::rmTowardZero);
+  bool AreExactFloatBounds = !(MinStatus & APFloat::opStatus::opInexact) &&
+                             !(MaxStatus & APFloat::opStatus::opInexact);
+
+  // If the integer bounds are exactly representable as floats and min/max are
+  // legal, emit a min+max+fptoi sequence. Otherwise we have to use a sequence
+  // of comparisons and selects.
+  bool MinMaxLegal = LI.isLegal({TargetOpcode::G_FMINNUM, SrcTy}) &&
+                     LI.isLegal({TargetOpcode::G_FMAXNUM, SrcTy});
+  if (AreExactFloatBounds && MinMaxLegal) {
+    // Clamp Src by MinFloat from below. If Src is NaN the result is MinFloat.
+    auto Max = MIRBuilder.buildFMaxNum(
+        SrcTy, Src, MIRBuilder.buildFConstant(SrcTy, MinFloat));
+    // Clamp by MaxFloat from above. NaN cannot occur.
+    auto Min = MIRBuilder.buildFMinNum(
+        SrcTy, Max, MIRBuilder.buildFConstant(SrcTy, MaxFloat));
+    // Convert clamped value to integer. In the unsigned case we're done,
+    // because we mapped NaN to MinFloat, which will cast to zero.
+    if (!IsSigned) {
+      MIRBuilder.buildFPTOUI(Dst, Min);
+      MI.eraseFromParent();
+      return Legalized;
+    }
+
+    // Otherwise, select 0 if Src is NaN.
+    auto FpToInt = MIRBuilder.buildFPTOSI(DstTy, Min);
+    auto IsZero = MIRBuilder.buildFCmp(CmpInst::FCMP_UNO,
+                                       DstTy.changeElementSize(1), Src, Src);
+    MIRBuilder.buildSelect(Dst, IsZero, MIRBuilder.buildConstant(DstTy, 0),
+                           FpToInt);
+    MI.eraseFromParent();
+    return Legalized;
+  }
+
+  // Result of direct conversion. The assumption here is that the operation is
+  // non-trapping and it's fine to apply it to an out-of-range value if we
+  // select it away later.
+  auto FpToInt = IsSigned ? MIRBuilder.buildFPTOSI(DstTy, Src)
+                          : MIRBuilder.buildFPTOUI(DstTy, Src);
+
+  // If Src ULT MinFloat, select MinInt. In particular, this also selects
+  // MinInt if Src is NaN.
+  auto ULT =
+      MIRBuilder.buildFCmp(CmpInst::FCMP_ULT, SrcTy.changeElementSize(1), Src,
+                           MIRBuilder.buildFConstant(SrcTy, MinFloat));
+  auto Max = MIRBuilder.buildSelect(
+      DstTy, ULT, MIRBuilder.buildConstant(DstTy, MinInt), FpToInt);
+  // If Src OGT MaxFloat, select MaxInt.
+  auto OGT =
+      MIRBuilder.buildFCmp(CmpInst::FCMP_OGT, SrcTy.changeElementSize(1), Src,
+                           MIRBuilder.buildFConstant(SrcTy, MaxFloat));
+
+  // In the unsigned case we are done, because we mapped NaN to MinInt, which
+  // is already zero.
+  if (!IsSigned) {
+    MIRBuilder.buildSelect(Dst, OGT, MIRBuilder.buildConstant(DstTy, MaxInt),
+                           Max);
+    MI.eraseFromParent();
+    return Legalized;
+  }
+
+  // Otherwise, select 0 if Src is NaN.
+  auto Min = MIRBuilder.buildSelect(
+      DstTy, OGT, MIRBuilder.buildConstant(DstTy, MaxInt), Max);
+  auto IsZero = MIRBuilder.buildFCmp(CmpInst::FCMP_UNO,
+                                     DstTy.changeElementSize(1), Src, Src);
+  MIRBuilder.buildSelect(Dst, IsZero, MIRBuilder.buildConstant(DstTy, 0), Min);
   MI.eraseFromParent();
   return Legalized;
 }
