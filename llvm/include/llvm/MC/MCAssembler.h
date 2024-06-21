@@ -493,7 +493,7 @@ public:
   StringRef getCompilerVersion() { return CompilerVersion; }
 
   void setCPU(std::string TargetCPU) { CPU = std::move(TargetCPU); }
-  StringRef getCPU() { return CPU; }
+  StringRef getCPU() const { return CPU; }
 
   /// Write the necessary bundle padding to \p OS.
   /// Expects a fragment \p F containing instructions and its size \p FSize.
