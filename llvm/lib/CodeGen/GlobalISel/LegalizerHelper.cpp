@@ -7103,7 +7103,8 @@ LegalizerHelper::lowerFPTOINT_SAT(MachineInstr &MI) {
         SrcTy, Src, MIRBuilder.buildFConstant(SrcTy, MinFloat));
     // Clamp by MaxFloat from above. NaN cannot occur.
     auto Min = MIRBuilder.buildFMinNum(
-        SrcTy, Max, MIRBuilder.buildFConstant(SrcTy, MaxFloat));
+        SrcTy, Max, MIRBuilder.buildFConstant(SrcTy, MaxFloat),
+        MachineInstr::FmNoNans);
     // Convert clamped value to integer. In the unsigned case we're done,
     // because we mapped NaN to MinFloat, which will cast to zero.
     if (!IsSigned) {
@@ -7144,7 +7145,7 @@ LegalizerHelper::lowerFPTOINT_SAT(MachineInstr &MI) {
   // is already zero.
   if (!IsSigned) {
     MIRBuilder.buildSelect(Dst, OGT, MIRBuilder.buildConstant(DstTy, MaxInt),
-                           Max);
+                           Max, MachineInstr::FmNoNans);
     MI.eraseFromParent();
     return Legalized;
   }

@@ -730,8 +730,7 @@ AArch64LegalizerInfo::AArch64LegalizerInfo(const AArch64Subtarget &ST)
       // to i64.
       .narrowScalarIf(
           [=](const LegalityQuery &Query) {
-            return Query.Types[1] == s16 &&
-                   Query.Types[0].getSizeInBits() > 64;
+            return Query.Types[1] == s16 && Query.Types[0].getSizeInBits() > 64;
           },
           changeTo(0, s64))
       .lowerIf(::any(scalarWiderThan(0, 64), scalarWiderThan(1, 64)), 0)
