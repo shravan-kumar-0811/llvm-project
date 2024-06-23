@@ -652,6 +652,19 @@ function(llvm_add_library name)
   if(ARG_COMPONENT_LIB)
     set_target_properties(${name} PROPERTIES LLVM_COMPONENT TRUE)
     target_compile_definitions(${name} PRIVATE LLVM_ABI_EXPORTS)
+
+    # When building shared objects for each target there are some internal APIs
+    # that are used across shared objects which we can't hide.
+    if (NOT BUILD_SHARED_LIBS AND NOT APPLE AND
+        (NOT (WIN32 OR CYGWIN) OR (MINGW AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")) AND
+        NOT (${CMAKE_SYSTEM_NAME} MATCHES "AIX") AND
+        NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET)
+
+      set_target_properties(${name} PROPERTIES
+                            C_VISIBILITY_PRESET hidden
+                            CXX_VISIBILITY_PRESET hidden
+                            VISIBILITY_INLINES_HIDDEN YES)
+    endif()
     set_property(GLOBAL APPEND PROPERTY LLVM_COMPONENT_LIBS ${name})
   endif()
 
