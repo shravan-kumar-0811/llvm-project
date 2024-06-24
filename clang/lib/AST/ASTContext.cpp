@@ -1408,6 +1408,8 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
   // half type (OpenCL 6.1.1.1) / ARM NEON __fp16
   InitBuiltinType(HalfTy, BuiltinType::Half);
 
+  InitBuiltinType(MFloat8Ty, BuiltinType::MFloat8);
+
   InitBuiltinType(BFloat16Ty, BuiltinType::BFloat16);
 
   // Builtin type used to help define __builtin_va_list.
@@ -1977,6 +1979,7 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
       Width = Target->getBoolWidth();
       Align = Target->getBoolAlign();
       break;
+    case BuiltinType::MFloat8:
     case BuiltinType::Char_S:
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
@@ -8103,6 +8106,7 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     switch (kind) {
     case BuiltinType::Void:       return 'v';
     case BuiltinType::Bool:       return 'B';
+    case BuiltinType::MFloat8:
     case BuiltinType::Char8:
     case BuiltinType::Char_U:
     case BuiltinType::UChar:      return 'C';
@@ -11465,6 +11469,9 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
       Type = Context.UnsignedCharTy;
     else
       Type = Context.CharTy;
+    break;
+  case 'j':
+    Type = Context.MFloat8Ty;
     break;
   case 'b': // boolean
     assert(HowLong == 0 && !Signed && !Unsigned && "Bad modifiers for 'b'!");
