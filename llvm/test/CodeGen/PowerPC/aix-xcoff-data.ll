@@ -46,7 +46,7 @@
 ; CHECK-NOT: .toc
 
 ; CHECK:      .file
-; CHECK-NEXT: .machine "any"
+; CHECK-NEXT: .machine "ANY"
 ; CHECK-NEXT: .csect ..text..[PR],5
 
 ; CHECK:      .csect .data[RW],5

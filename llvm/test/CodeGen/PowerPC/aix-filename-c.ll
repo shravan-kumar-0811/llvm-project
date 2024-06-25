@@ -8,7 +8,7 @@
 source_filename = "1.c"
 
 ; ASM:      .file   "1.c",,"{{.*}}, LLVM version{{.*}}git"
-; ASM-NEXT: .machine   "pwr9"
+; ASM-NEXT: .machine   "PWR9"
 ; ASM-NEXT: .csect ..text..[PR],5
 ; ASM-NEXT: .rename	..text..[PR],""
 

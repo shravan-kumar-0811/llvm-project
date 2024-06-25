@@ -1,7 +1,7 @@
 ; RUN: llc -verify-machineinstrs -mtriple powerpc64-ibm-aix-xcoff  < %s | FileCheck %s
 
 ; CHECK:      .file "1.c"
-; CHECK-NEXT: .machine "ppc64"
+; CHECK-NEXT: .machine "PPC64"
 ; CHECK-NEXT: .csect ..text..[PR],5
 ; CHECK-NEXT: .rename ..text..[PR],""
 

@@ -371,6 +371,7 @@ enum SymbolAuxType : uint8_t {
 
 StringRef getMappingClassString(XCOFF::StorageMappingClass SMC);
 StringRef getRelocationTypeString(XCOFF::RelocationType Type);
+StringRef getTCPUString(XCOFF::CFileCpuId TCPU);
 Expected<SmallString<32>> parseParmsType(uint32_t Value, unsigned FixedParmsNum,
                                          unsigned FloatingParmsNum);
 Expected<SmallString<32>> parseParmsTypeWithVecInfo(uint32_t Value,

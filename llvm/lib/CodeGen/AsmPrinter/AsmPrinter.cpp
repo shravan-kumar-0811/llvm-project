@@ -516,22 +516,23 @@ bool AsmPrinter::doInitialization(Module &M) {
 
   if (TM.getTargetTriple().isOSBinFormatXCOFF()) {
     // Emit .machine directive on AIX.
-    StringRef TargetCPU;
-    // Walk through the target-cpu attribute of functions and use the newest
+    XCOFF::CFileCpuId TargetCpuId = XCOFF::TCPU_INVALID;
+    // Walk through the "target-cpu" attribute of functions and use the newest
     // level as the CPU of the module.
     for (auto &F : M) {
-      StringRef FunCPU = TM.getSubtargetImpl(F)->getCPU();
-      if (XCOFF::getCpuID(FunCPU) > XCOFF::getCpuID(TargetCPU))
-        TargetCPU = FunCPU;
+      XCOFF::CFileCpuId FunCpuId =
+          XCOFF::getCpuID(TM.getSubtargetImpl(F)->getCPU());
+      if (FunCpuId > TargetCpuId)
+        TargetCpuId = FunCpuId;
     }
     // If there is no "target-cpu" attr in functions, take the "-mcpu" value.
-    if (TargetCPU.empty()) {
+    if (!TargetCpuId) {
       if (!TM.getTargetCPU().empty())
-        TargetCPU = TM.getTargetCPU();
+        TargetCpuId = XCOFF::getCpuID(TM.getTargetCPU());
       else
-        TargetCPU = "any";
+        TargetCpuId = XCOFF::TCPU_ANY;
     }
-    OutStreamer->emitMachineDirective(TargetCPU);
+    OutStreamer->emitMachineDirective(XCOFF::getTCPUString(TargetCpuId));
 
     // On AIX, emit bytes for llvm.commandline metadata after .file so that the
     // C_INFO symbol is preserved if any csect is kept by the linker.
