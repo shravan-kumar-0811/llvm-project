@@ -2303,7 +2303,7 @@ MachineBasicBlock::iterator AArch64LoadStoreOpt::doFoldSymmetryConstantLoad(
     // Remove ORR only.
     (*MIs.begin())->eraseFromParent();
   } else {
-    // We need to remove MOV for upper of 32bit because We know these instrs
+    // We need to remove MOV for upper of 32bit because we know these instrs
     // is part of symmetric constant.
     int Index = 0;
     for (auto MI = MIs.begin(); Index < UpperLoadIdx; ++MI, Index++) {
@@ -2345,7 +2345,7 @@ bool AArch64LoadStoreOpt::tryFoldSymmetryConstantLoad(
     return false;
 
   // We replace the STRX instruction, which stores 64 bits, with the STPW
-  // instruction, which stores two consecutive 32 bits. therefore, we compare
+  // instruction, which stores two consecutive 32 bits. Therefore, we compare
   // the offset range with multiplied by two.
   int Offset = AArch64InstrInfo::getLdStOffsetOp(MI).getImm();
   if (Offset * 2 < MinOffset || Offset * 2 > MaxOffset)
