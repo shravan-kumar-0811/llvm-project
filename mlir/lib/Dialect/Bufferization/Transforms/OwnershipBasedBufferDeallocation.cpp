@@ -46,7 +46,7 @@ static Value buildBoolValue(OpBuilder &builder, Location loc, bool value) {
   return builder.create<arith::ConstantOp>(loc, builder.getBoolAttr(value));
 }
 
-static bool isMemref(Value v) { return v.getType().isa<BaseMemRefType>(); }
+static bool isMemref(Value v) { return isa<BaseMemRefType>(v.getType()); }
 
 /// Return "true" if the given op is guaranteed to have neither "Allocate" nor
 /// "Free" side effects.
@@ -822,10 +822,11 @@ FailureOr<Operation *> BufferDeallocation::handleInterface(CallOpInterface op) {
 
   // Lookup the function operation and check if it has private visibility. If
   // the function is referenced by SSA value instead of a Symbol, it's assumed
-  // to be always private.
+  // to be public. (And we cannot easily change the type of the SSA value
+  // anyway.)
   Operation *funcOp = op.resolveCallable(state.getSymbolTable());
-  bool isPrivate = true;
-  if (auto symbol = dyn_cast<SymbolOpInterface>(funcOp))
+  bool isPrivate = false;
+  if (auto symbol = dyn_cast_or_null<SymbolOpInterface>(funcOp))
     isPrivate = symbol.isPrivate() && !symbol.isDeclaration();
 
   // If the private-function-dynamic-ownership option is enabled and we are
@@ -956,13 +957,13 @@ BufferDeallocation::handleInterface(RegionBranchTerminatorOpInterface op) {
 
   SmallVector<Value> updatedOwnerships;
   auto result = deallocation_impl::insertDeallocOpForReturnLike(
-      state, op, OperandRange(operands), updatedOwnerships);
+      state, op, operands.getAsOperandRange(), updatedOwnerships);
   if (failed(result) || !*result)
     return result;
 
   // Add an additional operand for every MemRef for the ownership indicator.
   if (!funcWithoutDynamicOwnership) {
-    SmallVector<Value> newOperands{OperandRange(operands)};
+    SmallVector<Value> newOperands{operands.getAsOperandRange()};
     newOperands.append(updatedOwnerships.begin(), updatedOwnerships.end());
     operands.assign(newOperands);
   }

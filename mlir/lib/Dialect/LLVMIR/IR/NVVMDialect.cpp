@@ -1047,8 +1047,8 @@ void NVVMDialect::initialize() {
   // Support unknown operations because not all NVVM operations are
   // registered.
   allowUnknownOperations();
-  declarePromisedInterface<NVVMDialect, ConvertToLLVMPatternInterface>();
-  declarePromisedInterface<NVVMTargetAttr, gpu::TargetAttrInterface>();
+  declarePromisedInterface<ConvertToLLVMPatternInterface, NVVMDialect>();
+  declarePromisedInterface<gpu::TargetAttrInterface, NVVMTargetAttr>();
 }
 
 LogicalResult NVVMDialect::verifyOperationAttribute(Operation *op,
@@ -1056,9 +1056,13 @@ LogicalResult NVVMDialect::verifyOperationAttribute(Operation *op,
   StringAttr attrName = attr.getName();
   // Kernel function attribute should be attached to functions.
   if (attrName == NVVMDialect::getKernelFuncAttrName()) {
-    if (!isa<LLVM::LLVMFuncOp>(op)) {
+    auto funcOp = dyn_cast<LLVM::LLVMFuncOp>(op);
+    if (!funcOp) {
       return op->emitError() << "'" << NVVMDialect::getKernelFuncAttrName()
                              << "' attribute attached to unexpected op";
+    }
+    if (!funcOp.getResultTypes().empty()) {
+      return op->emitError() << "kernel function cannot have results";
     }
   }
   // If maxntid and reqntid exist, it must be an array with max 3 dim
