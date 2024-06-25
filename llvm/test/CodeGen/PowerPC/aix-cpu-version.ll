@@ -1,7 +1,7 @@
 ; RUN: llc -verify-machineinstrs -mtriple powerpc64-ibm-aix-xcoff  < %s | FileCheck %s
 
 ; CHECK:      .file "1.c"
-; CHECK-NEXT: .machine "PPC64"
+; CHECK-NEXT: .machine "PWR8"
 ; CHECK-NEXT: .csect ..text..[PR],5
 ; CHECK-NEXT: .rename ..text..[PR],""
 
@@ -14,4 +14,4 @@ entry:
   ret i32 0
 }
 
-attributes #0 = {"target-cpu"="ppc64"}
+attributes #0 = {"target-cpu"="pwr8"}

@@ -116,7 +116,7 @@ XCOFF::CFileCpuId XCOFF::getCpuID(StringRef CPU) {
       .Cases("604", "604e", XCOFF::TCPU_604)
       .Case("620", XCOFF::TCPU_620)
       .Case("970", XCOFF::TCPU_970)
-      .Cases("pwr3", "power3", "pwr4", "power4", "PWR", XCOFF::TCPU_PWR)
+      .Cases("pwr3", "power3", "pwr4", "power4", "COM", XCOFF::TCPU_COM)
       .Cases("pwr5", "power5", "PWR5", XCOFF::TCPU_PWR5)
       .Cases("pwr5x", "power5x", "PWR5X", XCOFF::TCPU_PWR5X)
       .Cases("pwr6", "power6", "PWR6", XCOFF::TCPU_PWR6)
@@ -125,16 +125,15 @@ XCOFF::CFileCpuId XCOFF::getCpuID(StringRef CPU) {
       .Cases("pwr8", "power8", "PWR8", XCOFF::TCPU_PWR8)
       .Cases("pwr9", "power9", "PWR9", XCOFF::TCPU_PWR9)
       .Cases("pwr10", "power10", "PWR10", XCOFF::TCPU_PWR10)
-      .Case("future", XCOFF::TCPU_PWRX)
-      .Cases("powerpc", "ppc", "ppc32", "PPC", XCOFF::TCPU_PPC)
+      .Cases("powerpc", "ppc", "ppc32", XCOFF::TCPU_ANY)
       .Cases("powerpc64", "ppc64", "powerpc64le", "ppc64le", "PPC64",
-             XCOFF::TCPU_PPC64)
-      .Cases("any", "ANY", XCOFF::TCPU_ANY)
+             XCOFF::TCPU_ANY)
+      .Cases("any", "ANY", "future", XCOFF::TCPU_ANY)
       .Default(XCOFF::TCPU_INVALID);
 }
 
 #define TCPU_CASE(A)                                                           \
-  case XCOFF::TCPU_##A:                                                          \
+  case XCOFF::TCPU_##A:                                                        \
     return #A;
 StringRef XCOFF::getTCPUString(XCOFF::CFileCpuId TCPU) {
   switch (TCPU) {
@@ -149,11 +148,9 @@ StringRef XCOFF::getTCPUString(XCOFF::CFileCpuId TCPU) {
     TCPU_CASE(604)
     TCPU_CASE(620)
     TCPU_CASE(A35)
-    TCPU_CASE(PWR1)
     TCPU_CASE(PWR5)
     TCPU_CASE(970)
     TCPU_CASE(PWR6)
-    TCPU_CASE(VEC)
     TCPU_CASE(PWR5X)
     TCPU_CASE(PWR6E)
     TCPU_CASE(PWR7)
