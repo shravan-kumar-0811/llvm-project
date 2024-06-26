@@ -16,8 +16,8 @@
 
 #include "llvm/ADT/EquivalenceClasses.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
-#include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include <optional>
 #include <variant>
 
@@ -446,6 +446,20 @@ struct PointerDiffInfo {
                   unsigned AccessSize, bool NeedsFreeze)
       : SrcStart(SrcStart), SinkStart(SinkStart), AccessSize(AccessSize),
         NeedsFreeze(NeedsFreeze) {}
+};
+
+/// A pair of pointers that could overlap across a loop iteration.
+struct PointerDiffInfoValues {
+  /// The pointer being read from
+  Value *Src;
+  /// The pointer being stored to
+  Value *Sink;
+
+  PointerDiffInfoValues(const SCEV *SrcStart, const SCEV *SinkStart,
+                        SCEVExpander Exp, Instruction *Loc)
+      : Src(Exp.expandCodeFor(SrcStart, SrcStart->getType(), Loc)),
+        Sink(Exp.expandCodeFor(SinkStart, SinkStart->getType(), Loc)) {}
+  PointerDiffInfoValues(Value *Src, Value *Sink) : Src(Src), Sink(Sink) {}
 };
 
 /// Holds information about the memory runtime legality checks to verify
