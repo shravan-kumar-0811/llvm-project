@@ -13,7 +13,6 @@
 #include "src/__support/macros/attributes.h"
 
 namespace LIBC_NAMESPACE {
-
 #ifdef LIBC_TARGET_ARCH_IS_GPU
 // Implement thread local storage on the GPU using local memory. Each thread
 // gets its slot in the local memory array and is private to the group.
