@@ -256,7 +256,7 @@ define void @test_store_0x1234567812345678_offset_max(ptr %x) {
 ; CHECK-NEXT:    movk x8, #4660, lsl #16
 ; CHECK-NEXT:    stp w8, w8, [x0, #248]
 ; CHECK-NEXT:    ret
-  %g = getelementptr i1, ptr %x, i32 248
+  %g = getelementptr i8, ptr %x, i32 248
   store i64 u0x1234567812345678, ptr %g
   ret void
 }
@@ -269,7 +269,7 @@ define void @test_store_0x1234567812345678_offset_max_over(ptr %x) {
 ; CHECK-NEXT:    orr x8, x8, x8, lsl #32
 ; CHECK-NEXT:    stur x8, [x0, #249]
 ; CHECK-NEXT:    ret
-  %g = getelementptr i1, ptr %x, i32 249
+  %g = getelementptr i8, ptr %x, i32 249
   store i64 u0x1234567812345678, ptr %g
   ret void
 }
