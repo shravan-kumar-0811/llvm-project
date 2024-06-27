@@ -6,6 +6,7 @@
 // valid: "spirv-unknown-vulkan-library"
 // valid: define internal spir_func void @main() #0 {
 
+[shader("compute")]
 [numthreads(1,1,1)]
 void main()
 {

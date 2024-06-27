@@ -668,6 +668,19 @@ LinkageComputer::getLVForNamespaceScopeDecl(const NamedDecl *D,
     const VarDecl *VD = IFD->getVarDecl();
     assert(VD && "Expected a VarDecl in this IndirectFieldDecl!");
     return getLVForNamespaceScopeDecl(VD, computation, IgnoreVarTypeLinkage);
+
+  } else if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
+    // HLSL: functions that are not shader entry points or exported library
+    // functions have internal linkage by default.
+    if (Context.getLangOpts().HLSL &&
+        !(FD->isInExportDeclContext() || FD->hasAttr<HLSLShaderAttr>())) {
+      // Non-library shader entry points might not have an implicit
+      // HLSLShaderAttr added yet so we need to check the entry point name.
+      const TargetInfo &TI = Context.getTargetInfo();
+      if (TI.getTriple().getEnvironment() != llvm::Triple::Library &&
+          FD->getName() != TI.getTargetOpts().HLSLEntry)
+        return LinkageInfo::internal();
+    }
   }
   assert(!isa<FieldDecl>(D) && "Didn't expect a FieldDecl!");
 
@@ -685,9 +698,6 @@ LinkageComputer::getLVForNamespaceScopeDecl(const NamedDecl *D,
     //   within an unnamed namespace has internal linkage.
     if ((!Var || !isFirstInExternCContext(Var)) &&
         (!Func || !isFirstInExternCContext(Func)))
-      return LinkageInfo::internal();
-  }
-  if (Context.getLangOpts().HLSL) {
       return LinkageInfo::internal();
   }
 

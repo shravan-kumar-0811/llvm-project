@@ -5,12 +5,14 @@ bool cond();
 bool cond2();
 void foo();
 
+export {
+
 void test1() {
   for (;;) {
     foo();
   }
 }
-// CHECK: define internal spir_func void @_Z5test1v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test1v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK: for.cond:
@@ -22,7 +24,7 @@ void test2() {
     foo();
   }
 }
-// CHECK: define internal spir_func void @_Z5test2v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test2v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK: for.cond:
@@ -36,7 +38,7 @@ void test3() {
     foo();
   }
 }
-// CHECK: define internal spir_func void @_Z5test3v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test3v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK:                    call spir_func noundef i1 @_Z4condv() [[A3]] [ "convergencectrl"(token [[T0]]) ]
@@ -49,7 +51,7 @@ void test4() {
     foo();
   }
 }
-// CHECK: define internal spir_func void @_Z5test4v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test4v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK:                    call spir_func noundef i1 @_Z4condv() [[A3]] [ "convergencectrl"(token [[T0]]) ]
@@ -63,7 +65,7 @@ void test5() {
   for (cond();cond2();foo()) {
   }
 }
-// CHECK: define internal spir_func void @_Z5test5v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test5v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK:                    call spir_func noundef i1 @_Z4condv() [[A3]] [ "convergencectrl"(token [[T0]]) ]
@@ -81,7 +83,7 @@ void test6() {
     }
   }
 }
-// CHECK: define internal spir_func void @_Z5test6v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test6v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK:                    call spir_func noundef i1 @_Z4condv() [[A3]] [ "convergencectrl"(token [[T0]]) ]
@@ -106,7 +108,7 @@ void test7() {
     }
   }
 }
-// CHECK: define internal spir_func void @_Z5test7v() [[A0:#[0-9]+]] {
+// CHECK: define spir_func void @_Z5test7v() [[A0:#[0-9]+]] {
 // CHECK: entry:
 // CHECK:   [[T0:%[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK:                    call spir_func noundef i1 @_Z4condv() [[A3]] [ "convergencectrl"(token [[T0]]) ]
@@ -119,3 +121,5 @@ void test7() {
 
 // CHECK-DAG: attributes [[A0]] = { {{.*}}convergent{{.*}} }
 // CHECK-DAG: attributes [[A3]] = { {{.*}}convergent{{.*}} }
+
+} // export

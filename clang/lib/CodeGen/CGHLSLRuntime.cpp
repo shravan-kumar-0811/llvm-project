@@ -386,7 +386,7 @@ void CGHLSLRuntime::emitEntryFunction(const FunctionDecl *FD,
   setHLSLEntryAttributes(FD, EntryFn);
 
   // Set the called function as internal linkage.
-  assert(Fn->getLinkage());
+  assert(Fn->getLinkage() == GlobalValue::ExternalLinkage);
   Fn->setLinkage(GlobalValue::InternalLinkage);
 
   BasicBlock *BB = BasicBlock::Create(Ctx, "entry", EntryFn);

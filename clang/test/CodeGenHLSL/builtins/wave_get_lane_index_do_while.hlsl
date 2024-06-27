@@ -1,8 +1,8 @@
 // RUN: %clang_cc1 -std=hlsl2021 -finclude-default-header -x hlsl -triple \
 // RUN:   spirv-pc-vulkan-library %s -emit-llvm -disable-llvm-passes -o - | FileCheck %s
 
-// CHECK: define internal spir_func void @main() [[A0:#[0-9]+]] {
-void main() {
+// CHECK: define spir_func void @main() [[A0:#[0-9]+]] {
+export void main() {
 // CHECK: entry:
 // CHECK:   %[[CT_ENTRY:[0-9]+]] = call token @llvm.experimental.convergence.entry()
 // CHECK:   br label %[[LABEL_WHILE_COND:.+]]
