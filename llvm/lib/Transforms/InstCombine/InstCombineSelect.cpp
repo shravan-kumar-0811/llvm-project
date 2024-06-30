@@ -499,6 +499,51 @@ static bool isSelect01(const APInt &C1I, const APInt &C2I) {
   return C1I.isOne() || C1I.isAllOnes() || C2I.isOne() || C2I.isAllOnes();
 }
 
+/// Try to simplify seletion chain with partially identical conditions, eg:
+///   %s1 = select i1 %c1, i32 23, i32 45
+///   %s2 = select i1 %c2, i32 666, i32 %s1
+///   %s3 = select i1 %c1, i32 789, i32 %s2
+/// -->
+///   %s2 = select i1 %c2, i32 666, i32 45
+///   %s3 = select i1 %c1, i32 789, i32 %s2
+static bool simplifySeqSelectWithSameCond(SelectInst &SI,
+                                          const SimplifyQuery &SQ,
+                                          InstCombinerImpl &IC) {
+  Value *CondVal = SI.getCondition();
+  auto trySimplifySeqSelect = [=, &SI, &IC](unsigned OpIndex) {
+    assert((OpIndex == 1 || OpIndex == 2) && "Unexpected operand index");
+    SelectInst *SINext = &SI;
+    Type *SelType = SINext->getType();
+    Value *ValOp = SINext->getOperand(OpIndex);
+    Value *CondNext;
+    // Don't need propagate FMF flag because we update the operand of SINext
+    // directly.
+    // It is not profitable to build a new select for SINext with multi-arms.
+    while (match(ValOp, m_Select(m_Value(CondNext), m_Value(), m_Value()))) {
+      if (CondNext == CondVal && SINext->hasOneUse()) {
+        IC.replaceOperand(*SINext, OpIndex,
+                          cast<SelectInst>(ValOp)->getOperand(OpIndex));
+        return true;
+      }
+
+      SINext = cast<SelectInst>(ValOp);
+      SelType = SINext->getType();
+      ValOp = SINext->getOperand(OpIndex);
+    }
+    return false;
+  };
+
+  // Try to simplify the true value of select.
+  if (trySimplifySeqSelect(/*OpIndex=*/1))
+    return true;
+
+  // Try to simplify the false value of select.
+  if (trySimplifySeqSelect(/*OpIndex=*/2))
+    return true;
+
+  return false;
+}
+
 /// Try to fold the select into one of the operands to allow further
 /// optimization.
 Instruction *InstCombinerImpl::foldSelectIntoOp(SelectInst &SI, Value *TrueVal,
@@ -565,6 +610,9 @@ Instruction *InstCombinerImpl::foldSelectIntoOp(SelectInst &SI, Value *TrueVal,
 
   if (Instruction *R = TryFoldSelectIntoOp(SI, FalseVal, TrueVal, true))
     return R;
+
+  if (simplifySeqSelectWithSameCond(SI, SQ, *this))
+    return &SI;
 
   return nullptr;
 }
