@@ -8703,6 +8703,7 @@ class BoUpSLP::ShuffleCostEstimator : public BaseShuffleAnalysis {
     Value *V1 = P1.dyn_cast<Value *>(), *V2 = P2.dyn_cast<Value *>();
     unsigned CommonVF = Mask.size();
     InstructionCost ExtraCost = 0;
+    unsigned ScalarTyNumElements = getNumElements(ScalarTy);
     auto GetNodeMinBWAffectedCost = [&](const TreeEntry &E,
                                         unsigned VF) -> InstructionCost {
       if (E.isGather() && allConstant(E.Scalars))
@@ -8742,6 +8743,15 @@ class BoUpSLP::ShuffleCostEstimator : public BaseShuffleAnalysis {
             VecTy, TTI::CastContextHint::None, CostKind);
       }
       return TTI::TCC_Free;
+    };
+    auto GetVF = [&](Value *V) {
+      unsigned VNumElements =
+          cast<FixedVectorType>(V->getType())->getNumElements();
+      assert(VNumElements > ScalarTyNumElements &&
+             "the number of elements of V is not large enough");
+      assert(VNumElements % ScalarTyNumElements == 0 &&
+             "the number of elements of V is not a vectorized value");
+      return VNumElements / ScalarTyNumElements;
     };
     if (!V1 && !V2 && !P2.isNull()) {
       // Shuffle 2 entry nodes.
@@ -8814,14 +8824,14 @@ class BoUpSLP::ShuffleCostEstimator : public BaseShuffleAnalysis {
     } else if (V1 && P2.isNull()) {
       // Shuffle single vector.
       ExtraCost += GetValueMinBWAffectedCost(V1);
-      CommonVF = cast<FixedVectorType>(V1->getType())->getNumElements();
+      CommonVF = GetVF(V1);
       assert(
           all_of(Mask,
                  [=](int Idx) { return Idx < static_cast<int>(CommonVF); }) &&
           "All elements in mask must be less than CommonVF.");
     } else if (V1 && !V2) {
       // Shuffle vector and tree node.
-      unsigned VF = cast<FixedVectorType>(V1->getType())->getNumElements();
+      unsigned VF = GetVF(V1);
       const TreeEntry *E2 = P2.get<const TreeEntry *>();
       CommonVF = std::max(VF, E2->getVectorFactor());
       assert(all_of(Mask,
@@ -8847,7 +8857,7 @@ class BoUpSLP::ShuffleCostEstimator : public BaseShuffleAnalysis {
       V2 = getAllOnesValue(*R.DL, getWidenedType(ScalarTy, CommonVF));
     } else if (!V1 && V2) {
       // Shuffle vector and tree node.
-      unsigned VF = cast<FixedVectorType>(V2->getType())->getNumElements();
+      unsigned VF = GetVF(V2);
       const TreeEntry *E1 = P1.get<const TreeEntry *>();
       CommonVF = std::max(VF, E1->getVectorFactor());
       assert(all_of(Mask,
@@ -8875,9 +8885,8 @@ class BoUpSLP::ShuffleCostEstimator : public BaseShuffleAnalysis {
       V2 = getAllOnesValue(*R.DL, getWidenedType(ScalarTy, CommonVF));
     } else {
       assert(V1 && V2 && "Expected both vectors.");
-      unsigned VF = cast<FixedVectorType>(V1->getType())->getNumElements();
-      CommonVF =
-          std::max(VF, cast<FixedVectorType>(V2->getType())->getNumElements());
+      unsigned VF = GetVF(V1);
+      CommonVF = std::max(VF, GetVF(V2));
       assert(all_of(Mask,
                     [=](int Idx) {
                       return Idx < 2 * static_cast<int>(CommonVF);
@@ -8895,6 +8904,9 @@ class BoUpSLP::ShuffleCostEstimator : public BaseShuffleAnalysis {
           V2 = getAllOnesValue(*R.DL, getWidenedType(ScalarTy, CommonVF));
       }
     }
+    if (auto *VecTy = dyn_cast<FixedVectorType>(ScalarTy))
+      transformScalarShuffleIndiciesToVector(VecTy->getNumElements(),
+                                             CommonMask);
     InVectors.front() =
         Constant::getNullValue(getWidenedType(ScalarTy, CommonMask.size()));
     if (InVectors.size() == 2)
