@@ -31,6 +31,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/InitializePasses.h"
@@ -60,8 +61,10 @@ INITIALIZE_PASS_END(LazyValueInfoWrapperPass, "lazy-value-info",
                 "Lazy Value Information Analysis", false, true)
 
 namespace llvm {
-  FunctionPass *createLazyValueInfoPass() { return new LazyValueInfoWrapperPass(); }
+FunctionPass *createLazyValueInfoPass() {
+  return new LazyValueInfoWrapperPass();
 }
+} // namespace llvm
 
 AnalysisKey LazyValueAnalysis::Key;
 
@@ -151,114 +154,113 @@ namespace {
 } // end anonymous namespace
 
 namespace {
-  using NonNullPointerSet = SmallDenseSet<AssertingVH<Value>, 2>;
+using NonNullPointerSet = SmallDenseSet<AssertingVH<Value>, 2>;
 
-  /// This is the cache kept by LazyValueInfo which
-  /// maintains information about queries across the clients' queries.
-  class LazyValueInfoCache {
-    /// This is all of the cached information for one basic block. It contains
-    /// the per-value lattice elements, as well as a separate set for
-    /// overdefined values to reduce memory usage. Additionally pointers
-    /// dereferenced in the block are cached for nullability queries.
-    struct BlockCacheEntry {
-      SmallDenseMap<AssertingVH<Value>, ValueLatticeElement, 4> LatticeElements;
-      SmallDenseSet<AssertingVH<Value>, 4> OverDefined;
-      // std::nullopt indicates that the nonnull pointers for this basic block
-      // block have not been computed yet.
-      std::optional<NonNullPointerSet> NonNullPointers;
-    };
-
-    /// Cached information per basic block.
-    DenseMap<PoisoningVH<BasicBlock>, std::unique_ptr<BlockCacheEntry>>
-        BlockCache;
-    /// Set of value handles used to erase values from the cache on deletion.
-    DenseSet<LVIValueHandle, DenseMapInfo<Value *>> ValueHandles;
-
-    const BlockCacheEntry *getBlockEntry(BasicBlock *BB) const {
-      auto It = BlockCache.find_as(BB);
-      if (It == BlockCache.end())
-        return nullptr;
-      return It->second.get();
-    }
-
-    BlockCacheEntry *getOrCreateBlockEntry(BasicBlock *BB) {
-      auto It = BlockCache.find_as(BB);
-      if (It == BlockCache.end())
-        It = BlockCache.insert({ BB, std::make_unique<BlockCacheEntry>() })
-                       .first;
-
-      return It->second.get();
-    }
-
-    void addValueHandle(Value *Val) {
-      auto HandleIt = ValueHandles.find_as(Val);
-      if (HandleIt == ValueHandles.end())
-        ValueHandles.insert({ Val, this });
-    }
-
-  public:
-    void insertResult(Value *Val, BasicBlock *BB,
-                      const ValueLatticeElement &Result) {
-      BlockCacheEntry *Entry = getOrCreateBlockEntry(BB);
-
-      // Insert over-defined values into their own cache to reduce memory
-      // overhead.
-      if (Result.isOverdefined())
-        Entry->OverDefined.insert(Val);
-      else
-        Entry->LatticeElements.insert({ Val, Result });
-
-      addValueHandle(Val);
-    }
-
-    std::optional<ValueLatticeElement>
-    getCachedValueInfo(Value *V, BasicBlock *BB) const {
-      const BlockCacheEntry *Entry = getBlockEntry(BB);
-      if (!Entry)
-        return std::nullopt;
-
-      if (Entry->OverDefined.count(V))
-        return ValueLatticeElement::getOverdefined();
-
-      auto LatticeIt = Entry->LatticeElements.find_as(V);
-      if (LatticeIt == Entry->LatticeElements.end())
-        return std::nullopt;
-
-      return LatticeIt->second;
-    }
-
-    bool isNonNullAtEndOfBlock(
-        Value *V, BasicBlock *BB,
-        function_ref<NonNullPointerSet(BasicBlock *)> InitFn) {
-      BlockCacheEntry *Entry = getOrCreateBlockEntry(BB);
-      if (!Entry->NonNullPointers) {
-        Entry->NonNullPointers = InitFn(BB);
-        for (Value *V : *Entry->NonNullPointers)
-          addValueHandle(V);
-      }
-
-      return Entry->NonNullPointers->count(V);
-    }
-
-    /// clear - Empty the cache.
-    void clear() {
-      BlockCache.clear();
-      ValueHandles.clear();
-    }
-
-    /// Inform the cache that a given value has been deleted.
-    void eraseValue(Value *V);
-
-    /// This is part of the update interface to inform the cache
-    /// that a block has been deleted.
-    void eraseBlock(BasicBlock *BB);
-
-    /// Updates the cache to remove any influence an overdefined value in
-    /// OldSucc might have (unless also overdefined in NewSucc).  This just
-    /// flushes elements from the cache and does not add any.
-    void threadEdgeImpl(BasicBlock *OldSucc,BasicBlock *NewSucc);
+/// This is the cache kept by LazyValueInfo which
+/// maintains information about queries across the clients' queries.
+class LazyValueInfoCache {
+  /// This is all of the cached information for one basic block. It contains
+  /// the per-value lattice elements, as well as a separate set for
+  /// overdefined values to reduce memory usage. Additionally pointers
+  /// dereferenced in the block are cached for nullability queries.
+  struct BlockCacheEntry {
+    SmallDenseMap<AssertingVH<Value>, ValueLatticeElement, 4> LatticeElements;
+    SmallDenseSet<AssertingVH<Value>, 4> OverDefined;
+    // std::nullopt indicates that the nonnull pointers for this basic block
+    // block have not been computed yet.
+    std::optional<NonNullPointerSet> NonNullPointers;
   };
-}
+
+  /// Cached information per basic block.
+  DenseMap<PoisoningVH<BasicBlock>, std::unique_ptr<BlockCacheEntry>>
+      BlockCache;
+  /// Set of value handles used to erase values from the cache on deletion.
+  DenseSet<LVIValueHandle, DenseMapInfo<Value *>> ValueHandles;
+
+  const BlockCacheEntry *getBlockEntry(BasicBlock *BB) const {
+    auto It = BlockCache.find_as(BB);
+    if (It == BlockCache.end())
+      return nullptr;
+    return It->second.get();
+  }
+
+  BlockCacheEntry *getOrCreateBlockEntry(BasicBlock *BB) {
+    auto It = BlockCache.find_as(BB);
+    if (It == BlockCache.end())
+      It = BlockCache.insert({BB, std::make_unique<BlockCacheEntry>()}).first;
+
+    return It->second.get();
+  }
+
+  void addValueHandle(Value *Val) {
+    auto HandleIt = ValueHandles.find_as(Val);
+    if (HandleIt == ValueHandles.end())
+      ValueHandles.insert({Val, this});
+  }
+
+public:
+  void insertResult(Value *Val, BasicBlock *BB,
+                    const ValueLatticeElement &Result) {
+    BlockCacheEntry *Entry = getOrCreateBlockEntry(BB);
+
+    // Insert over-defined values into their own cache to reduce memory
+    // overhead.
+    if (Result.isOverdefined())
+      Entry->OverDefined.insert(Val);
+    else
+      Entry->LatticeElements.insert({Val, Result});
+
+    addValueHandle(Val);
+  }
+
+  std::optional<ValueLatticeElement> getCachedValueInfo(Value *V,
+                                                        BasicBlock *BB) const {
+    const BlockCacheEntry *Entry = getBlockEntry(BB);
+    if (!Entry)
+      return std::nullopt;
+
+    if (Entry->OverDefined.count(V))
+      return ValueLatticeElement::getOverdefined();
+
+    auto LatticeIt = Entry->LatticeElements.find_as(V);
+    if (LatticeIt == Entry->LatticeElements.end())
+      return std::nullopt;
+
+    return LatticeIt->second;
+  }
+
+  bool
+  isNonNullAtEndOfBlock(Value *V, BasicBlock *BB,
+                        function_ref<NonNullPointerSet(BasicBlock *)> InitFn) {
+    BlockCacheEntry *Entry = getOrCreateBlockEntry(BB);
+    if (!Entry->NonNullPointers) {
+      Entry->NonNullPointers = InitFn(BB);
+      for (Value *V : *Entry->NonNullPointers)
+        addValueHandle(V);
+    }
+
+    return Entry->NonNullPointers->count(V);
+  }
+
+  /// clear - Empty the cache.
+  void clear() {
+    BlockCache.clear();
+    ValueHandles.clear();
+  }
+
+  /// Inform the cache that a given value has been deleted.
+  void eraseValue(Value *V);
+
+  /// This is part of the update interface to inform the cache
+  /// that a block has been deleted.
+  void eraseBlock(BasicBlock *BB);
+
+  /// Updates the cache to remove any influence an overdefined value in
+  /// OldSucc might have (unless also overdefined in NewSucc).  This just
+  /// flushes elements from the cache and does not add any.
+  void threadEdgeImpl(BasicBlock *OldSucc, BasicBlock *NewSucc);
+};
+} // namespace
 
 void LazyValueInfoCache::eraseValue(Value *V) {
   for (auto &Pair : BlockCache) {
@@ -648,7 +650,7 @@ LazyValueInfoImpl::solveBlockValueImpl(Value *Val, BasicBlock *BB) {
   if (PT && isKnownNonZero(BBI, DL))
     return ValueLatticeElement::getNot(ConstantPointerNull::get(PT));
 
-  if (BBI->getType()->isIntegerTy()) {
+  if (BBI->getType()->isIntOrIntVectorTy()) {
     if (auto *CI = dyn_cast<CastInst>(BBI))
       return solveBlockValueCast(CI, BB);
 
@@ -842,6 +844,8 @@ static ConstantRange toConstantRange(const ValueLatticeElement &Val,
   unsigned BW = Ty->getScalarSizeInBits();
   if (Val.isUnknown())
     return ConstantRange::getEmpty(BW);
+  if (Val.isConstant() && Ty->isVectorTy())
+    return getVectorConstantRange(Val.getConstant());
   return ConstantRange::getFull(BW);
 }
 
@@ -966,7 +970,7 @@ LazyValueInfoImpl::solveBlockValueCast(CastInst *CI, BasicBlock *BB) {
     return std::nullopt;
   const ConstantRange &LHSRange = *LHSRes;
 
-  const unsigned ResultBitWidth = CI->getType()->getIntegerBitWidth();
+  const unsigned ResultBitWidth = CI->getType()->getScalarSizeInBits();
 
   // NOTE: We're currently limited by the set of operations that ConstantRange
   // can evaluate symbolically.  Enhancing that set will allows us to analyze
@@ -1058,7 +1062,7 @@ LazyValueInfoImpl::solveBlockValueExtractValue(ExtractValueInst *EVI,
   // based on replaced with.overflow intrinsics.
   if (Value *V = simplifyExtractValueInst(
           EVI->getAggregateOperand(), EVI->getIndices(),
-          EVI->getModule()->getDataLayout()))
+          EVI->getDataLayout()))
     return getBlockValue(V, BB, EVI);
 
   LLVM_DEBUG(dbgs() << " compute BB '" << BB->getName()
@@ -1106,7 +1110,7 @@ LazyValueInfoImpl::getValueFromSimpleICmpCondition(CmpInst::Predicate Pred,
                                                    const APInt &Offset,
                                                    Instruction *CxtI,
                                                    bool UseBlockValue) {
-  ConstantRange RHSRange(RHS->getType()->getIntegerBitWidth(),
+  ConstantRange RHSRange(RHS->getType()->getScalarSizeInBits(),
                          /*isFullSet=*/true);
   if (ConstantInt *CI = dyn_cast<ConstantInt>(RHS)) {
     RHSRange = ConstantRange(CI->getValue());
@@ -1116,9 +1120,6 @@ LazyValueInfoImpl::getValueFromSimpleICmpCondition(CmpInst::Predicate Pred,
     if (!R)
       return std::nullopt;
     RHSRange = toConstantRange(*R, RHS->getType());
-  } else if (Instruction *I = dyn_cast<Instruction>(RHS)) {
-    if (auto *Ranges = I->getMetadata(LLVMContext::MD_range))
-      RHSRange = getConstantRangeFromMetadata(*Ranges);
   }
 
   ConstantRange TrueValues =
@@ -1191,13 +1192,10 @@ std::optional<ValueLatticeElement> LazyValueInfoImpl::getValueFromICmpCondition(
       return ValueLatticeElement::getRange(
           ConstantRange::fromKnownBits(Known, /*IsSigned*/ false));
     }
-    // If (Val & Mask) != 0 then the value must be larger than the lowest set
-    // bit of Mask.
-    if (EdgePred == ICmpInst::ICMP_NE && !Mask->isZero() && C->isZero()) {
-      return ValueLatticeElement::getRange(ConstantRange::getNonEmpty(
-          APInt::getOneBitSet(BitWidth, Mask->countr_zero()),
-          APInt::getZero(BitWidth)));
-    }
+
+    if (EdgePred == ICmpInst::ICMP_NE)
+      return ValueLatticeElement::getRange(
+          ConstantRange::makeMaskNotEqualRange(*Mask, *C));
   }
 
   // If (X urem Modulus) >= C, then X >= C.
@@ -1372,6 +1370,7 @@ LazyValueInfoImpl::getEdgeValueLocal(Value *Val, BasicBlock *BBFrom,
 
       // If V is the condition of the branch itself, then we know exactly what
       // it is.
+      // NB: The condition on a `br` can't be a vector type.
       if (Condition == Val)
         return ValueLatticeElement::get(ConstantInt::get(
                               Type::getInt1Ty(Val->getContext()), isTrueDest));
@@ -1392,7 +1391,7 @@ LazyValueInfoImpl::getEdgeValueLocal(Value *Val, BasicBlock *BBFrom,
         // over the operands unnecessarily which can be expensive for
         // instructions with many operands.
         if (isa<IntegerType>(Usr->getType()) && isOperationFoldable(Usr)) {
-          const DataLayout &DL = BBTo->getModule()->getDataLayout();
+          const DataLayout &DL = BBTo->getDataLayout();
           if (usesOperand(Usr, Condition)) {
             // If Val has Condition as an operand and Val can be folded into a
             // constant with either Condition == true or Condition == false,
@@ -1456,7 +1455,7 @@ LazyValueInfoImpl::getEdgeValueLocal(Value *Val, BasicBlock *BBFrom,
       ConstantRange EdgeVal(CaseValue);
       if (ValUsesConditionAndMayBeFoldable) {
         User *Usr = cast<User>(Val);
-        const DataLayout &DL = BBTo->getModule()->getDataLayout();
+        const DataLayout &DL = BBTo->getDataLayout();
         ValueLatticeElement EdgeLatticeVal =
             constantFoldUser(Usr, Condition, CaseValue, DL);
         if (EdgeLatticeVal.isOverdefined())
@@ -1694,7 +1693,7 @@ LazyValueInfo LazyValueAnalysis::run(Function &F,
                                      FunctionAnalysisManager &FAM) {
   auto &AC = FAM.getResult<AssumptionAnalysis>(F);
 
-  return LazyValueInfo(&AC, &F.getParent()->getDataLayout());
+  return LazyValueInfo(&AC, &F.getDataLayout());
 }
 
 /// Returns true if we can statically tell that this value will never be a
@@ -1725,14 +1724,13 @@ Constant *LazyValueInfo::getConstant(Value *V, Instruction *CxtI) {
   if (Result.isConstantRange()) {
     const ConstantRange &CR = Result.getConstantRange();
     if (const APInt *SingleVal = CR.getSingleElement())
-      return ConstantInt::get(V->getContext(), *SingleVal);
+      return ConstantInt::get(V->getType(), *SingleVal);
   }
   return nullptr;
 }
 
 ConstantRange LazyValueInfo::getConstantRange(Value *V, Instruction *CxtI,
                                               bool UndefAllowed) {
-  assert(V->getType()->isIntegerTy());
   BasicBlock *BB = CxtI->getParent();
   ValueLatticeElement Result =
       getOrCreateImpl(BB->getModule()).getValueInBlock(V, BB, CxtI);
@@ -1761,7 +1759,7 @@ Constant *LazyValueInfo::getConstantOnEdge(Value *V, BasicBlock *FromBB,
   if (Result.isConstantRange()) {
     const ConstantRange &CR = Result.getConstantRange();
     if (const APInt *SingleVal = CR.getSingleElement())
-      return ConstantInt::get(V->getContext(), *SingleVal);
+      return ConstantInt::get(V->getType(), *SingleVal);
   }
   return nullptr;
 }
@@ -1778,8 +1776,8 @@ ConstantRange LazyValueInfo::getConstantRangeOnEdge(Value *V,
 }
 
 static LazyValueInfo::Tristate
-getPredicateResult(unsigned Pred, Constant *C, const ValueLatticeElement &Val,
-                   const DataLayout &DL) {
+getPredicateResult(CmpInst::Predicate Pred, Constant *C,
+                   const ValueLatticeElement &Val, const DataLayout &DL) {
   // If we know the value is a constant, evaluate the conditional.
   Constant *Res = nullptr;
   if (Val.isConstant()) {
@@ -1794,27 +1792,11 @@ getPredicateResult(unsigned Pred, Constant *C, const ValueLatticeElement &Val,
     if (!CI) return LazyValueInfo::Unknown;
 
     const ConstantRange &CR = Val.getConstantRange();
-    if (Pred == ICmpInst::ICMP_EQ) {
-      if (!CR.contains(CI->getValue()))
-        return LazyValueInfo::False;
-
-      if (CR.isSingleElement())
-        return LazyValueInfo::True;
-    } else if (Pred == ICmpInst::ICMP_NE) {
-      if (!CR.contains(CI->getValue()))
-        return LazyValueInfo::True;
-
-      if (CR.isSingleElement())
-        return LazyValueInfo::False;
-    } else {
-      // Handle more complex predicates.
-      ConstantRange TrueValues = ConstantRange::makeExactICmpRegion(
-          (ICmpInst::Predicate)Pred, CI->getValue());
-      if (TrueValues.contains(CR))
-        return LazyValueInfo::True;
-      if (TrueValues.inverse().contains(CR))
-        return LazyValueInfo::False;
-    }
+    ConstantRange RHS(CI->getValue());
+    if (CR.icmp(Pred, RHS))
+      return LazyValueInfo::True;
+    if (CR.icmp(CmpInst::getInversePredicate(Pred), RHS))
+      return LazyValueInfo::False;
     return LazyValueInfo::Unknown;
   }
 
@@ -1843,9 +1825,9 @@ getPredicateResult(unsigned Pred, Constant *C, const ValueLatticeElement &Val,
 /// Determine whether the specified value comparison with a constant is known to
 /// be true or false on the specified CFG edge. Pred is a CmpInst predicate.
 LazyValueInfo::Tristate
-LazyValueInfo::getPredicateOnEdge(unsigned Pred, Value *V, Constant *C,
-                                  BasicBlock *FromBB, BasicBlock *ToBB,
-                                  Instruction *CxtI) {
+LazyValueInfo::getPredicateOnEdge(CmpInst::Predicate Pred, Value *V,
+                                  Constant *C, BasicBlock *FromBB,
+                                  BasicBlock *ToBB, Instruction *CxtI) {
   Module *M = FromBB->getModule();
   ValueLatticeElement Result =
       getOrCreateImpl(M).getValueOnEdge(V, FromBB, ToBB, CxtI);
@@ -1853,9 +1835,10 @@ LazyValueInfo::getPredicateOnEdge(unsigned Pred, Value *V, Constant *C,
   return getPredicateResult(Pred, C, Result, M->getDataLayout());
 }
 
-LazyValueInfo::Tristate
-LazyValueInfo::getPredicateAt(unsigned Pred, Value *V, Constant *C,
-                              Instruction *CxtI, bool UseBlockValue) {
+LazyValueInfo::Tristate LazyValueInfo::getPredicateAt(CmpInst::Predicate Pred,
+                                                      Value *V, Constant *C,
+                                                      Instruction *CxtI,
+                                                      bool UseBlockValue) {
   // Is or is not NonNull are common predicates being queried. If
   // isKnownNonZero can tell us the result of the predicate, we can
   // return it quickly. But this is only a fastpath, and falling
@@ -1959,14 +1942,12 @@ LazyValueInfo::getPredicateAt(unsigned Pred, Value *V, Constant *C,
   return Unknown;
 }
 
-LazyValueInfo::Tristate LazyValueInfo::getPredicateAt(unsigned P, Value *LHS,
-                                                      Value *RHS,
+LazyValueInfo::Tristate LazyValueInfo::getPredicateAt(CmpInst::Predicate Pred,
+                                                      Value *LHS, Value *RHS,
                                                       Instruction *CxtI,
                                                       bool UseBlockValue) {
-  CmpInst::Predicate Pred = (CmpInst::Predicate)P;
-
   if (auto *C = dyn_cast<Constant>(RHS))
-    return getPredicateAt(P, LHS, C, CxtI, UseBlockValue);
+    return getPredicateAt(Pred, LHS, C, CxtI, UseBlockValue);
   if (auto *C = dyn_cast<Constant>(LHS))
     return getPredicateAt(CmpInst::getSwappedPredicate(Pred), RHS, C, CxtI,
                           UseBlockValue);
@@ -1984,8 +1965,7 @@ LazyValueInfo::Tristate LazyValueInfo::getPredicateAt(unsigned P, Value *LHS,
     ValueLatticeElement R =
         getOrCreateImpl(M).getValueInBlock(RHS, CxtI->getParent(), CxtI);
     Type *Ty = CmpInst::makeCmpResultType(LHS->getType());
-    if (Constant *Res = L.getCompare((CmpInst::Predicate)P, Ty, R,
-                                     M->getDataLayout())) {
+    if (Constant *Res = L.getCompare(Pred, Ty, R, M->getDataLayout())) {
       if (Res->isNullValue())
         return LazyValueInfo::False;
       if (Res->isOneValue())

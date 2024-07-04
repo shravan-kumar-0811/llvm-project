@@ -735,6 +735,11 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
   // Add target args, features, etc.
   addTargetOptions(Args, CmdArgs);
 
+  llvm::Reloc::Model RelocationModel =
+      std::get<0>(ParsePICArgs(getToolChain(), Args));
+  // Add MCModel information
+  addMCModel(D, Args, Triple, RelocationModel, CmdArgs);
+
   // Add Codegen options
   addCodegenOptions(Args, CmdArgs);
 
@@ -801,6 +806,9 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
   switch (FPKeepKind) {
   case CodeGenOptions::FramePointerKind::None:
     FPKeepKindStr = "-mframe-pointer=none";
+    break;
+   case CodeGenOptions::FramePointerKind::Reserved:
+    FPKeepKindStr = "-mframe-pointer=reserved";
     break;
   case CodeGenOptions::FramePointerKind::NonLeaf:
     FPKeepKindStr = "-mframe-pointer=non-leaf";

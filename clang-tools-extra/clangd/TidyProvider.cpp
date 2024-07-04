@@ -195,10 +195,10 @@ TidyProvider addTidyChecks(llvm::StringRef Checks,
 }
 
 TidyProvider disableUnusableChecks(llvm::ArrayRef<std::string> ExtraBadChecks) {
-  constexpr llvm::StringLiteral Seperator(",");
+  constexpr llvm::StringLiteral Separator(",");
   static const std::string BadChecks = llvm::join_items(
-      Seperator,
-      // We want this list to start with a seperator to
+      Separator,
+      // We want this list to start with a separator to
       // simplify appending in the lambda. So including an
       // empty string here will force that.
       "",
@@ -222,19 +222,13 @@ TidyProvider disableUnusableChecks(llvm::ArrayRef<std::string> ExtraBadChecks) {
       // Checks use dataflow analysis, which might hang/crash unexpectedly on
       // incomplete code.
       "-bugprone-unchecked-optional-access",
-      "-bugprone-null-check-after-dereference",
-
-      // ----- Performance problems -----
-
-      // This check runs expensive analysis for each variable.
-      // It has been observed to increase reparse time by 10x.
-      "-misc-const-correctness");
+      "-bugprone-null-check-after-dereference");
 
   size_t Size = BadChecks.size();
   for (const std::string &Str : ExtraBadChecks) {
     if (Str.empty())
       continue;
-    Size += Seperator.size();
+    Size += Separator.size();
     if (LLVM_LIKELY(Str.front() != '-'))
       ++Size;
     Size += Str.size();
@@ -245,7 +239,7 @@ TidyProvider disableUnusableChecks(llvm::ArrayRef<std::string> ExtraBadChecks) {
   for (const std::string &Str : ExtraBadChecks) {
     if (Str.empty())
       continue;
-    DisableGlob += Seperator;
+    DisableGlob += Separator;
     if (LLVM_LIKELY(Str.front() != '-'))
       DisableGlob.push_back('-');
     DisableGlob += Str;

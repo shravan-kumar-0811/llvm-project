@@ -795,7 +795,7 @@ enum : unsigned {
   EF_AMDGPU_MACH_AMDGCN_GFX10_1_GENERIC = 0x052,
   EF_AMDGPU_MACH_AMDGCN_GFX10_3_GENERIC = 0x053,
   EF_AMDGPU_MACH_AMDGCN_GFX11_GENERIC   = 0x054,
-  EF_AMDGPU_MACH_AMDGCN_RESERVED_0X55   = 0x055,
+  EF_AMDGPU_MACH_AMDGCN_GFX1152         = 0x055,
   EF_AMDGPU_MACH_AMDGCN_RESERVED_0X56   = 0x056,
   EF_AMDGPU_MACH_AMDGCN_RESERVED_0X57   = 0x057,
   EF_AMDGPU_MACH_AMDGCN_RESERVED_0X58   = 0x058,
@@ -1082,7 +1082,10 @@ enum : unsigned {
   SHT_SYMTAB_SHNDX = 18,  // Indices for SHN_XINDEX entries.
   // Experimental support for SHT_RELR sections. For details, see proposal
   // at https://groups.google.com/forum/#!topic/generic-abi/bX460iggiKg
-  SHT_RELR = 19,         // Relocation entries; only offsets.
+  SHT_RELR = 19, // Relocation entries; only offsets.
+  // TODO: Experimental CREL relocations. LLVM will change the value and
+  // break compatibility in the future.
+  SHT_CREL = 0x40000014,
   SHT_LOOS = 0x60000000, // Lowest operating system-specific type.
   // Android packed relocation section types.
   // https://android.googlesource.com/platform/bionic/+/6f12bfece5dcc01325e0abba56a46b1bcf991c69/tools/relocation_packer/src/elf_file.cc#37
@@ -1936,6 +1939,8 @@ enum {
   ELFCOMPRESS_LOPROC = 0x70000000, // Start of processor-specific.
   ELFCOMPRESS_HIPROC = 0x7fffffff  // End of processor-specific.
 };
+
+constexpr unsigned CREL_HDR_ADDEND = 4;
 
 /// Convert an architecture name into ELF's e_machine value.
 uint16_t convertArchNameToEMachine(StringRef Arch);
