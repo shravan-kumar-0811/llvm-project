@@ -399,6 +399,9 @@ public:
   }
 
   std::optional<unsigned> getMinPageSize() const { return 4096; }
+
+  bool enableSelectOptimize() { return ST->enableSelectOptimize(); }
+  bool shouldTreatInstructionLikeSelect(const Instruction *I);
 };
 
 } // end namespace llvm

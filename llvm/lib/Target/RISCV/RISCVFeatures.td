@@ -1266,6 +1266,10 @@ def FeaturePredictableSelectIsExpensive
     : SubtargetFeature<"predictable-select-expensive", "PredictableSelectIsExpensive", "true",
                        "Prefer likely predicted branches over selects">;
 
+def FeatureEnableSelectOptimize
+    : SubtargetFeature<"enable-select-opt", "EnableSelectOptimize", "true",
+                       "Enable the select optimize pass for select loop heuristics">;
+
 def TuneNoOptimizedZeroStrideLoad
    : SubtargetFeature<"no-optimized-zero-stride-load", "HasOptimizedZeroStrideLoad",
                       "false", "Hasn't optimized (perform fewer memory operations)"
