@@ -1549,30 +1549,10 @@ define amdgpu_kernel void @multiple_uses_fneg_select_f64(double %x, double %y, i
 define amdgpu_kernel void @fnge_select_f32_multi_use_regression(float %.i2369) {
 ; GCN-LABEL: fnge_select_f32_multi_use_regression:
 ; GCN:       ; %bb.0: ; %.entry
-; GCN-NEXT:    s_load_dword s0, s[4:5], 0x0
-; GCN-NEXT:    s_waitcnt lgkmcnt(0)
-; GCN-NEXT:    v_cmp_nlt_f32_e64 s[0:1], s0, 0
-; GCN-NEXT:    v_cndmask_b32_e64 v0, 0, 1, s[0:1]
-; GCN-NEXT:    v_cmp_ngt_f32_e32 vcc, 0, v0
-; GCN-NEXT:    v_cndmask_b32_e32 v1, 0, v0, vcc
-; GCN-NEXT:    v_mul_f32_e64 v0, -v0, v1
-; GCN-NEXT:    v_cmp_lt_f32_e32 vcc, 0, v0
-; GCN-NEXT:    s_and_b64 vcc, exec, vcc
 ; GCN-NEXT:    s_endpgm
 ;
 ; GFX11-LABEL: fnge_select_f32_multi_use_regression:
 ; GFX11:       ; %bb.0: ; %.entry
-; GFX11-NEXT:    s_load_b32 s0, s[0:1], 0x0
-; GFX11-NEXT:    s_waitcnt lgkmcnt(0)
-; GFX11-NEXT:    v_cmp_nlt_f32_e64 s0, s0, 0
-; GFX11-NEXT:    s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
-; GFX11-NEXT:    v_cndmask_b32_e64 v0, 0, 1, s0
-; GFX11-NEXT:    v_cmp_ngt_f32_e32 vcc_lo, 0, v0
-; GFX11-NEXT:    v_cndmask_b32_e32 v1, 0, v0, vcc_lo
-; GFX11-NEXT:    s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)
-; GFX11-NEXT:    v_mul_f32_e64 v0, -v0, v1
-; GFX11-NEXT:    v_cmp_lt_f32_e32 vcc_lo, 0, v0
-; GFX11-NEXT:    s_and_b32 vcc_lo, exec_lo, vcc_lo
 ; GFX11-NEXT:    s_endpgm
 .entry:
   %i = fcmp uge float %.i2369, 0.000000e+00
