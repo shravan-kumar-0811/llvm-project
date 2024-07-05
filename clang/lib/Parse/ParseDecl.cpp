@@ -2319,7 +2319,8 @@ Parser::DeclGroupPtrTy Parser::ParseDeclGroup(ParsingDeclSpec &DS,
   }
 
   if (getLangOpts().HLSL)
-    MaybeParseHLSLAnnotations(D);
+    while (MaybeParseHLSLAnnotations(D))
+      ;
 
   if (Tok.is(tok::kw_requires))
     ParseTrailingRequiresClause(D);
