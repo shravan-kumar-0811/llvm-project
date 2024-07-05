@@ -65,8 +65,6 @@ module assumed_array_routines
     end subroutine assumed_shape_array
 
 
-
-
 !HOST-LABEL: func.func @_QMassumed_array_routinesPassumed_size_array(
 !HOST-SAME: %[[ARG0:.*]]: !fir.ref<!fir.array<?xi32>> {fir.bindc_name = "arr_read_write"}) {
 !HOST: %[[ARG0_SHAPE:.*]] = fir.shape %{{.*}} : (index) -> !fir.shape<1>
