@@ -159,18 +159,23 @@
 // export macros added to them by the clang tool
 #define LLVM_ABI_NOT_EXPORTED
 #if defined(LLVM_BUILD_LLVM_DYLIB) || defined(LLVM_BUILD_SHARED_LIBS)
-#if defined(_WIN32)
-#if defined(LLVM_ABI_EXPORTS)
-#define LLVM_ABI __declspec(dllexport)
-#define LLVM_TEMPLATE_ABI
-#define LLVM_EXPORT_TEMPLATE LLVM_ABI
-#elif defined(LLVM_DLL_IMPORT)
-#define LLVM_ABI __declspec(dllimport)
-#define LLVM_TEMPLATE_ABI __declspec(dllimport)
-#define LLVM_EXPORT_TEMPLATE
-#else
+// Some libraries like those for tablegen are linked in to tools that used
+// in the build so can't depend on the llvm shared library. If export macros
+// were left enabled when building these we would get duplicate or
+// missing symbol linker errors on windows.
+#if defined(LLVM_BUILD_STATIC)
 #define LLVM_ABI
 #define LLVM_TEMPLATE_ABI
+#define LLVM_EXPORT_TEMPLATE
+#define LLVM_ABI_EXPORT
+#elif defined(_WIN32)
+#if defined(LLVM_EXPORTS)
+#define LLVM_ABI __declspec(dllexport)
+#define LLVM_TEMPLATE_ABI
+#define LLVM_EXPORT_TEMPLATE __declspec(dllexport)
+#else
+#define LLVM_ABI __declspec(dllimport)
+#define LLVM_TEMPLATE_ABI __declspec(dllimport)
 #define LLVM_EXPORT_TEMPLATE
 #endif
 #define LLVM_ABI_EXPORT __declspec(dllexport)
@@ -185,16 +190,16 @@
 #define LLVM_EXPORT_TEMPLATE
 #define LLVM_ABI_EXPORT LLVM_ATTRIBUTE_VISIBILITY_DEFAULT
 #endif
-#define LLVM_C_ABI LLVM_ABI
-#define LLVM_CLASS_ABI LLVM_ABI
 #else
-#define LLVM_C_ABI 
+#define LLVM_C_ABI
 #define LLVM_ABI
 #define LLVM_ABI_EXPORT
 #define LLVM_CLASS_ABI
 #define LLVM_TEMPLATE_ABI
 #define LLVM_EXPORT_TEMPLATE
 #endif
+#define LLVM_C_ABI LLVM_ABI
+#define LLVM_CLASS_ABI LLVM_ABI
 #endif
 
 #if defined(__GNUC__)
