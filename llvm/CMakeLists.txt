@@ -830,7 +830,7 @@ endif()
 option(LLVM_BUILD_LLVM_DYLIB "Build libllvm dynamic library" ${LLVM_BUILD_LLVM_DYLIB_default})
 
 if(MSVC)
-  option(LLVM_DYLIB_EXPORT_INLNES "Force inline members of class to be dll exported when
+  option(LLVM_DYLIB_EXPORT_INLINES "Force inline members of class to be dll exported when
   building with clang-cl so the libllvm dll is compatible with MSVC" OFF)
 endif()
 

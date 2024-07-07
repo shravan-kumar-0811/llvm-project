@@ -649,7 +649,7 @@ function(llvm_add_library name)
   ## class members from being dllexport'ed to reduce compile time.
   ## This will also keep us below the 64k exported symbol limit
   ## https://blog.llvm.org/2018/11/30-faster-windows-builds-with-clang-cl_14.html
-  if(LLVM_BUILD_LLVM_DYLIB AND NOT LLVM_DYLIB_EXPORT_INLNES AND MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
+  if(LLVM_BUILD_LLVM_DYLIB AND NOT LLVM_DYLIB_EXPORT_INLINES AND MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
     target_compile_options(${name} PUBLIC /Zc:dllexportInlines-)
     if(TARGET ${obj_name})
       target_compile_options(${obj_name} PUBLIC /Zc:dllexportInlines-)
@@ -1147,7 +1147,7 @@ macro(add_llvm_executable name)
   if (LLVM_BUILD_LLVM_DYLIB OR LLVM_ENABLE_PLUGINS OR LLVM_EXPORT_SYMBOLS_FOR_PLUGINS)
     if(ARG_DISABLE_LLVM_LINK_LLVM_DYLIB)
       target_compile_definitions(${name} PRIVATE LLVM_BUILD_STATIC)
-    elseif(NOT LLVM_DYLIB_EXPORT_INLNES AND MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    elseif(NOT LLVM_DYLIB_EXPORT_INLINES AND MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
       # This has to match how the libraries the executable is linked to are built or there be linker errors.
       target_compile_options(${name} PRIVATE /Zc:dllexportInlines-)
     endif()
