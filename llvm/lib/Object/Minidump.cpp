@@ -54,27 +54,23 @@ Expected<std::string> MinidumpFile::getString(size_t Offset) const {
   return Result;
 }
 
-Expected<std::vector<minidump::ExceptionStream>>
+Expected<std::vector<const minidump::ExceptionStream *>>
 MinidumpFile::getExceptionStreams() const {
-  // Scan the directories for exceptions first
-  std::vector<Directory> exceptionStreams;
+
+  std::vector<const minidump::ExceptionStream *> exceptionStreamList;
   for (const auto &directory : Streams) {
-    if (directory.Type == StreamType::Exception)
-      exceptionStreams.push_back(directory);
+    if (directory.Type == StreamType::Exception) {
+      llvm::Expected<minidump::ExceptionStream *> ExpectedStream =
+          getStreamFromDirectory<minidump::ExceptionStream *>(directory);
+      if (!ExpectedStream)
+        return ExpectedStream.takeError();
+
+      exceptionStreamList.push_back(ExpectedStream.get());
+    }
   }
 
-  if (exceptionStreams.empty())
+  if (exceptionStreamList.empty())
     return createError("No exception streams found");
-
-  std::vector<minidump::ExceptionStream> exceptionStreamList;
-  for (const auto &exceptionStream : exceptionStreams) {
-    llvm::Expected<minidump::ExceptionStream> ExpectedStream =
-        getStreamFromDirectory<minidump::ExceptionStream>(exceptionStream);
-    if (!ExpectedStream)
-      return ExpectedStream.takeError();
-
-    exceptionStreamList.push_back(ExpectedStream.get());
-  }
 
   return exceptionStreamList;
 }

@@ -85,7 +85,7 @@ public:
   /// Returns the contents of the Exception stream. An error is returned if the
   /// associated stream is smaller than the size of the ExceptionStream
   /// structure. Or the directory supplied is not of kind exception stream.
-  Expected<minidump::ExceptionStream>
+  Expected<const minidump::ExceptionStream &>
   getExceptionStream(minidump::Directory Directory) const {
     if (Directory.Type != minidump::StreamType::Exception) {
       return createError("Not an exception stream");
@@ -98,7 +98,8 @@ public:
   /// any of the streams are smaller than the size of the ExceptionStream
   /// structure. The internal consistency of the stream is not checked in any
   /// way.
-  Expected<std::vector<minidump::ExceptionStream>> getExceptionStreams() const;
+  Expected<std::vector<const minidump::ExceptionStream *>>
+  getExceptionStreams() const;
 
   /// Returns the list of descriptors embedded in the MemoryList stream. The
   /// descriptors provide the content of interesting regions of memory at the

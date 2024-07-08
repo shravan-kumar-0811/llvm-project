@@ -251,13 +251,13 @@ Streams:
 
 TEST_F(MinidumpParserTest, GetExceptionStream) {
   SetUpData("linux-x86_64.dmp");
-  llvm::Expected<std::vector<ExceptionStream>> exception_stream =
-      parser->GetExceptionStreams();
+  std::optional<std::vector<const minidump::ExceptionStream *>>
+      exception_stream = parser->GetExceptionStreams();
   // LLVM::Expected has an explicit bool operator that determines if
   // the expected value is an error or not.
   ASSERT_TRUE((bool)exception_stream);
   ASSERT_EQ(1UL, exception_stream->size());
-  ASSERT_EQ(11UL, exception_stream.get()[0].ExceptionRecord.ExceptionCode);
+  ASSERT_EQ(11UL, exception_stream->at(0)->ThreadId);
 }
 
 void check_mem_range_exists(MinidumpParser &parser, const uint64_t range_start,
