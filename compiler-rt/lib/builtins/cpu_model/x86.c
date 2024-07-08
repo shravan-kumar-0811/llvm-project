@@ -148,8 +148,8 @@ enum ProcessorFeatures {
   FEATURE_3DNOW,
   // FEATURE_3DNOWP,
   FEATURE_ADX = 40,
-  // FEATURE_ABM,
-  FEATURE_CLDEMOTE = 42,
+  FEATURE_64BIT,
+  FEATURE_CLDEMOTE,
   FEATURE_CLFLUSHOPT,
   FEATURE_CLWB,
   FEATURE_CLZERO,
@@ -317,11 +317,22 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
                                                    unsigned *Subtype) {
 #define testFeature(F) (Features[F / 32] & (1 << (F % 32))) != 0
 
-  // We select CPU strings to match the code in Host.cpp, but we don't use them
-  // in compiler-rt.
   const char *CPU = 0;
 
   switch (Family) {
+  case 3:
+    CPU = "i386";
+    break;
+  case 4:
+    CPU = "i486";
+    break;
+  case 5:
+    if (testFeature(FEATURE_MMX)) {
+      CPU = "pentium-mmx";
+      break;
+    }
+    CPU = "pentium";
+    break;
   case 6:
     switch (Model) {
     case 0x0f: // Intel Core 2 Duo processor, Intel Core 2 Duo mobile
@@ -455,6 +466,8 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
     // Alderlake:
     case 0x97:
     case 0x9a:
+    // Gracemont:
+    case 0xbe:
     // Raptorlake:
     case 0xb7:
     case 0xba:
@@ -462,8 +475,6 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
     // Meteorlake:
     case 0xaa:
     case 0xac:
-    // Gracemont:
-    case 0xbe:
       CPU = "alderlake";
       *Type = INTEL_COREI7;
       *Subtype = INTEL_COREI7_ALDERLAKE;
@@ -509,7 +520,7 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
       *Subtype = INTEL_COREI7_SAPPHIRERAPIDS;
       break;
 
-    // Granite Rapids:
+    // Graniterapids:
     case 0xad:
       CPU = "graniterapids";
       *Type = INTEL_COREI7;
@@ -547,7 +558,7 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
     case 0x5f: // Denverton
       CPU = "goldmont";
       *Type = INTEL_GOLDMONT;
-      break; // "goldmont"
+      break;
     case 0x7a:
       CPU = "goldmont-plus";
       *Type = INTEL_GOLDMONT_PLUS;
@@ -575,10 +586,10 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
     // Clearwaterforest:
     case 0xdd:
       CPU = "clearwaterforest";
-      *Type = INTEL_COREI7;
-      *Subtype = INTEL_CLEARWATERFOREST;
+      *Type = INTEL_CLEARWATERFOREST;
       break;
 
+    // Xeon Phi (Knights Landing + Knights Mill):
     case 0x57:
       CPU = "knl";
       *Type = INTEL_KNL;
@@ -589,10 +600,102 @@ static const char *getIntelProcessorTypeAndSubtype(unsigned Family,
       *Type = INTEL_KNM;
       break;
 
-    default: // Unknown family 6 CPU.
+    default: // Unknown family 6 CPU, try to guess.
+      // TODO detect tigerlake host from model
+      if (testFeature(FEATURE_AVX512VP2INTERSECT)) {
+        CPU = "tigerlake";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_TIGERLAKE;
+      } else if (testFeature(FEATURE_AVX512VBMI2)) {
+        CPU = "icelake-client";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_ICELAKE_CLIENT;
+      } else if (testFeature(FEATURE_AVX512VBMI)) {
+        CPU = "cannonlake";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_CANNONLAKE;
+      } else if (testFeature(FEATURE_AVX512BF16)) {
+        CPU = "cooperlake";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_COOPERLAKE;
+      } else if (testFeature(FEATURE_AVX512VNNI)) {
+        CPU = "cascadelake";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_CASCADELAKE;
+      } else if (testFeature(FEATURE_AVX512VL)) {
+        CPU = "skylake-avx512";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_SKYLAKE_AVX512;
+      } else if (testFeature(FEATURE_CLFLUSHOPT)) {
+        if (testFeature(FEATURE_SHA)) {
+          CPU = "goldmont";
+          *Type = INTEL_GOLDMONT;
+        } else {
+          CPU = "skylake";
+          *Type = INTEL_COREI7;
+          *Subtype = INTEL_COREI7_SKYLAKE;
+        }
+      } else if (testFeature(FEATURE_ADX)) {
+        CPU = "broadwell";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_BROADWELL;
+      } else if (testFeature(FEATURE_AVX2)) {
+        CPU = "haswell";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_HASWELL;
+      } else if (testFeature(FEATURE_AVX)) {
+        CPU = "sandybridge";
+        *Type = INTEL_COREI7;
+        *Subtype = INTEL_COREI7_SANDYBRIDGE;
+      } else if (testFeature(FEATURE_SSE4_2)) {
+        if (testFeature(FEATURE_MOVBE)) {
+          CPU = "silvermont";
+          *Type = INTEL_SILVERMONT;
+        } else {
+          CPU = "nehalem";
+          *Type = INTEL_COREI7;
+          *Subtype = INTEL_COREI7_NEHALEM;
+        }
+      } else if (testFeature(FEATURE_SSE4_1)) {
+        CPU = "penryn";
+        *Type = INTEL_CORE2;
+      } else if (testFeature(FEATURE_SSSE3)) {
+        if (testFeature(FEATURE_MOVBE)) {
+          CPU = "bonnell";
+          *Type = INTEL_BONNELL;
+        } else {
+          CPU = "core2";
+          *Type = INTEL_CORE2;
+        }
+      } else if (testFeature(FEATURE_64BIT)) {
+        CPU = "core2";
+        *Type = INTEL_CORE2;
+      } else if (testFeature(FEATURE_SSE3)) {
+        CPU = "yonah";
+      } else if (testFeature(FEATURE_SSE2)) {
+        CPU = "pentium-m";
+      } else if (testFeature(FEATURE_SSE)) {
+        CPU = "pentium3";
+      } else if (testFeature(FEATURE_MMX)) {
+        CPU = "pentium2";
+      } else {
+        CPU = "pentiumpro";
+      }
       break;
     }
     break;
+  case 15: {
+    if (testFeature(FEATURE_64BIT)) {
+      CPU = "nocona";
+      break;
+    }
+    if (testFeature(FEATURE_SSE3)) {
+      CPU = "prescott";
+      break;
+    }
+    CPU = "pentium4";
+    break;
+  }
   default:
     break; // Unknown.
   }
