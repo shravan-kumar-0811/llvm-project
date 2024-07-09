@@ -1163,7 +1163,7 @@ define float @test_fneg_ninf_mul_nnan_with_const(float %a) {
 
 define float @test_fneg_ninf_mul_nsz_with_const(float %a) {
 ; CHECK-LABEL: @test_fneg_ninf_mul_nsz_with_const(
-; CHECK-NEXT:    [[F2:%.*]] = fmul float [[A:%.*]], -0.000000e+00
+; CHECK-NEXT:    [[F2:%.*]] = fmul nsz float [[A:%.*]], -0.000000e+00
 ; CHECK-NEXT:    ret float [[F2]]
 ;
   %f1 = fmul nsz float %a, 0.000000
@@ -1183,7 +1183,7 @@ define <2 x float> @test_fneg_ninf_mul_nnan_with_vec_const(<2 x float> %a) {
 
 define <2 x float> @test_fneg_ninf_mul_nsz_with_vec_const(<2 x float> %a) {
 ; CHECK-LABEL: @test_fneg_ninf_mul_nsz_with_vec_const(
-; CHECK-NEXT:    [[F2:%.*]] = fmul <2 x float> [[A:%.*]], <float -0.000000e+00, float 0.000000e+00>
+; CHECK-NEXT:    [[F2:%.*]] = fmul nsz <2 x float> [[A:%.*]], <float -0.000000e+00, float 0.000000e+00>
 ; CHECK-NEXT:    ret <2 x float> [[F2]]
 ;
   %f1 = fmul nsz <2 x float> %a, <float 0.000000, float -0.000000>
@@ -1191,5 +1191,14 @@ define <2 x float> @test_fneg_ninf_mul_nsz_with_vec_const(<2 x float> %a) {
   ret <2 x float> %f2
 }
 
+define <2 x float> @test_fneg_nnan_ninf_mul_with_vec_const(<2 x float> %a) {
+; CHECK-LABEL: @test_fneg_nnan_ninf_mul_with_vec_const(
+; CHECK-NEXT:    [[F2:%.*]] = fmul <2 x float> [[A:%.*]], <float -0.000000e+00, float 0.000000e+00>
+; CHECK-NEXT:    ret <2 x float> [[F2]]
+;
+  %f1 = fmul <2 x float> %a, <float 0.000000, float -0.000000>
+  %f2 = fneg nnan ninf <2 x float> %f1
+  ret <2 x float> %f2
+}
 
 !0 = !{}
