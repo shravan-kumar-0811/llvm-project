@@ -425,7 +425,7 @@ MinidumpParser::GetExceptionStreams() {
 
   LLDB_LOG_ERROR(GetLog(LLDBLog::Process), ExpectedStream.takeError(),
                  "Failed to read minidump exception stream: {0}");
-  // return empty on failure.
+
   return std::nullopt;
 }
 

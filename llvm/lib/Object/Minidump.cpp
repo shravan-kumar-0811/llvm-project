@@ -9,7 +9,6 @@
 #include "llvm/Object/Minidump.h"
 #include "llvm/Object/Error.h"
 #include "llvm/Support/ConvertUTF.h"
-#include <iostream>
 
 using namespace llvm;
 using namespace llvm::object;
