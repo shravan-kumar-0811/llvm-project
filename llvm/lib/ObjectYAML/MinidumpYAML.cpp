@@ -464,7 +464,7 @@ Stream::create(const Directory &StreamDesc, const object::MinidumpFile &File) {
   StreamKind Kind = getKind(StreamDesc.Type);
   switch (Kind) {
   case StreamKind::Exception: {
-    Expected<minidump::ExceptionStream> ExpectedExceptionStream =
+    Expected<const minidump::ExceptionStream &> ExpectedExceptionStream =
         File.getExceptionStream(StreamDesc);
     if (!ExpectedExceptionStream)
       return ExpectedExceptionStream.takeError();
