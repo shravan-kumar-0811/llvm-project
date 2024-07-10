@@ -19,6 +19,7 @@
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Core/SourceManager.h"
+#include "lldb/Core/Telemetry.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/Host/StreamFile.h"
@@ -31,6 +32,7 @@
 #include "lldb/Utility/Diagnostics.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Status.h"
+#include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-defines.h"
 #include "lldb/lldb-enumerations.h"
@@ -136,6 +138,10 @@ public:
   lldb::StreamFileSP GetOutputStreamSP() { return m_output_stream_sp; }
 
   lldb::StreamFileSP GetErrorStreamSP() { return m_error_stream_sp; }
+
+  std::shared_ptr<LldbTelemeter> GetTelemeter() { return m_telemeter; }
+
+  void SendClientTelemetry(lldb_private::StructuredData::Object *entry);
 
   File &GetInputFile() { return *m_input_file_sp; }
 
@@ -754,6 +760,7 @@ protected:
   uint32_t m_interrupt_requested = 0; ///< Tracks interrupt requests
   std::mutex m_interrupt_mutex;
 
+  std::shared_ptr<LldbTelemeter> m_telemeter;
   // Events for m_sync_broadcaster
   enum {
     eBroadcastBitEventThreadIsListening = (1 << 0),
@@ -766,6 +773,7 @@ private:
 
   Debugger(const Debugger &) = delete;
   const Debugger &operator=(const Debugger &) = delete;
+  TelemetryEventStats stats;
 };
 
 } // namespace lldb_private
