@@ -11470,7 +11470,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
     else
       Type = Context.CharTy;
     break;
-  case '£':
+  case 'j':
     Type = Context.Fpm8Ty;
     break;
   case 'b': // boolean
