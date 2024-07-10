@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "xray_interface_internal.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <cinttypes>
 #include <cstdio>
@@ -289,24 +290,9 @@ XRayPatchingStatus patchFunction(int32_t FuncId, int32_t ObjId,
 // controlPatching implements the common internals of the patching/unpatching
 // implementation. |Enable| defines whether we're enabling or disabling the
 // runtime XRay instrumentation.
-XRayPatchingStatus controlPatching(bool Enable,
-                                   int32_t ObjId) XRAY_NEVER_INSTRUMENT {
-
-  if (!atomic_load(&XRayInitialized, memory_order_acquire))
-    return XRayPatchingStatus::NOT_INITIALIZED; // Not initialized.
-
-  uint8_t NotPatching = false;
-  if (!atomic_compare_exchange_strong(
-          &XRayPatching, &NotPatching, true, memory_order_acq_rel))
-    return XRayPatchingStatus::ONGOING; // Already patching.
-
-  uint8_t PatchingSuccess = false;
-  auto XRayPatchingStatusResetter =
-      at_scope_exit([&PatchingSuccess] {
-        if (!PatchingSuccess)
-          atomic_store(&XRayPatching, false, memory_order_release);
-      });
-
+// This function should only be called after ensuring that XRay is initialized
+// and no other thread is currently patching.
+XRayPatchingStatus controlPatchingObjectUnchecked(bool Enable, int32_t ObjId) {
   XRaySledMap InstrMap;
   {
     SpinMutexLock Guard(&XRayInstrMapMutex);
@@ -382,8 +368,78 @@ XRayPatchingStatus controlPatching(bool Enable,
     patchSled(Sled, Enable, PackedId, InstrMap.Trampolines);
   }
   atomic_store(&XRayPatching, false, memory_order_release);
-  PatchingSuccess = true;
   return XRayPatchingStatus::SUCCESS;
+}
+
+
+// Controls patching for all registered objects.
+// Returns: SUCCESS, if patching succeeds for all objects.
+//          NOT_INITIALIZED, if one or more objects returned NOT_INITIALIZED
+//             but none failed.
+//          FAILED, if patching of one or more objects failed.
+XRayPatchingStatus controlPatching(bool Enable) XRAY_NEVER_INSTRUMENT {
+  if (!atomic_load(&XRayInitialized, memory_order_acquire))
+    return XRayPatchingStatus::NOT_INITIALIZED; // Not initialized.
+
+  uint8_t NotPatching = false;
+  if (!atomic_compare_exchange_strong(
+          &XRayPatching, &NotPatching, true, memory_order_acq_rel))
+    return XRayPatchingStatus::ONGOING; // Already patching.
+
+  auto XRayPatchingStatusResetter =
+      at_scope_exit([] {
+        atomic_store(&XRayPatching, false, memory_order_release);
+      });
+
+  unsigned NumObjects = __xray_num_objects();
+
+  XRayPatchingStatus CombinedStatus{NOT_INITIALIZED};
+  for (unsigned I = 0; I < NumObjects; ++I) {
+    if (!isObjectLoaded(I))
+      continue;
+    auto LastStatus = controlPatchingObjectUnchecked(Enable, I);
+    switch (LastStatus) {
+    case SUCCESS:
+      if (CombinedStatus == NOT_INITIALIZED)
+        CombinedStatus = SUCCESS;
+      break;
+    case FAILED:
+      // Report failure, but try to patch the remaining objects
+      CombinedStatus = FAILED;
+      break;
+    case NOT_INITIALIZED:
+      // XRay has been initialized but there are no sleds available for this
+      // object. Try to patch remaining objects.
+      if (CombinedStatus != FAILED)
+        CombinedStatus = NOT_INITIALIZED;
+      break;
+    case ONGOING:
+      llvm_unreachable("Status ONGOING should not appear at this point");
+    default:
+      llvm_unreachable("Unhandled patching status");
+    }
+  }
+  return CombinedStatus;
+}
+
+// Controls patching for one object.
+XRayPatchingStatus controlPatching(bool Enable,
+                                   int32_t ObjId) XRAY_NEVER_INSTRUMENT {
+
+  if (!atomic_load(&XRayInitialized, memory_order_acquire))
+    return XRayPatchingStatus::NOT_INITIALIZED; // Not initialized.
+
+  uint8_t NotPatching = false;
+  if (!atomic_compare_exchange_strong(
+          &XRayPatching, &NotPatching, true, memory_order_acq_rel))
+    return XRayPatchingStatus::ONGOING; // Already patching.
+
+  auto XRayPatchingStatusResetter =
+      at_scope_exit([] {
+          atomic_store(&XRayPatching, false, memory_order_release);
+      });
+
+  return controlPatchingObjectUnchecked(Enable, ObjId);
 }
 
 XRayPatchingStatus mprotectAndPatchFunction(int32_t FuncId, int32_t ObjId,
@@ -420,7 +476,7 @@ XRayPatchingStatus mprotectAndPatchFunction(int32_t FuncId, int32_t ObjId,
     return XRayPatchingStatus::FAILED;
   }
 
-  // Here we compute the minumum sled and maximum sled associated with a
+  // Here we compute the minimum sled and maximum sled associated with a
   // particular function ID.
   XRayFunctionSledIndex SledRange;
   if (InstrMap.SledsIndex) {
@@ -518,28 +574,7 @@ uint16_t __xray_register_event_type(
 }
 
 XRayPatchingStatus __xray_patch() XRAY_NEVER_INSTRUMENT {
-  XRayPatchingStatus CombinedStatus{SUCCESS};
-  for (size_t I = 0; I < __xray_num_objects(); ++I) {
-    if (!isObjectLoaded(I))
-      continue;
-    auto LastStatus = controlPatching(true, I);
-    switch (LastStatus) {
-    case FAILED:
-      CombinedStatus = FAILED;
-      break;
-    case NOT_INITIALIZED:
-      if (CombinedStatus != FAILED)
-        CombinedStatus = NOT_INITIALIZED;
-      break;
-    case ONGOING:
-      if (CombinedStatus != FAILED && CombinedStatus != NOT_INITIALIZED)
-        CombinedStatus = ONGOING;
-      break;
-    default:
-      break;
-    }
-  }
-  return CombinedStatus;
+  return controlPatching(true);
 }
 
 XRayPatchingStatus __xray_patch_object(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
@@ -547,28 +582,7 @@ XRayPatchingStatus __xray_patch_object(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
 }
 
 XRayPatchingStatus __xray_unpatch() XRAY_NEVER_INSTRUMENT {
-  XRayPatchingStatus CombinedStatus{SUCCESS};
-  for (size_t I = 0; I < __xray_num_objects(); ++I) {
-    if (!isObjectLoaded(I))
-      continue;
-    auto LastStatus = controlPatching(false, I);
-    switch (LastStatus) {
-    case FAILED:
-      CombinedStatus = FAILED;
-      break;
-    case NOT_INITIALIZED:
-      if (CombinedStatus != FAILED)
-        CombinedStatus = NOT_INITIALIZED;
-      break;
-    case ONGOING:
-      if (CombinedStatus != FAILED && CombinedStatus != NOT_INITIALIZED)
-        CombinedStatus = ONGOING;
-      break;
-    default:
-      break;
-    }
-  }
-  return CombinedStatus;
+  return controlPatching(false);
 }
 
 XRayPatchingStatus __xray_unpatch_object(int32_t ObjId) XRAY_NEVER_INSTRUMENT {

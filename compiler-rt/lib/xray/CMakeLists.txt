@@ -393,14 +393,14 @@ else() # not Apple
       PARENT_TARGET xray)
     # Profiler Mode runtime
     add_compiler_rt_runtime(clang_rt.xray-profiling
-     STATIC
-     ARCHS ${arch}
-     CFLAGS ${XRAY_CFLAGS}
-     LINK_FLAGS ${XRAY_LINK_FLAGS}
-     LINK_LIBS ${XRAY_LINK_LIBS}
-     DEFS ${XRAY_COMMON_DEFINITIONS}
-     OBJECT_LIBS RTXrayPROFILING
-     PARENT_TARGET xray)
+      STATIC
+      ARCHS ${arch}
+      CFLAGS ${XRAY_CFLAGS}
+      LINK_FLAGS ${XRAY_LINK_FLAGS}
+      LINK_LIBS ${XRAY_LINK_LIBS}
+      DEFS ${XRAY_COMMON_DEFINITIONS}
+      OBJECT_LIBS RTXrayPROFILING
+      PARENT_TARGET xray)
 
     if (${arch} IN_LIST XRAY_DSO_SUPPORTED_ARCH)
       # TODO: Only implemented for X86 at the moment

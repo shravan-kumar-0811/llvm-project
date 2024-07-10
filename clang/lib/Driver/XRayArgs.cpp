@@ -64,8 +64,20 @@ XRayArgs::XRayArgs(const ToolChain &TC, const ArgList &Args) {
   }
 
   if (Args.hasFlag(options::OPT_fxray_enable_shared,
-                   options::OPT_fno_xray_enable_shared, false))
+                   options::OPT_fno_xray_enable_shared, false)) {
     XRayEnableShared = true;
+
+    // DSO instrumentation is currently limited to x86_64
+    if (Triple.getArch() != llvm::Triple::x86_64) {
+      D.Diag(diag::err_drv_unsupported_opt_for_target)
+          << "-fxray-enable-shared" << Triple.str();
+    }
+
+    unsigned PICLvl = std::get<1>(tools::ParsePICArgs(TC, Args));
+    if (!PICLvl) {
+      D.Diag(diag::err_opt_not_valid_without_opt) << "-fxray-enable-shared" << "-fPIC";
+    }
+  }
 
   // Both XRay and -fpatchable-function-entry use
   // TargetOpcode::PATCHABLE_FUNCTION_ENTER.

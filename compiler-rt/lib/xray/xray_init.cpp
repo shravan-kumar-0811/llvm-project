@@ -45,17 +45,15 @@ using namespace __xray;
 // the weak symbols defined above (__start_xray_inst_map and
 // __stop_xray_instr_map) to initialise the instrumentation map that XRay uses
 // for runtime patching/unpatching of instrumentation points.
-//
-// FIXME: Support DSO instrumentation maps too. The current solution only works
-// for statically linked executables.
 atomic_uint8_t XRayInitialized{0};
 
 // This should always be updated before XRayInitialized is updated.
 SpinMutex XRayInstrMapMutex;
-// XRaySledMap XRayInstrMap;
+
 //  Contains maps for the main executable as well as DSOs.
-// std::vector<XRaySledMap> XRayInstrMaps;
 XRaySledMap *XRayInstrMaps;
+
+// Number of binary objects registered.
 atomic_uint32_t XRayNumObjects{0};
 
 // Global flag to determine whether the flags have been initialized.
@@ -64,6 +62,9 @@ atomic_uint8_t XRayFlagsInitialized{0};
 // A mutex to allow only one thread to initialize the XRay data structures.
 SpinMutex XRayInitMutex;
 
+// Registers XRay sleds and trampolines coming from the main executable or one
+// of the linked DSOs.
+// Returns the object ID if registration is successful, -1 otherwise.
 int32_t
 __xray_register_sleds(const XRaySledEntry *SledsBegin,
                       const XRaySledEntry *SledsEnd,
@@ -145,8 +146,9 @@ void __xray_init() XRAY_NEVER_INSTRUMENT {
   // Pre-allocation takes up approx. 5kB for XRayMaxObjects=64.
   XRayInstrMaps = allocateBuffer<XRaySledMap>(XRayMaxObjects);
 
-  int MainBinaryId = __xray_register_sleds(__start_xray_instr_map, __stop_xray_instr_map,
-                        __start_xray_fn_idx, __stop_xray_fn_idx, false, {});
+  int MainBinaryId =
+      __xray_register_sleds(__start_xray_instr_map, __stop_xray_instr_map,
+                            __start_xray_fn_idx, __stop_xray_fn_idx, false, {});
 
   // The executable should always get ID 0.
   if (MainBinaryId != 0) {
@@ -162,6 +164,9 @@ void __xray_init() XRAY_NEVER_INSTRUMENT {
 #endif
 }
 
+// Registers XRay sleds and trampolines of an instrumented DSO.
+// Returns the object ID if registration is successful, -1 otherwise.
+//
 // Default visibility is hidden, so we have to explicitly make it visible to
 // DSO.
 SANITIZER_INTERFACE_ATTRIBUTE int32_t __xray_register_dso(
@@ -191,6 +196,11 @@ SANITIZER_INTERFACE_ATTRIBUTE int32_t __xray_register_dso(
   return ObjId;
 }
 
+// Deregisters a DSO from the main XRay runtime.
+// Called from the DSO-local runtime when the library is unloaded (e.g. if
+// dlclose is called).
+// Returns true if the object ID is valid and the DSO was successfully
+// deregistered.
 SANITIZER_INTERFACE_ATTRIBUTE bool
 __xray_deregister_dso(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
 
@@ -220,7 +230,7 @@ __xray_deregister_dso(int32_t ObjId) XRAY_NEVER_INSTRUMENT {
       if (Verbosity())
         Report("Can't deregister object with ID %d: object is not loaded.\n",
                ObjId);
-      return false;
+      return true;
     }
     // Mark DSO as unloaded. No need to unpatch.
     Entry.Loaded = false;

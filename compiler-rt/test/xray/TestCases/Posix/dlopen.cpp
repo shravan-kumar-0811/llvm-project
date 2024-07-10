@@ -4,7 +4,7 @@
 // RUN: split-file %s %t
 // RUN: %clangxx_xray -g -fPIC -fxray-instrument -fxray-enable-shared -shared -std=c++11 %t/testlib.cpp -o %t/testlib.so
 // RUN: %clangxx_xray -g -fPIC -rdynamic -fxray-instrument -fxray-enable-shared -std=c++11 %t/main.cpp -o %t/main.o
-
+//
 // RUN: XRAY_OPTIONS="patch_premain=true" %run %t/main.o %t/testlib.so 2>&1 | FileCheck %s
 
 // REQUIRES: target=x86_64{{.*}}
@@ -16,11 +16,8 @@
 #include <cstdio>
 #include <dlfcn.h>
 
-bool called = false;
-
 void test_handler(int32_t fid, XRayEntryType type) {
   printf("called: %d, type=%d\n", fid, static_cast<int32_t>(type));
-  called = true;
 }
 
 [[clang::xray_always_instrument]] void instrumented_in_executable() {
