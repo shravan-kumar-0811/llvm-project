@@ -107,7 +107,7 @@ private:
 ///   };
 /// }
 /// ```
-extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK LLVM_ABI_EXPORT
+extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
 llvmGetPassPluginInfo();
 
 #endif /* LLVM_PASSES_PASSPLUGIN_H */
