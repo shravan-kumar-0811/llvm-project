@@ -27,7 +27,7 @@ uint32_t nullability_assign(_BitInt(7) * x)
   return (r > 0) ? r : 0;
 }
 
-// In those examples the file is expected to compile&run with no diagnostics
+// In those examples the file is expected to compile & run with no diagnostics
 // CHECK-NOT: runtime error:
 
 int main(int argc, char **argv) {
