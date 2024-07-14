@@ -125,6 +125,11 @@
 #define LLVM_ATTRIBUTE_VISIBILITY_DEFAULT
 #endif
 
+#if defined(LLVM_BUILD_LLVM_DYLIB) || defined(LLVM_BUILD_SHARED_LIBS)
+#define LLVM_EXTERNAL_VISIBILITY LLVM_ATTRIBUTE_VISIBILITY_DEFAULT
+#else
+#define LLVM_EXTERNAL_VISIBILITY
+#endif
 
 #if (!(defined(_WIN32) || defined(__CYGWIN__)) ||                              \
      (defined(__MINGW32__) && defined(__clang__)))
