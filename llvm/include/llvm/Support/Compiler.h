@@ -203,7 +203,6 @@
 #define LLVM_EXPORT_TEMPLATE
 #endif
 #define LLVM_C_ABI LLVM_ABI
-#define LLVM_CLASS_ABI LLVM_ABI
 #endif
 
 #if defined(__GNUC__)
