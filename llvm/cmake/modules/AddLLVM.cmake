@@ -1145,14 +1145,14 @@ macro(add_llvm_executable name)
 
   llvm_codesign(${name} ENTITLEMENTS ${ARG_ENTITLEMENTS} BUNDLE_PATH ${ARG_BUNDLE_PATH})
 
-  if (LLVM_BUILD_LLVM_DYLIB OR LLVM_ENABLE_PLUGINS OR LLVM_EXPORT_SYMBOLS_FOR_PLUGINS)
-    if(ARG_DISABLE_LLVM_LINK_LLVM_DYLIB)
-      target_compile_definitions(${name} PRIVATE LLVM_BUILD_STATIC)
-    elseif(LLVM_BUILD_LLVM_DYLIB_VIS AND NOT LLVM_DYLIB_EXPORT_INLINES AND
-           MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
-      # This has to match how the libraries the executable is linked to are built or there be linker errors.
-      target_compile_options(${name} PRIVATE /Zc:dllexportInlines-)
-    endif()
+  if(ARG_DISABLE_LLVM_LINK_LLVM_DYLIB OR NOT LLVM_LINK_LLVM_DYLIB)
+    target_compile_definitions(${name} PRIVATE LLVM_BUILD_STATIC)
+  endif()
+
+  if(LLVM_BUILD_LLVM_DYLIB_VIS AND NOT LLVM_DYLIB_EXPORT_INLINES AND
+     MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    # This has to match how the libraries the executable is linked to are built or there be linker errors.
+    target_compile_options(${name} PRIVATE /Zc:dllexportInlines-)
   endif()
 endmacro(add_llvm_executable name)
 
