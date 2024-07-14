@@ -178,6 +178,7 @@ private:
   SmallVector<MachineInstr *, 4> LowerToCopyInstrs;
   SmallVector<MachineInstr *, 4> KillInstrs;
   SmallVector<MachineInstr *, 4> InitExecInstrs;
+  SmallVector<MachineInstr *, 4> SetInactiveInstrs;
 
   void printInfo();
 
@@ -225,6 +226,8 @@ private:
   void lowerInitExec(MachineInstr &MI);
   MachineBasicBlock::iterator lowerInitExecInstrs(MachineBasicBlock &Entry,
                                                   bool &Changed);
+
+  void harmonizeTransitions();
 
 public:
   static char ID;
@@ -478,7 +481,6 @@ char SIWholeQuadMode::scanInstructions(MachineFunction &MF,
                                        std::vector<WorkItem> &Worklist) {
   char GlobalFlags = 0;
   bool WQMOutputs = MF.getFunction().hasFnAttribute("amdgpu-ps-wqm-outputs");
-  SmallVector<MachineInstr *, 4> SetInactiveInstrs;
   SmallVector<MachineInstr *, 4> SoftWQMInstrs;
   bool HasImplicitDerivatives =
       MF.getFunction().getCallingConv() == CallingConv::AMDGPU_PS;
@@ -555,6 +557,7 @@ char SIWholeQuadMode::scanInstructions(MachineFunction &MF,
         GlobalFlags |= StateStrictWQM;
       } else if (Opcode == AMDGPU::V_SET_INACTIVE_B32 ||
                  Opcode == AMDGPU::V_SET_INACTIVE_B64) {
+        // Disable strict states here while marking, relax it later.
         III.Disabled = StateStrict;
         MachineOperand &Inactive = MI.getOperand(2);
         if (Inactive.isReg()) {
@@ -565,6 +568,7 @@ char SIWholeQuadMode::scanInstructions(MachineFunction &MF,
           }
         }
         SetInactiveInstrs.push_back(&MI);
+        BBI.NeedsLowering = true;
       } else if (TII->isDisableWQM(MI)) {
         BBI.Needs |= StateExact;
         if (!(BBI.InNeeds & StateExact)) {
@@ -1042,6 +1046,7 @@ void SIWholeQuadMode::lowerBlock(MachineBasicBlock &MBB) {
   LLVM_DEBUG(dbgs() << "\nLowering block " << printMBBReference(MBB) << ":\n");
 
   SmallVector<MachineInstr *, 4> SplitPoints;
+  Register ActiveLanesReg = 0;
   char State = BI.InitialState;
 
   for (MachineInstr &MI : llvm::make_early_inc_range(
@@ -1057,6 +1062,20 @@ void SIWholeQuadMode::lowerBlock(MachineBasicBlock &MBB) {
       break;
     case AMDGPU::SI_KILL_F32_COND_IMM_TERMINATOR:
       SplitPoint = lowerKillF32(MBB, MI);
+      break;
+    case AMDGPU::ENTER_STRICT_WWM:
+      ActiveLanesReg = MI.getOperand(0).getReg();
+      break;
+    case AMDGPU::EXIT_STRICT_WWM:
+      ActiveLanesReg = 0;
+      break;
+    case AMDGPU::V_SET_INACTIVE_B32:
+    case AMDGPU::V_SET_INACTIVE_B64:
+      if (ActiveLanesReg) {
+        MI.addOperand(*MBB.getParent(),
+                      MachineOperand::CreateReg(ActiveLanesReg, false, true));
+      } else
+        assert(State == StateExact || State == StateWQM);
       break;
     default:
       break;
@@ -1628,6 +1647,40 @@ SIWholeQuadMode::lowerInitExecInstrs(MachineBasicBlock &Entry, bool &Changed) {
   return InsertPt;
 }
 
+void SIWholeQuadMode::harmonizeTransitions() {
+  // Relax requirements on SET_INACTIVE to allow it in WWM regions.
+  for (MachineInstr *MI : SetInactiveInstrs) {
+    if (MI->getOpcode() == AMDGPU::COPY)
+      continue;
+
+    Instructions[MI].Disabled &= ~StateStrictWWM;
+
+    auto MBB = MI->getParent();
+    auto It = MI->getIterator();
+    if (It == MBB->end())
+      continue;
+
+    bool AddWWM = false;
+    auto NextMI = std::next(It);
+    if (NextMI->getOpcode() == AMDGPU::V_SET_INACTIVE_B32 ||
+        NextMI->getOpcode() == AMDGPU::V_SET_INACTIVE_B64) {
+      // Groups of SET_INACTIVE are more efficient in WWM.
+      AddWWM = true;
+    } else {
+      // Back propagate WWM needs of next instruction.
+      auto III = Instructions.find(&*NextMI);
+      AddWWM =
+          (III != Instructions.end() && III->second.Needs & StateStrictWWM);
+    }
+
+    if (!AddWWM)
+      continue;
+
+    LLVM_DEBUG(dbgs() << "merge into WWM: " << *MI);
+    Instructions[MI].Needs |= StateStrictWWM;
+  }
+}
+
 bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "SI Whole Quad Mode on " << MF.getName()
                     << " ------------- \n");
@@ -1640,6 +1693,7 @@ bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
   LowerToMovInstrs.clear();
   KillInstrs.clear();
   InitExecInstrs.clear();
+  SetInactiveInstrs.clear();
   StateTransition.clear();
 
   ST = &MF.getSubtarget<GCNSubtarget>();
@@ -1713,6 +1767,7 @@ bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
     Changed = true;
   } else {
     // Wave mode switching requires full lowering pass.
+    harmonizeTransitions();
     for (auto BII : Blocks)
       processBlock(*BII.first, BII.first == &Entry);
     // Lowering blocks causes block splitting so perform as a second pass.
