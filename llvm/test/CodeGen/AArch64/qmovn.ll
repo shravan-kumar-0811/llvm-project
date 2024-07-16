@@ -292,15 +292,15 @@ entry:
 
 ; Test the (concat_vectors (X), (trunc(umin(smax(Y, 0), 2^n))))) pattern.
 
+; TODO: %min is a value between 0 and 255 and is within the unsigned range of i8.
+; So it is saturated truncate. we have an optimization opportunity.
 define <16 x i8> @us_maxmin_v8i16_to_v16i8(<8 x i8> %x, <8 x i16> %y) {
 ; CHECK-LABEL: us_maxmin_v8i16_to_v16i8:
 ; CHECK:       // %bb.0: // %entry
 ; CHECK-NEXT:    movi v2.2d, #0000000000000000
-; CHECK-NEXT:    movi v3.2d, #0xff00ff00ff00ff
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
 ; CHECK-NEXT:    smax v1.8h, v1.8h, v2.8h
-; CHECK-NEXT:    smin v1.8h, v1.8h, v3.8h
-; CHECK-NEXT:    xtn2 v0.16b, v1.8h
+; CHECK-NEXT:    uqxtn2 v0.16b, v1.8h
 ; CHECK-NEXT:    ret
 entry:
   %max = call <8 x i16> @llvm.smax.v8i16(<8 x i16> %y, <8 x i16> zeroinitializer)
@@ -310,15 +310,15 @@ entry:
   ret <16 x i8> %shuffle
 }
 
+; TODO: %min is a value between 0 and 65535 and is within the unsigned range of i16.
+; So it is saturated. we have an optimization opportunity.
 define <8 x i16> @us_maxmin_v4i32_to_v8i16(<4 x i16> %x, <4 x i32> %y) {
 ; CHECK-LABEL: us_maxmin_v4i32_to_v8i16:
 ; CHECK:       // %bb.0: // %entry
 ; CHECK-NEXT:    movi v2.2d, #0000000000000000
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
 ; CHECK-NEXT:    smax v1.4s, v1.4s, v2.4s
-; CHECK-NEXT:    movi v2.2d, #0x00ffff0000ffff
-; CHECK-NEXT:    smin v1.4s, v1.4s, v2.4s
-; CHECK-NEXT:    xtn2 v0.8h, v1.4s
+; CHECK-NEXT:    uqxtn2 v0.8h, v1.4s
 ; CHECK-NEXT:    ret
 entry:
   %max = call <4 x i32> @llvm.smax.v4i32(<4 x i32> %y, <4 x i32> zeroinitializer)
