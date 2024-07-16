@@ -1623,10 +1623,12 @@ void PGOUseFunc::setBranchWeights() {
       continue;
 
     // We have a non-zero Branch BB.
-    unsigned Size = BBCountInfo.OutEdges.size();
-    SmallVector<uint64_t, 2> EdgeCounts(Size, 0);
+    unsigned OutEdgesCount = BBCountInfo.OutEdges.size();
+    unsigned SuccessorCount = BB.getTerminator()->getNumSuccessors();
+
+    SmallVector<uint64_t, 2> EdgeCounts(SuccessorCount, 0);
     uint64_t MaxCount = 0;
-    for (unsigned s = 0; s < Size; s++) {
+    for (unsigned s = 0; s < OutEdgesCount; s++) {
       const PGOUseEdge *E = BBCountInfo.OutEdges[s];
       const BasicBlock *SrcBB = E->SrcBB;
       const BasicBlock *DestBB = E->DestBB;
