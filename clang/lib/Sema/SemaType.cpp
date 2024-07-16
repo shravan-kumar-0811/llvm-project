@@ -1135,6 +1135,8 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
     Result = Context.BFloat16Ty;
     break;
   case DeclSpec::TST_Fpm8:
+    if (!S.Context.getTargetInfo().hasFpm8Type())
+      S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported) << "__fpm8";
     Result = Context.Fpm8Ty;
     break;
   case DeclSpec::TST_float:   Result = Context.FloatTy; break;
@@ -8052,7 +8054,8 @@ static bool isPermittedNeonBaseType(QualType &Ty, VectorKind VecKind, Sema &S) {
          BTy->getKind() == BuiltinType::ULongLong ||
          BTy->getKind() == BuiltinType::Float ||
          BTy->getKind() == BuiltinType::Half ||
-         BTy->getKind() == BuiltinType::BFloat16;
+         BTy->getKind() == BuiltinType::BFloat16 ||
+         BTy->getKind() == BuiltinType::Fpm8;
 }
 
 static bool verifyValidIntegerConstantExpr(Sema &S, const ParsedAttr &Attr,

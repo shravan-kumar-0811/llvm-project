@@ -3199,6 +3199,13 @@ void CastOperation::CheckCStyleCast() {
     }
   }
 
+  if ((DestType->isFpm8Type() && !SrcType->isFpm8Type()) ||
+      (!DestType->isFpm8Type() && SrcType->isFpm8Type())) {
+    Self.Diag(SrcExpr.get()->getExprLoc(), diag::err_bad_fpm8_cast)
+        << SrcType << DestType << SrcExpr.get()->getSourceRange();
+    SrcExpr = ExprError();
+    return;
+  }
   // ARC imposes extra restrictions on casts.
   if (Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers()) {
     checkObjCConversion(CheckedConversionKind::CStyleCast);

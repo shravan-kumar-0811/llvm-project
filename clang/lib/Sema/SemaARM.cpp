@@ -321,6 +321,7 @@ static unsigned RFT(unsigned t, bool shift = false, bool ForceQuad = false) {
   switch (Type.getEltType()) {
   case NeonTypeFlags::Int8:
   case NeonTypeFlags::Poly8:
+  case NeonTypeFlags::Fpm8:
     return shift ? 7 : (8 << IsQuad) - 1;
   case NeonTypeFlags::Int16:
   case NeonTypeFlags::Poly16:
@@ -385,6 +386,8 @@ static QualType getNeonEltType(NeonTypeFlags Flags, ASTContext &Context,
     return Context.DoubleTy;
   case NeonTypeFlags::BFloat16:
     return Context.BFloat16Ty;
+  case NeonTypeFlags::Fpm8:
+    return Context.Fpm8Ty;
   }
   llvm_unreachable("Invalid NeonTypeFlag!");
 }

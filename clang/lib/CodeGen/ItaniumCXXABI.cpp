@@ -3331,7 +3331,6 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::Float:
     case BuiltinType::Double:
     case BuiltinType::LongDouble:
-    case BuiltinType::Fpm8:
     case BuiltinType::Float16:
     case BuiltinType::Float128:
     case BuiltinType::Ibm128:
@@ -3388,6 +3387,7 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::SatUFract:
     case BuiltinType::SatULongFract:
     case BuiltinType::BFloat16:
+    case BuiltinType::Fpm8:
       return false;
 
     case BuiltinType::Dependent:

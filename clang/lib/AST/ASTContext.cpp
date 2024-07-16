@@ -8106,6 +8106,7 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     switch (kind) {
     case BuiltinType::Void:       return 'v';
     case BuiltinType::Bool:       return 'B';
+    case BuiltinType::Fpm8:
     case BuiltinType::Char8:
     case BuiltinType::Char_U:
     case BuiltinType::UChar:      return 'C';
@@ -8132,7 +8133,6 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     case BuiltinType::LongDouble: return 'D';
     case BuiltinType::NullPtr:    return '*'; // like char*
 
-    case BuiltinType::Fpm8:
     case BuiltinType::BFloat16:
     case BuiltinType::Float16:
     case BuiltinType::Float128:
