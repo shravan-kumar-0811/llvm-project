@@ -15,6 +15,7 @@
 
 // RUN: %clang -### -c --target=aarch64-elf -fno-ptrauth-elf-got -fptrauth-elf-got %s 2>&1 | FileCheck %s --check-prefix=ELFGOT
 // ELFGOT: "-cc1"{{.*}} "-fptrauth-elf-got"
+// ELFGOT-NOT: warning: -fptrauth-elf-got works only for ELF; option ignored [-Woption-ignored]
 
 // RUN: %clang -### -c --target=aarch64-darwin -fptrauth-elf-got %s 2>&1 | FileCheck %s --check-prefix=NOELFGOT
 // NOELFGOT: warning: -fptrauth-elf-got works only for ELF; option ignored [-Woption-ignored]
