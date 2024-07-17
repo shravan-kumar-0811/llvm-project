@@ -15206,7 +15206,7 @@ SDValue DAGCombiner::visitTRUNCATE(SDNode *N) {
   case ISD::OR:
   case ISD::XOR:
     // if ()
-    break; 
+    break;
   }
 
   return SDValue();
