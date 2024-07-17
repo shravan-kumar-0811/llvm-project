@@ -6034,7 +6034,6 @@ SDValue NVPTXTargetLowering::PerformDAGCombine(SDNode *N,
     case ISD::VSELECT:
       return PerformVSELECTCombine(N, DCI);
   }
-
   return SDValue();
 }
 
