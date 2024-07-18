@@ -455,6 +455,10 @@ private:
 
 PreservedAnalyses HWAddressSanitizerPass::run(Module &M,
                                               ModuleAnalysisManager &MAM) {
+  // Return early if nosanitize_hwaddress module flag is present for the module.
+  if (M.getModuleFlag("nosanitize_hwaddress"))
+    return PreservedAnalyses::all();
+  M.addModuleFlag(Module::ModFlagBehavior::Override, "nosanitize_hwaddress", 1);
   const StackSafetyGlobalInfo *SSI = nullptr;
   auto TargetTriple = llvm::Triple(M.getTargetTriple());
   if (shouldUseStackSafetyAnalysis(TargetTriple, Options.DisableOptimization))

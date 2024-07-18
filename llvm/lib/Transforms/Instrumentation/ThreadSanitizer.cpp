@@ -191,6 +191,10 @@ PreservedAnalyses ThreadSanitizerPass::run(Function &F,
 
 PreservedAnalyses ModuleThreadSanitizerPass::run(Module &M,
                                                  ModuleAnalysisManager &MAM) {
+  // Return early if nosanitize_thread module flag is present for the module.
+  if (M.getModuleFlag("nosanitize_thread"))
+    return PreservedAnalyses::all();
+  M.addModuleFlag(Module::ModFlagBehavior::Override, "nosanitize_thread", 1);
   insertModuleCtor(M);
   return PreservedAnalyses::none();
 }

@@ -3473,6 +3473,10 @@ void DFSanVisitor::visitPHINode(PHINode &PN) {
 
 PreservedAnalyses DataFlowSanitizerPass::run(Module &M,
                                              ModuleAnalysisManager &AM) {
+  // Return early if nosanitize_dataflow module flag is present for the module.
+  if (M.getModuleFlag("nosanitize_dataflow"))
+    return PreservedAnalyses::all();
+  M.addModuleFlag(Module::ModFlagBehavior::Override, "nosanitize_dataflow", 1);
   auto GetTLI = [&](Function &F) -> TargetLibraryInfo & {
     auto &FAM =
         AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();

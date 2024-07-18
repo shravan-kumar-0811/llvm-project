@@ -706,6 +706,10 @@ MemorySanitizerOptions::MemorySanitizerOptions(int TO, bool R, bool K,
 
 PreservedAnalyses MemorySanitizerPass::run(Module &M,
                                            ModuleAnalysisManager &AM) {
+  // Return early if nosanitize_memory module flag is present for the module.
+  if (M.getModuleFlag("nosanitize_memory"))
+    return PreservedAnalyses::all();
+  M.addModuleFlag(Module::ModFlagBehavior::Override, "nosanitize_memory", 1);
   bool Modified = false;
   if (!Options.Kernel) {
     insertModuleCtor(M);
