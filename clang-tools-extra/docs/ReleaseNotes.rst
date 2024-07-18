@@ -518,6 +518,11 @@ Changes in existing checks
   usages of ``std::string_view::compare``. Added a `StringLikeClasses` option
   to detect usages of ``compare`` method in custom string-like classes.
 
+- Improved :doc:`cppcoreguidelines-missing-std-forward
+  <clang-tidy/checks/cppcoreguidelines/missing-std-forward>` check to allow
+  using ``static_cast<T&>`` to explicitly convey the intention of using a
+  forwarding reference as an lvalue reference.
+
 Removed checks
 ^^^^^^^^^^^^^^
 
