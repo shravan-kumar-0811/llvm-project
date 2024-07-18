@@ -644,7 +644,7 @@ static Value buildVectorWrite(RewriterBase &rewriter, Value value,
   if (auto maskOp = dyn_cast<vector::MaskingOpInterface>(write)) {
     auto maskedWriteOp = cast<vector::TransferWriteOp>(maskOp.getMaskableOp());
     SmallVector<bool> inBounds(maskedWriteOp.getVectorType().getRank(), true);
-    maskedWriteOp.setInBoundsAttr(rewriter.getBoolArrayAttr(inBounds));
+    maskedWriteOp.setInBoundsAttr(rewriter.getDenseBoolArrayAttr(inBounds));
   }
 
   LDBG("vectorized op: " << *write << "\n");
@@ -1370,7 +1370,7 @@ vectorizeAsLinalgGeneric(RewriterBase &rewriter, VectorizationState &state,
     if (auto maskOp = dyn_cast<vector::MaskingOpInterface>(read)) {
       SmallVector<bool> inBounds(readType.getRank(), true);
       cast<vector::TransferReadOp>(maskOp.getMaskableOp())
-          .setInBoundsAttr(rewriter.getBoolArrayAttr(inBounds));
+          .setInBoundsAttr(rewriter.getDenseBoolArrayAttr(inBounds));
     }
 
     // 3.c. Not all ops support 0-d vectors, extract the scalar for now.
@@ -2403,7 +2403,7 @@ struct PadOpVectorizationWithTransferReadPattern
     rewriter.modifyOpInPlace(xferOp, [&]() {
       SmallVector<bool> inBounds(xferOp.getVectorType().getRank(), false);
       xferOp->setAttr(xferOp.getInBoundsAttrName(),
-                      rewriter.getBoolArrayAttr(inBounds));
+                      rewriter.getDenseBoolArrayAttr(inBounds));
       xferOp.getSourceMutable().assign(padOp.getSource());
       xferOp.getPaddingMutable().assign(padValue);
     });
@@ -2482,7 +2482,7 @@ struct PadOpVectorizationWithTransferWritePattern
     auto newXferOp = rewriter.replaceOpWithNewOp<vector::TransferWriteOp>(
         xferOp, padOp.getSource().getType(), xferOp.getVector(),
         padOp.getSource(), xferOp.getIndices(), xferOp.getPermutationMapAttr(),
-        xferOp.getMask(), rewriter.getBoolArrayAttr(inBounds));
+        xferOp.getMask(), rewriter.getDenseBoolArrayAttr(inBounds));
     rewriter.replaceOp(trimPadding, newXferOp->getResult(0));
 
     return success();
@@ -2786,7 +2786,7 @@ LogicalResult LinalgCopyVTRForwardingPattern::matchAndRewrite(
   Value res = rewriter.create<vector::TransferReadOp>(
       xferOp.getLoc(), vectorType, in, xferOp.getIndices(),
       xferOp.getPermutationMapAttr(), xferOp.getPadding(), xferOp.getMask(),
-      rewriter.getBoolArrayAttr(
+      rewriter.getDenseBoolArrayAttr(
           SmallVector<bool>(vectorType.getRank(), false)));
 
   if (maybeFillOp)
@@ -2845,7 +2845,7 @@ LogicalResult LinalgCopyVTWForwardingPattern::matchAndRewrite(
   rewriter.create<vector::TransferWriteOp>(
       xferOp.getLoc(), vector, out, xferOp.getIndices(),
       xferOp.getPermutationMapAttr(), xferOp.getMask(),
-      rewriter.getBoolArrayAttr(
+      rewriter.getDenseBoolArrayAttr(
           SmallVector<bool>(vector.getType().getRank(), false)));
 
   rewriter.eraseOp(copyOp);
@@ -3345,7 +3345,7 @@ struct Conv1DGenerator
       SmallVector<bool> inBounds(maskShape.size(), true);
       auto xferOp = cast<VectorTransferOpInterface>(opToMask);
       xferOp->setAttr(xferOp.getInBoundsAttrName(),
-                      rewriter.getBoolArrayAttr(inBounds));
+                      rewriter.getDenseBoolArrayAttr(inBounds));
 
       SmallVector<OpFoldResult> mixedDims = vector::getMixedSizesXfer(
           cast<LinalgOp>(op).hasPureTensorSemantics(), opToMask, rewriter);
