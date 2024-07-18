@@ -22,10 +22,13 @@
 #include "llvm/Analysis/Utils/Local.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/ConstantRange.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
 #include <bitset>
@@ -7882,6 +7885,30 @@ static Instruction *foldFCmpReciprocalAndZero(FCmpInst &I, Instruction *LHSI,
   return new FCmpInst(Pred, LHSI->getOperand(1), RHSC, "", &I);
 }
 
+// Fold trunc(x) < constant --> x < constant if possible.
+static Instruction *foldFCmpFpTrunc(FCmpInst &I, Instruction *LHSI,
+                                    Constant *RHSC) {
+  //
+  FCmpInst::Predicate Pred = I.getPredicate();
+
+  // Check that predicates are valid.
+  if ((Pred != FCmpInst::FCMP_OGT) && (Pred != FCmpInst::FCMP_OLT) &&
+      (Pred != FCmpInst::FCMP_OGE) && (Pred != FCmpInst::FCMP_OLE))
+    return nullptr;
+
+  auto *LType = LHSI->getOperand(0)->getType();
+  auto *RType = RHSC->getType();
+
+  if (!(LType->isFloatingPointTy() && RType->isFloatingPointTy() &&
+        LType->getTypeID() >= RType->getTypeID()))
+    return nullptr;
+
+  auto *ROperand = llvm::ConstantFP::get(
+      LType, dyn_cast<ConstantFP>(RHSC)->getValue().convertToDouble());
+
+  return new FCmpInst(Pred, LHSI->getOperand(0), ROperand, "", &I);
+}
+
 /// Optimize fabs(X) compared with zero.
 static Instruction *foldFabsWithFcmpZero(FCmpInst &I, InstCombinerImpl &IC) {
   Value *X;
@@ -8243,6 +8270,10 @@ Instruction *InstCombinerImpl::visitFCmpInst(FCmpInst &I) {
           if (Instruction *Res = foldCmpLoadFromIndexedGlobal(
                   cast<LoadInst>(LHSI), GEP, GV, I))
             return Res;
+      break;
+    case Instruction::FPTrunc:
+      if (Instruction *NV = foldFCmpFpTrunc(I, LHSI, RHSC))
+        return NV;
       break;
   }
   }
