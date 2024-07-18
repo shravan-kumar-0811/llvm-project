@@ -1800,13 +1800,8 @@ static void computeKnownBitsFromOperator(const Operator *I,
       case Intrinsic::x86_ssse3_phadd_w_128:
       case Intrinsic::x86_avx2_phadd_d:
       case Intrinsic::x86_avx2_phadd_w: {
-        Known = computeKnownBitsForHorizontalOperation(
-            I, DemandedElts, Depth, Q,
-            [](const KnownBits &KnownLHS, const KnownBits &KnownRHS) {
-              return KnownBits::computeForAddSub(/*Add=*/true, /*NSW=*/false,
-                                                 /*NUW=*/false, KnownLHS,
-                                                 KnownRHS);
-            });
+        Known = computeKnownBitsForHorizontalOperation(I, DemandedElts, Depth,
+                                                       Q, KnownBits::add);
         break;
       }
       case Intrinsic::x86_ssse3_phadd_sw_128:
@@ -1819,13 +1814,8 @@ static void computeKnownBitsFromOperator(const Operator *I,
       case Intrinsic::x86_ssse3_phsub_w_128:
       case Intrinsic::x86_avx2_phsub_d:
       case Intrinsic::x86_avx2_phsub_w: {
-        Known = computeKnownBitsForHorizontalOperation(
-            I, DemandedElts, Depth, Q,
-            [](const KnownBits &KnownLHS, const KnownBits &KnownRHS) {
-              return KnownBits::computeForAddSub(/*Add=*/false, /*NSW=*/false,
-                                                 /*NUW=*/false, KnownLHS,
-                                                 KnownRHS);
-            });
+        Known = computeKnownBitsForHorizontalOperation(I, DemandedElts, Depth,
+                                                       Q, KnownBits::sub);
         break;
       }
       case Intrinsic::x86_ssse3_phsub_sw_128:
