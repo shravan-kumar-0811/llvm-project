@@ -1311,7 +1311,7 @@ define amdgpu_ps void @test_set_inactive2(i32 inreg %idx0, i32 inreg %idx1) {
 ; GFX9-W64-NEXT:    buffer_load_dword v1, v0, s[0:3], 0 idxen
 ; GFX9-W64-NEXT:    s_nop 0
 ; GFX9-W64-NEXT:    buffer_load_dword v2, v2, s[0:3], 0 idxen
-; GFX9-W64-NEXT:    ; kill: def $vgpr1 killed $vgpr1 def $scc killed $exec
+; GFX9-W64-NEXT:    ; kill: def $vgpr1 killed $vgpr1 killed $exec
 ; GFX9-W64-NEXT:    ; kill: def $vgpr2 killed $vgpr2 killed $exec
 ; GFX9-W64-NEXT:    s_and_b64 exec, exec, s[2:3]
 ; GFX9-W64-NEXT:    s_waitcnt vmcnt(0)
@@ -1328,7 +1328,7 @@ define amdgpu_ps void @test_set_inactive2(i32 inreg %idx0, i32 inreg %idx1) {
 ; GFX10-W32-NEXT:    s_clause 0x1
 ; GFX10-W32-NEXT:    buffer_load_dword v2, v0, s[0:3], 0 idxen
 ; GFX10-W32-NEXT:    buffer_load_dword v1, v1, s[0:3], 0 idxen
-; GFX10-W32-NEXT:    ; kill: def $vgpr2 killed $vgpr2 def $scc killed $exec
+; GFX10-W32-NEXT:    ; kill: def $vgpr2 killed $vgpr2 killed $exec
 ; GFX10-W32-NEXT:    ; kill: def $vgpr1 killed $vgpr1 killed $exec
 ; GFX10-W32-NEXT:    s_and_b32 exec_lo, exec_lo, s2
 ; GFX10-W32-NEXT:    s_waitcnt vmcnt(0)

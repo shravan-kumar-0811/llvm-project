@@ -128,6 +128,7 @@ struct InstrInfo {
   char Needs = 0;
   char Disabled = 0;
   char OutNeeds = 0;
+  char MarkedStates = 0;
 };
 
 struct BlockInfo {
@@ -175,7 +176,7 @@ private:
 
   SmallVector<MachineInstr *, 2> LiveMaskQueries;
   SmallVector<MachineInstr *, 4> LowerToMovInstrs;
-  SmallVector<MachineInstr *, 4> LowerToCopyInstrs;
+  SmallSetVector<MachineInstr *, 4> LowerToCopyInstrs;
   SmallVector<MachineInstr *, 4> KillInstrs;
   SmallVector<MachineInstr *, 4> InitExecInstrs;
   SmallVector<MachineInstr *, 4> SetInactiveInstrs;
@@ -226,8 +227,6 @@ private:
   void lowerInitExec(MachineInstr &MI);
   MachineBasicBlock::iterator lowerInitExecInstrs(MachineBasicBlock &Entry,
                                                   bool &Changed);
-
-  void harmonizeTransitions();
 
 public:
   static char ID;
@@ -297,6 +296,9 @@ void SIWholeQuadMode::markInstruction(MachineInstr &MI, char Flag,
   InstrInfo &II = Instructions[&MI];
 
   assert(!(Flag & StateExact) && Flag != 0);
+
+  // Capture all states requested in marking including disabled ones.
+  II.MarkedStates |= Flag;
 
   // Remove any disabled states from the flag. The user that required it gets
   // an undefined value in the helper lanes. For example, this can happen if
@@ -514,9 +516,9 @@ char SIWholeQuadMode::scanInstructions(MachineFunction &MF,
         // The WQM intrinsic requires its output to have all the helper lanes
         // correct, so we need it to be in WQM.
         Flags = StateWQM;
-        LowerToCopyInstrs.push_back(&MI);
+        LowerToCopyInstrs.insert(&MI);
       } else if (Opcode == AMDGPU::SOFT_WQM) {
-        LowerToCopyInstrs.push_back(&MI);
+        LowerToCopyInstrs.insert(&MI);
         SoftWQMInstrs.push_back(&MI);
       } else if (Opcode == AMDGPU::STRICT_WWM) {
         // The STRICT_WWM intrinsic doesn't make the same guarantee, and plus
@@ -557,12 +559,12 @@ char SIWholeQuadMode::scanInstructions(MachineFunction &MF,
         GlobalFlags |= StateStrictWQM;
       } else if (Opcode == AMDGPU::V_SET_INACTIVE_B32 ||
                  Opcode == AMDGPU::V_SET_INACTIVE_B64) {
-        // Disable strict states here while marking, relax it later.
+        // Disable strict states; StrictWQM will be added as required later.
         III.Disabled = StateStrict;
         MachineOperand &Inactive = MI.getOperand(2);
         if (Inactive.isReg()) {
           if (Inactive.isUndef()) {
-            LowerToCopyInstrs.push_back(&MI);
+            LowerToCopyInstrs.insert(&MI);
           } else {
             markOperand(MI, Inactive, StateStrictWWM, Worklist);
           }
@@ -1500,13 +1502,14 @@ bool SIWholeQuadMode::lowerCopyInstrs() {
     }
   }
   for (MachineInstr *MI : LowerToCopyInstrs) {
+    LLVM_DEBUG(dbgs() << "simplify: " << *MI);
+
+    Register RecomputeReg = 0;
     if (MI->getOpcode() == AMDGPU::V_SET_INACTIVE_B32 ||
         MI->getOpcode() == AMDGPU::V_SET_INACTIVE_B64) {
       assert(MI->getNumExplicitOperands() == 3);
-      // the only reason we should be here is V_SET_INACTIVE has
-      // an undef input so it is being replaced by a simple copy.
-      // There should be a second undef source that we should remove.
-      assert(MI->getOperand(2).isUndef());
+      if (MI->getOperand(2).isReg())
+        RecomputeReg = MI->getOperand(2).getReg();
       MI->removeOperand(2);
       MI->untieRegOperand(1);
     } else {
@@ -1517,7 +1520,19 @@ bool SIWholeQuadMode::lowerCopyInstrs() {
                           ? (unsigned)AMDGPU::COPY
                           : TII->getMovOpcode(TRI->getRegClassForOperandReg(
                                 *MRI, MI->getOperand(0)));
+    int Index = MI->findRegisterDefOperandIdx(AMDGPU::SCC, /*TRI=*/nullptr);
+    while (Index >= 0) {
+      MI->removeOperand(Index);
+      Index = MI->findRegisterUseOperandIdx(AMDGPU::SCC, /*TRI=*/nullptr);
+    }
+
     MI->setDesc(TII->get(CopyOp));
+    LLVM_DEBUG(dbgs() << " -> " << *MI);
+
+    if (RecomputeReg) {
+      LIS->removeInterval(RecomputeReg);
+      LIS->createAndComputeVirtRegInterval(RecomputeReg);
+    }
   }
   return !LowerToCopyInstrs.empty() || !LowerToMovInstrs.empty();
 }
@@ -1647,40 +1662,6 @@ SIWholeQuadMode::lowerInitExecInstrs(MachineBasicBlock &Entry, bool &Changed) {
   return InsertPt;
 }
 
-void SIWholeQuadMode::harmonizeTransitions() {
-  // Relax requirements on SET_INACTIVE to allow it in WWM regions.
-  for (MachineInstr *MI : SetInactiveInstrs) {
-    if (MI->getOpcode() == AMDGPU::COPY)
-      continue;
-
-    Instructions[MI].Disabled &= ~StateStrictWWM;
-
-    auto MBB = MI->getParent();
-    auto It = MI->getIterator();
-    if (It == MBB->end())
-      continue;
-
-    bool AddWWM = false;
-    auto NextMI = std::next(It);
-    if (NextMI->getOpcode() == AMDGPU::V_SET_INACTIVE_B32 ||
-        NextMI->getOpcode() == AMDGPU::V_SET_INACTIVE_B64) {
-      // Groups of SET_INACTIVE are more efficient in WWM.
-      AddWWM = true;
-    } else {
-      // Back propagate WWM needs of next instruction.
-      auto III = Instructions.find(&*NextMI);
-      AddWWM =
-          (III != Instructions.end() && III->second.Needs & StateStrictWWM);
-    }
-
-    if (!AddWWM)
-      continue;
-
-    LLVM_DEBUG(dbgs() << "merge into WWM: " << *MI);
-    Instructions[MI].Needs |= StateStrictWWM;
-  }
-}
-
 bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "SI Whole Quad Mode on " << MF.getName()
                     << " ------------- \n");
@@ -1750,6 +1731,21 @@ bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
     Changed = true;
   }
 
+  // Check if V_SET_INACTIVE was touched by a strict state mode.
+  // If so, promote to WWM; otherwise lower to COPY.
+  for (MachineInstr *MI : SetInactiveInstrs) {
+    if (LowerToCopyInstrs.contains(MI))
+      continue;
+    if (Instructions[MI].MarkedStates & StateStrict) {
+      Instructions[MI].Needs |= StateStrictWWM;
+      Instructions[MI].Disabled &= ~StateStrictWWM;
+      Blocks[MI->getParent()].Needs |= StateStrictWWM;
+    } else {
+      LLVM_DEBUG(dbgs() << "Has no WWM marking: " << *MI);
+      LowerToCopyInstrs.insert(MI);
+    }
+  }
+
   LLVM_DEBUG(printInfo());
 
   Changed |= lowerLiveMaskQueries();
@@ -1767,7 +1763,6 @@ bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
     Changed = true;
   } else {
     // Wave mode switching requires full lowering pass.
-    harmonizeTransitions();
     for (auto BII : Blocks)
       processBlock(*BII.first, BII.first == &Entry);
     // Lowering blocks causes block splitting so perform as a second pass.
