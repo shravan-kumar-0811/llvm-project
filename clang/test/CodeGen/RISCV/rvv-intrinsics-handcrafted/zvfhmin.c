@@ -112,8 +112,8 @@ vfloat16m1_t test_vle16ff_v_f16m1(const _Float16 *base, size_t *new_vl, size_t v
 
 // CHECK-ZVFHMIN-LABEL: @test_vlseg2e16_v_f16m1x2(
 // CHECK-ZVFHMIN-NEXT:  entry:
-// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv_vec_tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vlseg2.triscv_vec_tuple_nxv8i8_2t.i64(target("riscv_vec_tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], i64 [[VL:%.*]], i64 4)
-// CHECK-ZVFHMIN-NEXT:    ret target("riscv_vec_tuple", <vscale x 8 x i8>, 2) [[TMP0]]
+// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv.vector.tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vlseg2.triscv.vector.tuple_nxv8i8_2t.i64(target("riscv.vector.tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], i64 [[VL:%.*]], i64 4)
+// CHECK-ZVFHMIN-NEXT:    ret target("riscv.vector.tuple", <vscale x 8 x i8>, 2) [[TMP0]]
 //
 vfloat16m1x2_t test_vlseg2e16_v_f16m1x2(const _Float16 *base, size_t vl) {
   return __riscv_vlseg2e16_v_f16m1x2(base, vl);
@@ -121,11 +121,11 @@ vfloat16m1x2_t test_vlseg2e16_v_f16m1x2(const _Float16 *base, size_t vl) {
 
 // CHECK-ZVFHMIN-LABEL: @test_vlseg2e16ff_v_f16m1x2(
 // CHECK-ZVFHMIN-NEXT:  entry:
-// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call { target("riscv_vec_tuple", <vscale x 8 x i8>, 2), i64 } @llvm.riscv.vlseg2ff.triscv_vec_tuple_nxv8i8_2t.i64(target("riscv_vec_tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], i64 [[VL:%.*]], i64 0)
-// CHECK-ZVFHMIN-NEXT:    [[TMP1:%.*]] = extractvalue { target("riscv_vec_tuple", <vscale x 8 x i8>, 2), i64 } [[TMP0]], 0
-// CHECK-ZVFHMIN-NEXT:    [[TMP2:%.*]] = extractvalue { target("riscv_vec_tuple", <vscale x 8 x i8>, 2), i64 } [[TMP0]], 1
+// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call { target("riscv.vector.tuple", <vscale x 8 x i8>, 2), i64 } @llvm.riscv.vlseg2ff.triscv.vector.tuple_nxv8i8_2t.i64(target("riscv.vector.tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], i64 [[VL:%.*]], i64 0)
+// CHECK-ZVFHMIN-NEXT:    [[TMP1:%.*]] = extractvalue { target("riscv.vector.tuple", <vscale x 8 x i8>, 2), i64 } [[TMP0]], 0
+// CHECK-ZVFHMIN-NEXT:    [[TMP2:%.*]] = extractvalue { target("riscv.vector.tuple", <vscale x 8 x i8>, 2), i64 } [[TMP0]], 1
 // CHECK-ZVFHMIN-NEXT:    store i64 [[TMP2]], ptr [[NEW_VL:%.*]], align 8
-// CHECK-ZVFHMIN-NEXT:    ret target("riscv_vec_tuple", <vscale x 8 x i8>, 2) [[TMP1]]
+// CHECK-ZVFHMIN-NEXT:    ret target("riscv.vector.tuple", <vscale x 8 x i8>, 2) [[TMP1]]
 //
 vfloat16m1x2_t test_vlseg2e16ff_v_f16m1x2(const _Float16 *base, size_t *new_vl, size_t vl) {
   return __riscv_vlseg2e16ff_v_f16m1x2(base, new_vl, vl);
@@ -133,8 +133,8 @@ vfloat16m1x2_t test_vlseg2e16ff_v_f16m1x2(const _Float16 *base, size_t *new_vl, 
 
 // CHECK-ZVFHMIN-LABEL: @test_vlsseg2e16_v_f16m1x2(
 // CHECK-ZVFHMIN-NEXT:  entry:
-// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv_vec_tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vlsseg2.triscv_vec_tuple_nxv8i8_2t.i64(target("riscv_vec_tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], i64 [[BSTRIDE:%.*]], i64 [[VL:%.*]], i64 4)
-// CHECK-ZVFHMIN-NEXT:    ret target("riscv_vec_tuple", <vscale x 8 x i8>, 2) [[TMP0]]
+// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv.vector.tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vlsseg2.triscv.vector.tuple_nxv8i8_2t.i64(target("riscv.vector.tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], i64 [[BSTRIDE:%.*]], i64 [[VL:%.*]], i64 4)
+// CHECK-ZVFHMIN-NEXT:    ret target("riscv.vector.tuple", <vscale x 8 x i8>, 2) [[TMP0]]
 //
 vfloat16m1x2_t test_vlsseg2e16_v_f16m1x2(const _Float16 *base, ptrdiff_t bstride, size_t vl) {
   return __riscv_vlsseg2e16_v_f16m1x2(base, bstride, vl);
@@ -142,8 +142,8 @@ vfloat16m1x2_t test_vlsseg2e16_v_f16m1x2(const _Float16 *base, ptrdiff_t bstride
 
 // CHECK-ZVFHMIN-LABEL: @test_vluxseg2ei32_v_f16m1x2(
 // CHECK-ZVFHMIN-NEXT:  entry:
-// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv_vec_tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vluxseg2.triscv_vec_tuple_nxv8i8_2t.nxv4i32.i64(target("riscv_vec_tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], <vscale x 4 x i32> [[BINDEX:%.*]], i64 [[VL:%.*]], i64 0)
-// CHECK-ZVFHMIN-NEXT:    ret target("riscv_vec_tuple", <vscale x 8 x i8>, 2) [[TMP0]]
+// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv.vector.tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vluxseg2.triscv.vector.tuple_nxv8i8_2t.nxv4i32.i64(target("riscv.vector.tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], <vscale x 4 x i32> [[BINDEX:%.*]], i64 [[VL:%.*]], i64 0)
+// CHECK-ZVFHMIN-NEXT:    ret target("riscv.vector.tuple", <vscale x 8 x i8>, 2) [[TMP0]]
 //
 vfloat16m1x2_t test_vluxseg2ei32_v_f16m1x2(const _Float16 *base, vuint32m2_t bindex, size_t vl) {
   return __riscv_vluxseg2ei32_v_f16m1x2(base, bindex, vl);
@@ -151,8 +151,8 @@ vfloat16m1x2_t test_vluxseg2ei32_v_f16m1x2(const _Float16 *base, vuint32m2_t bin
 
 // CHECK-ZVFHMIN-LABEL: @test_vloxseg2ei32_v_f16m1x2(
 // CHECK-ZVFHMIN-NEXT:  entry:
-// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv_vec_tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vloxseg2.triscv_vec_tuple_nxv8i8_2t.nxv4i32.i64(target("riscv_vec_tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], <vscale x 4 x i32> [[BINDEX:%.*]], i64 [[VL:%.*]], i64 0)
-// CHECK-ZVFHMIN-NEXT:    ret target("riscv_vec_tuple", <vscale x 8 x i8>, 2) [[TMP0]]
+// CHECK-ZVFHMIN-NEXT:    [[TMP0:%.*]] = call target("riscv.vector.tuple", <vscale x 8 x i8>, 2) @llvm.riscv.vloxseg2.triscv.vector.tuple_nxv8i8_2t.nxv4i32.i64(target("riscv.vector.tuple", <vscale x 8 x i8>, 2) poison, ptr [[BASE:%.*]], <vscale x 4 x i32> [[BINDEX:%.*]], i64 [[VL:%.*]], i64 0)
+// CHECK-ZVFHMIN-NEXT:    ret target("riscv.vector.tuple", <vscale x 8 x i8>, 2) [[TMP0]]
 //
 vfloat16m1x2_t test_vloxseg2ei32_v_f16m1x2(const _Float16 *base, vuint32m2_t bindex, size_t vl) {
   return __riscv_vloxseg2ei32_v_f16m1x2(base, bindex, vl);
