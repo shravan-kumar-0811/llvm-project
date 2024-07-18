@@ -55,6 +55,7 @@ Implemented Papers
 - P2231R1 - Missing ``constexpr`` in ``std::optional`` and ``std::variant``
 - P0019R8 - ``std::atomic_ref``
 - P2389R2 - Alias template ``dims`` for the ``extents`` of ``mdspan``
+- P2404R3 - Move-only types for ``equality_comparable_with``, ``totally_ordered_with``, and ``three_way_comparable_with``
 
 Improvements and New Features
 -----------------------------
