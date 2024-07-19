@@ -1177,43 +1177,44 @@ module std_private_compare_weak_order                     [system] { header "__c
 
 module std_private_complex_complex_fwd            [system] { header "__fwd/complex.h" }
 
-module std_private_concepts_arithmetic            [system] { header "__concepts/arithmetic.h" }
-module std_private_concepts_assignable            [system] { header "__concepts/assignable.h" }
-module std_private_concepts_boolean_testable      [system] { header "__concepts/boolean_testable.h" }
-module std_private_concepts_class_or_enum         [system] { header "__concepts/class_or_enum.h" }
-module std_private_concepts_common_reference_with [system] { header "__concepts/common_reference_with.h" }
-module std_private_concepts_common_with           [system] { header "__concepts/common_with.h" }
-module std_private_concepts_constructible         [system] {
+module std_private_concepts_arithmetic              [system] { header "__concepts/arithmetic.h" }
+module std_private_concepts_assignable              [system] { header "__concepts/assignable.h" }
+module std_private_concepts_boolean_testable        [system] { header "__concepts/boolean_testable.h" }
+module std_private_concepts_class_or_enum           [system] { header "__concepts/class_or_enum.h" }
+module std_private_concepts_common_reference_with   [system] { header "__concepts/common_reference_with.h" }
+module std_private_concepts_common_with             [system] { header "__concepts/common_with.h" }
+module std_private_cooncepts_comparison_common_type [system] { header "__concepts/comparison_common_type.h" }
+module std_private_concepts_constructible           [system] {
   header "__concepts/constructible.h"
   export std_private_concepts_destructible
 }
-module std_private_concepts_convertible_to        [system] { header "__concepts/convertible_to.h" }
-module std_private_concepts_copyable              [system] { header "__concepts/copyable.h" }
-module std_private_concepts_derived_from          [system] { header "__concepts/derived_from.h" }
-module std_private_concepts_destructible          [system] {
+module std_private_concepts_convertible_to          [system] { header "__concepts/convertible_to.h" }
+module std_private_concepts_copyable                [system] { header "__concepts/copyable.h" }
+module std_private_concepts_derived_from            [system] { header "__concepts/derived_from.h" }
+module std_private_concepts_destructible            [system] {
   header "__concepts/destructible.h"
   export std_private_type_traits_is_nothrow_destructible
 }
-module std_private_concepts_different_from        [system] { header "__concepts/different_from.h" }
-module std_private_concepts_equality_comparable   [system] {
+module std_private_concepts_different_from          [system] { header "__concepts/different_from.h" }
+module std_private_concepts_equality_comparable     [system] {
   header "__concepts/equality_comparable.h"
   export std_private_type_traits_common_reference
 }
-module std_private_concepts_invocable             [system] { header "__concepts/invocable.h" }
-module std_private_concepts_movable               [system] {
+module std_private_concepts_invocable               [system] { header "__concepts/invocable.h" }
+module std_private_concepts_movable                 [system] {
   header "__concepts/movable.h"
   export std_private_type_traits_is_object
 }
-module std_private_concepts_predicate             [system] { header "__concepts/predicate.h" }
-module std_private_concepts_regular               [system] { header "__concepts/regular.h" }
-module std_private_concepts_relation              [system] { header "__concepts/relation.h" }
-module std_private_concepts_same_as               [system] {
+module std_private_concepts_predicate               [system] { header "__concepts/predicate.h" }
+module std_private_concepts_regular                 [system] { header "__concepts/regular.h" }
+module std_private_concepts_relation                [system] { header "__concepts/relation.h" }
+module std_private_concepts_same_as                 [system] {
   header "__concepts/same_as.h"
   export std_private_type_traits_is_same
 }
-module std_private_concepts_semiregular           [system] { header "__concepts/semiregular.h" }
-module std_private_concepts_swappable             [system] { header "__concepts/swappable.h" }
-module std_private_concepts_totally_ordered       [system] { header "__concepts/totally_ordered.h" }
+module std_private_concepts_semiregular             [system] { header "__concepts/semiregular.h" }
+module std_private_concepts_swappable               [system] { header "__concepts/swappable.h" }
+module std_private_concepts_totally_ordered         [system] { header "__concepts/totally_ordered.h" }
 
 module std_private_condition_variable_condition_variable [system] {
   header "__condition_variable/condition_variable.h"
