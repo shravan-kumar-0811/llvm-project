@@ -1745,7 +1745,7 @@ __kmp_invoke_microtask:
 #define REG_L lw
 #define REG_S sw
 #define SZREG 4
-#elif
+#else
 #define REG_L ld
 #define REG_S sd
 #define SZREG 8

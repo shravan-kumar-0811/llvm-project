@@ -276,18 +276,7 @@ public:
 #elif __NR_sched_getaffinity != 123
 #error Wrong code for getaffinity system call.
 #endif /* __NR_sched_getaffinity */
-#elif KMP_ARCH_RISCV32
-#ifndef __NR_sched_setaffinity
-#define __NR_sched_setaffinity 122
-#elif __NR_sched_setaffinity != 122
-#error Wrong code for setaffinity system call.
-#endif /* __NR_sched_setaffinity */
-#ifndef __NR_sched_getaffinity
-#define __NR_sched_getaffinity 123
-#elif __NR_sched_getaffinity != 123
-#error Wrong code for getaffinity system call.
-#endif /* __NR_sched_getaffinity */
-#elif KMP_ARCH_RISCV64
+#elif KMP_ARCH_RISCV64 || KMP_ARCH_RISCV32
 #ifndef __NR_sched_setaffinity
 #define __NR_sched_setaffinity 122
 #elif __NR_sched_setaffinity != 122
