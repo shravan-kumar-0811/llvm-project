@@ -10215,6 +10215,11 @@ QualType Sema::CheckVectorOperands(ExprResult &LHS, ExprResult &RHS,
   const VectorType *RHSVecType = RHSType->getAs<VectorType>();
   assert(LHSVecType || RHSVecType);
 
+  // Any operation with Fpm8 type is only possible with C intrinsics
+  if ((LHSVecType && LHSVecType->getElementType()->isFpm8Type()) ||
+      (RHSVecType && RHSVecType->getElementType()->isFpm8Type()))
+    return InvalidOperands(Loc, LHS, RHS);
+
   // AltiVec-style "vector bool op vector bool" combinations are allowed
   // for some operators but not others.
   if (!AllowBothBool && LHSVecType &&

@@ -99,7 +99,8 @@ enum EltType {
   Float16,
   Float32,
   Float64,
-  BFloat16
+  BFloat16,
+  Fpm8
 };
 
 } // end namespace NeonTypeFlags
@@ -148,6 +149,7 @@ private:
     UInt,
     Poly,
     BFloat16,
+    Fpm8,
   };
   TypeKind Kind;
   bool Immediate, Constant, Pointer;
@@ -201,6 +203,7 @@ public:
   bool isLong() const { return isInteger() && ElementBitwidth == 64; }
   bool isVoid() const { return Kind == Void; }
   bool isBFloat16() const { return Kind == BFloat16; }
+  bool isFpm8() const { return Kind == Fpm8; }
   unsigned getNumElements() const { return Bitwidth / ElementBitwidth; }
   unsigned getSizeInBits() const { return Bitwidth; }
   unsigned getElementSizeInBits() const { return ElementBitwidth; }
@@ -595,6 +598,8 @@ public:
   // Emit arm_bf16.h.inc
   void runBF16(raw_ostream &o);
 
+  void runFpm8(raw_ostream &o);
+
   void runVectorTypes(raw_ostream &o);
 
   // Emit all the __builtin prototypes used in arm_neon.h, arm_fp16.h and
@@ -622,6 +627,8 @@ std::string Type::str() const {
     S += "float";
   else if (isBFloat16())
     S += "bfloat";
+  else if (isFpm8())
+    S += "fpm";
   else
     S += "int";
 
@@ -664,6 +671,8 @@ std::string Type::builtin_str() const {
   else if (isBFloat16()) {
     assert(ElementBitwidth == 16 && "BFloat16 can only be 16 bits");
     S += "y";
+  } else if (isFpm8()) {
+    S += "c";
   } else
     switch (ElementBitwidth) {
     case 16: S += "h"; break;
@@ -718,6 +727,11 @@ unsigned Type::getNeonEnum() const {
     Base = (unsigned)NeonTypeFlags::Float16 + (Addend - 1);
   }
 
+  if (isFpm8()) {
+    assert(Addend == 1 && "Fpm8 is only 8 bit");
+    Base = (unsigned)NeonTypeFlags::Fpm8;
+  }
+
   if (isBFloat16()) {
     assert(Addend == 1 && "BFloat16 is only 16 bit");
     Base = (unsigned)NeonTypeFlags::BFloat16;
@@ -744,6 +758,8 @@ Type Type::fromTypedefName(StringRef Name) {
     T.Kind = Poly;
   } else if (Name.consume_front("bfloat")) {
     T.Kind = BFloat16;
+  } else if (Name.consume_front("fpm")) {
+    T.Kind = Fpm8;
   } else {
     assert(Name.starts_with("int"));
     Name = Name.drop_front(3);
@@ -840,6 +856,10 @@ void Type::applyTypespec(bool &Quad) {
       if (isPoly())
         NumVectors = 0;
       break;
+    case 'm':
+      Kind = Fpm8;
+      ElementBitwidth = 8;
+      break;
     case 'b':
       Kind = BFloat16;
       ElementBitwidth = 16;
@@ -873,6 +893,10 @@ void Type::applyModifiers(StringRef Mods) {
     case 'B':
       Kind = BFloat16;
       ElementBitwidth = 16;
+      break;
+    case 'M':
+      Kind = Fpm8;
+      ElementBitwidth = 8;
       break;
     case 'F':
       Kind = Float;
@@ -958,6 +982,9 @@ std::string Intrinsic::getInstTypeCode(Type T, ClassKind CK) const {
   if (T.isBFloat16())
     return "bf16";
 
+  if (T.isFpm8())
+    return "fpm8";
+
   if (T.isPoly())
     typeCode = 'p';
   else if (T.isInteger())
@@ -995,7 +1022,7 @@ std::string Intrinsic::getBuiltinTypeStr() {
 
   Type RetT = getReturnType();
   if ((LocalCK == ClassI || LocalCK == ClassW) && RetT.isScalar() &&
-      !RetT.isFloating() && !RetT.isBFloat16())
+      !RetT.isFloating() && !RetT.isBFloat16() && !RetT.isFpm8())
     RetT.makeInteger(RetT.getElementSizeInBits(), false);
 
   // Since the return value must be one type, return a vector type of the
@@ -2378,6 +2405,8 @@ void NeonEmitter::run(raw_ostream &OS) {
 
   OS << "#include <arm_bf16.h>\n";
 
+  OS << "#include <arm_fpm8.h>\n";
+
   OS << "#include <arm_vector_types.h>\n";
 
   // For now, signedness of polynomial types depends on target
@@ -2560,6 +2589,27 @@ void NeonEmitter::runFP16(raw_ostream &OS) {
   OS << "#endif /* __ARM_FP16_H */\n";
 }
 
+void NeonEmitter::runFpm8(raw_ostream &OS) {
+  OS << "/*===---- arm_fpm8 - ARM vector type "
+        "------===\n"
+        " *\n"
+        " *\n"
+        " * Part of the LLVM Project, under the Apache License v2.0 with LLVM "
+        "Exceptions.\n"
+        " * See https://llvm.org/LICENSE.txt for license information.\n"
+        " * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception\n"
+        " *\n"
+        " *===-----------------------------------------------------------------"
+        "------===\n"
+        " */\n\n";
+  OS << "#ifndef __ARM_FPM8_H\n";
+  OS << "#define __ARM_FPM8_H\n\n";
+  OS << "typedef __fpm8 fpm8_t;\n";
+
+  emitNeonTypeDefs("mQm", OS);
+  OS << "#endif // __ARM_FPM8_H\n";
+}
+
 void NeonEmitter::runVectorTypes(raw_ostream &OS) {
   OS << "/*===---- arm_vector_types - ARM vector type "
         "------===\n"
@@ -2680,6 +2730,10 @@ void clang::EmitFP16(RecordKeeper &Records, raw_ostream &OS) {
 
 void clang::EmitBF16(RecordKeeper &Records, raw_ostream &OS) {
   NeonEmitter(Records).runBF16(OS);
+}
+
+void clang::EmitFpm8(RecordKeeper &Records, raw_ostream &OS) {
+  NeonEmitter(Records).runFpm8(OS);
 }
 
 void clang::EmitNeonSema(RecordKeeper &Records, raw_ostream &OS) {
