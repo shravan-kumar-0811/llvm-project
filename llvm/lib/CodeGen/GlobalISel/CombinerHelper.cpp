@@ -7467,12 +7467,10 @@ bool CombinerHelper::matchFoldAPlusC1MinusC2(const MachineInstr &MI,
   if (!MRI.hasOneNonDBGUse(Add->getReg(0)))
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC2 = getIConstantVRegVal(Sub->getRHSReg(), MRI);
   if (!MaybeC2)
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC1 = getIConstantVRegVal(Add->getRHSReg(), MRI);
   if (!MaybeC1)
     return false;
@@ -7497,12 +7495,10 @@ bool CombinerHelper::matchFoldC2MinusAPlusC1(const MachineInstr &MI,
   if (!MRI.hasOneNonDBGUse(Add->getReg(0)))
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC2 = getIConstantVRegVal(Sub->getLHSReg(), MRI);
   if (!MaybeC2)
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC1 = getIConstantVRegVal(Add->getRHSReg(), MRI);
   if (!MaybeC1)
     return false;
@@ -7527,12 +7523,10 @@ bool CombinerHelper::matchFoldAMinusC1MinusC2(const MachineInstr &MI,
   if (!MRI.hasOneNonDBGUse(Sub2->getReg(0)))
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC2 = getIConstantVRegVal(Sub1->getRHSReg(), MRI);
   if (!MaybeC2)
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC1 = getIConstantVRegVal(Sub2->getRHSReg(), MRI);
   if (!MaybeC1)
     return false;
@@ -7557,12 +7551,10 @@ bool CombinerHelper::matchFoldC1Minus2MinusC2(const MachineInstr &MI,
   if (!MRI.hasOneNonDBGUse(Sub2->getReg(0)))
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC2 = getIConstantVRegVal(Sub1->getRHSReg(), MRI);
   if (!MaybeC2)
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC1 = getIConstantVRegVal(Sub2->getLHSReg(), MRI);
   if (!MaybeC1)
     return false;
@@ -7587,12 +7579,10 @@ bool CombinerHelper::matchFoldAMinusC2PlusC2(const MachineInstr &MI,
   if (!MRI.hasOneNonDBGUse(Sub->getReg(0)))
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC2 = getIConstantVRegVal(Add->getRHSReg(), MRI);
   if (!MaybeC2)
     return false;
 
-  // Cannot fail due to pattern.
   std::optional<APInt> MaybeC1 = getIConstantVRegVal(Sub->getRHSReg(), MRI);
   if (!MaybeC1)
     return false;
