@@ -1,9 +1,13 @@
-// RUN: %clang_cc1 -fsyntax-only -verify=scalar,neon -std=c++11 \
-// RUN:   -triple aarch64 -target-cpu cortex-a75 \
-// RUN:   -target-feature +fp8 -Wno-unused %s
+// RUN: %clang_cc1 -fsyntax-only -verify=scalar -triple aarch64-arm-none-eabi -target-feature -fp8  %s
 
 // REQUIRES: aarch64-registered-target
+__fpm8 test_static_cast_from_char(char in) {
+  return static_cast<__fpm8>(in); // scalar-error {{static_cast from 'char' to '__fpm8' is not allowed}}
+}
 
+char test_static_cast_to_char(__fpm8 in) {
+  return static_cast<char>(in); // scalar-error {{static_cast from '__fpm8' to 'char' is not allowed}}
+}
 void test(bool b) {
   __fpm8 fpm8;
 

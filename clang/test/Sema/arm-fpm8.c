@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -triple aarch64 -target-feature +fp8 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -triple aarch64-arm-none-eabi -target-feature -fp8 %s
+
+// REQUIRES: aarch64-registered-target
 
 __fpm8 test_cast_from_float(unsigned in) {
   return (__fpm8)in; // expected-error {{cannot cast 'unsigned int' to '__fpm8'; types are not compatible}}

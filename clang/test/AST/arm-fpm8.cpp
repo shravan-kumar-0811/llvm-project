@@ -1,4 +1,7 @@
-// RUN: %clang_cc1 -std=c++11 -ast-dump %s | FileCheck %s --strict-whitespace
+// RUN: %clang_cc1 -std=c++11 -triple aarch64-arm-none-eabi -target-feature -fp8 -ast-dump %s | \
+// RUN:  FileCheck %s --strict-whitespace
+
+// REQUIRES: aarch64-registered-target || arm-registered-target
 
 /*  Various contexts where type __fpm8 can appear. */
 
