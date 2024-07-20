@@ -55,6 +55,7 @@
     __cpp_lib_clamp                                         201603L [C++17]
     __cpp_lib_complex_udls                                  201309L [C++14]
     __cpp_lib_concepts                                      202002L [C++20]
+                                                            202207L [C++23]
     __cpp_lib_constexpr_algorithms                          201806L [C++20]
     __cpp_lib_constexpr_bitset                              202207L [C++23]
     __cpp_lib_constexpr_charconv                            202207L [C++23]
@@ -4828,8 +4829,8 @@
 # ifndef __cpp_lib_concepts
 #   error "__cpp_lib_concepts should be defined in c++23"
 # endif
-# if __cpp_lib_concepts != 202002L
-#   error "__cpp_lib_concepts should have the value 202002L in c++23"
+# if __cpp_lib_concepts != 202207L
+#   error "__cpp_lib_concepts should have the value 202207L in c++23"
 # endif
 
 # ifndef __cpp_lib_constexpr_algorithms
@@ -6462,8 +6463,8 @@
 # ifndef __cpp_lib_concepts
 #   error "__cpp_lib_concepts should be defined in c++26"
 # endif
-# if __cpp_lib_concepts != 202002L
-#   error "__cpp_lib_concepts should have the value 202002L in c++26"
+# if __cpp_lib_concepts != 202207L
+#   error "__cpp_lib_concepts should have the value 202207L in c++26"
 # endif
 
 # ifndef __cpp_lib_constexpr_algorithms

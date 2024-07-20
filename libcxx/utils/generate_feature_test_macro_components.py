@@ -307,7 +307,7 @@ feature_test_macros = [
         },
         {
             "name": "__cpp_lib_concepts",
-            "values": {"c++20": 202002},
+            "values": {"c++20": 202002, "c++23": 202207},
             "headers": ["concepts"],
         },
         {
