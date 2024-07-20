@@ -333,6 +333,7 @@ enum CFileLangId : uint8_t {
   TB_CPLUSPLUS = 9 ///< C++ language.
 };
 
+// CPU ID in XCOFF, defined in `/usr/include/aouthdr.h`.
 enum CFileCpuId : uint8_t {
   TCPU_INVALID = 0, ///< Invalid id - assumes POWER for old objects.
   TCPU_PPC = 1,     ///< PowerPC common architecture 32 bit mode.

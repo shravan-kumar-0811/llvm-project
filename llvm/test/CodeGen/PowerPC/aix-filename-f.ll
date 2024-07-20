@@ -7,5 +7,5 @@ source_filename = "1.f95"
 
 ; OBJ: Name: .file
 ; OBJ: Source Language ID: TB_Fortran (0x1)
-; OBJ: CPU Version ID: TCPU_ANY (0x5)
+; OBJ: CPU Version ID: TCPU_COM (0x3)
 ; OBJ: Name: 1.f95

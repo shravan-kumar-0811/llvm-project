@@ -516,7 +516,7 @@ bool AsmPrinter::doInitialization(Module &M) {
       if (!TM.getTargetCPU().empty())
         TargetCpuId = XCOFF::getCpuID(TM.getTargetCPU());
       else
-        TargetCpuId = XCOFF::TCPU_ANY;
+        TargetCpuId = XCOFF::TCPU_COM;
     }
     OutStreamer->emitMachineDirective(XCOFF::getTCPUString(TargetCpuId));
 
