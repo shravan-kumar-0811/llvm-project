@@ -240,28 +240,15 @@ static SDValue emitConstantSizeRepmov(
   if (!AlwaysInline && (Alignment < Align(4)))
     return SDValue();
 
-  // If we have minsize, then don't care about the alignment.
-  // On x86, the CPU doesn't care and neither should you.
-  // As long as the count is aligned, we can use the minimum number of
-  // instructions without always having to resort to movsb
-  //
-  // Because this is a feature specific to x86, we must handle it here.
-
+  /// In case we optimize for size we use repmovsb even if it's less efficient
+  /// so we can save the loads/stores of the leftover.
   if (DAG.getMachineFunction().getFunction().hasMinSize())
-    Alignment = commonAlignment(Align(Subtarget.is64Bit() ? 8 : 4), Size);
+    return emitRepmovsB(Subtarget, DAG, dl, Chain, Dst, Src, Size);
 
   const MVT BlockType = getOptimalRepmovsType(Subtarget, Alignment);
   const uint64_t BlockBytes = BlockType.getSizeInBits() / 8;
   const uint64_t BlockCount = Size / BlockBytes;
   const uint64_t BytesLeft = Size % BlockBytes;
-
-  if (DAG.getMachineFunction().getFunction().hasMinSize()) {
-    // Use the one instruction determined. Because we changed the alignment
-    // earlier in the function to work on size when we have the minsize
-    // attribute, it is guaranteed to process the entire length.
-    return emitRepmovs(Subtarget, DAG, dl, Chain, Dst, Src,
-                       DAG.getIntPtrConstant(BlockCount, dl), BlockType);
-  }
 
   SDValue RepMovs =
       emitRepmovs(Subtarget, DAG, dl, Chain, Dst, Src,
