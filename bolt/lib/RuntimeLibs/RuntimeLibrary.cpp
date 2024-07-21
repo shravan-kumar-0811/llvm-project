@@ -28,6 +28,12 @@ void RuntimeLibrary::anchor() {}
 
 std::string RuntimeLibrary::getLibPath(StringRef ToolPath,
                                        StringRef LibFileName) {
+  // Handle full path.
+  // It is weird that append LibFileName to LibPath when user gives a full path.
+  if(LibFileName[0]=='/')
+  {
+    return LibFileName.str();
+  }
   StringRef Dir = llvm::sys::path::parent_path(ToolPath);
   SmallString<128> LibPath = llvm::sys::path::parent_path(Dir);
   llvm::sys::path::append(LibPath, "lib" LLVM_LIBDIR_SUFFIX);
