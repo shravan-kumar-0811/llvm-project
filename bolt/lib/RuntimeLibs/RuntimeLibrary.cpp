@@ -30,11 +30,12 @@ std::string RuntimeLibrary::getLibPath(StringRef ToolPath,
                                        StringRef LibFileName) {
   // Handle full path.
   // It is weird that append LibFileName to LibPath when user gives a full path.
+
+  StringRef Dir = llvm::sys::path::parent_path(ToolPath);
+  SmallString<128> LibPath = llvm::sys::path::parent_path(Dir);
   if (LibFileName[0] == '/') {
     LibPath = LibFileName;
   } else {
-    StringRef Dir = llvm::sys::path::parent_path(ToolPath);
-    SmallString<128> LibPath = llvm::sys::path::parent_path(Dir);
     llvm::sys::path::append(LibPath, "lib" LLVM_LIBDIR_SUFFIX);
     if (!llvm::sys::fs::exists(LibPath)) {
       // In some cases we install bolt binary into one level deeper in bin/,
