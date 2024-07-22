@@ -1770,25 +1770,27 @@ class VPWidenIntOrFpInductionRecipe : public VPHeaderPHIRecipe {
 
 public:
   VPWidenIntOrFpInductionRecipe(PHINode *IV, VPValue *Start, VPValue *Step,
-                                const InductionDescriptor &IndDesc)
+                                VPValue *VF, const InductionDescriptor &IndDesc)
       : VPHeaderPHIRecipe(VPDef::VPWidenIntOrFpInductionSC, IV, Start), IV(IV),
         Trunc(nullptr), IndDesc(IndDesc) {
     addOperand(Step);
+    addOperand(VF);
   }
 
   VPWidenIntOrFpInductionRecipe(PHINode *IV, VPValue *Start, VPValue *Step,
-                                const InductionDescriptor &IndDesc,
+                                VPValue *VF, const InductionDescriptor &IndDesc,
                                 TruncInst *Trunc)
       : VPHeaderPHIRecipe(VPDef::VPWidenIntOrFpInductionSC, Trunc, Start),
         IV(IV), Trunc(Trunc), IndDesc(IndDesc) {
     addOperand(Step);
+    addOperand(VF);
   }
 
   ~VPWidenIntOrFpInductionRecipe() override = default;
 
   VPWidenIntOrFpInductionRecipe *clone() override {
-    return new VPWidenIntOrFpInductionRecipe(IV, getStartValue(),
-                                             getStepValue(), IndDesc, Trunc);
+    return new VPWidenIntOrFpInductionRecipe(
+        IV, getStartValue(), getStepValue(), getOperand(2), IndDesc, Trunc);
   }
 
   VP_CLASSOF_IMPL(VPDef::VPWidenIntOrFpInductionSC)
@@ -1820,6 +1822,9 @@ public:
   /// Returns the step value of the induction.
   VPValue *getStepValue() { return getOperand(1); }
   const VPValue *getStepValue() const { return getOperand(1); }
+
+  VPValue *getVFValue() { return getOperand(2); }
+  const VPValue *getVFValue() const { return getOperand(2); }
 
   /// Returns the first defined value as TruncInst, if it is one or nullptr
   /// otherwise.
@@ -3282,6 +3287,8 @@ class VPlan {
   /// Represents the vector trip count.
   VPValue VectorTripCount;
 
+  VPValue VF;
+
   /// Represents the loop-invariant VF * UF of the vector loop region.
   VPValue VFxUF;
 
@@ -3379,6 +3386,8 @@ public:
 
   /// Returns VF * UF of the vector loop region.
   VPValue &getVFxUF() { return VFxUF; }
+
+  VPValue *getVF() { return &VF; };
 
   void addVF(ElementCount VF) { VFs.insert(VF); }
 

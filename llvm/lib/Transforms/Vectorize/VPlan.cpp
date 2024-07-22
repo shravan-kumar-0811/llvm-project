@@ -929,8 +929,19 @@ void VPlan::prepareToExecute(Value *TripCountV, Value *VectorTripCountV,
 
   IRBuilder<> Builder(State.CFG.PrevBB->getTerminator());
   // FIXME: Model VF * UF computation completely in VPlan.
-  VFxUF.setUnderlyingValue(
-      createStepForVF(Builder, TripCountV->getType(), State.VF, State.UF));
+  Value *RuntimeVF = nullptr;
+  if (VF.getNumUsers()) {
+    RuntimeVF = createStepForVF(Builder, TripCountV->getType(), State.VF, 1);
+    VF.setUnderlyingValue(RuntimeVF);
+    VFxUF.setUnderlyingValue(
+        State.UF > 1 ? Builder.CreateMul(
+                           VF.getLiveInIRValue(),
+                           ConstantInt::get(TripCountV->getType(), State.UF))
+                     : VF.getLiveInIRValue());
+  } else {
+    VFxUF.setUnderlyingValue(
+        createStepForVF(Builder, TripCountV->getType(), State.VF, State.UF));
+  }
 
   // When vectorizing the epilogue loop, the canonical induction start value
   // needs to be changed from zero to the value after the main vector loop.
@@ -1093,6 +1104,12 @@ InstructionCost VPlan::cost(ElementCount VF, VPCostContext &Ctx) {
 void VPlan::printLiveIns(raw_ostream &O) const {
   VPSlotTracker SlotTracker(this);
 
+  if (VF.getNumUsers() > 0) {
+    O << "\nLive-in ";
+    VF.printAsOperand(O, SlotTracker);
+    O << " = VF";
+  }
+
   if (VFxUF.getNumUsers() > 0) {
     O << "\nLive-in ";
     VFxUF.printAsOperand(O, SlotTracker);
@@ -1236,6 +1253,7 @@ VPlan *VPlan::duplicate() {
   }
   Old2NewVPValues[&VectorTripCount] = &NewPlan->VectorTripCount;
   Old2NewVPValues[&VFxUF] = &NewPlan->VFxUF;
+  Old2NewVPValues[&VF] = &NewPlan->VF;
   if (BackedgeTakenCount) {
     NewPlan->BackedgeTakenCount = new VPValue();
     Old2NewVPValues[BackedgeTakenCount] = NewPlan->BackedgeTakenCount;
@@ -1547,6 +1565,8 @@ void VPSlotTracker::assignName(const VPValue *V) {
 }
 
 void VPSlotTracker::assignNames(const VPlan &Plan) {
+  if (Plan.VF.getNumUsers() > 0)
+    assignName(&Plan.VF);
   if (Plan.VFxUF.getNumUsers() > 0)
     assignName(&Plan.VFxUF);
   assignName(&Plan.VectorTripCount);
