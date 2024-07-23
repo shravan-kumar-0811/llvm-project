@@ -185,7 +185,6 @@ define amdgpu_gfx void @workgroup_ids_gfx(ptr addrspace(1) %outx, ptr addrspace(
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_store_b32 v[4:5], v8, off scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_storecnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
   %id.x = call i32 @llvm.amdgcn.workgroup.id.x()
   %id.y = call i32 @llvm.amdgcn.workgroup.id.y()

@@ -23,7 +23,6 @@ define float @local_atomic_fmin_ret_f32(ptr addrspace(3) %ptr, float %val) {
 ; GFX12-NEXT:    ds_min_num_rtn_f32 v0, v0, v1
 ; GFX12-NEXT:    s_wait_dscnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_SE
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: local_atomic_fmin_ret_f32:
@@ -97,7 +96,6 @@ define void @local_atomic_fmin_noret_f32(ptr addrspace(3) %ptr, float %val) {
 ; GFX12-NEXT:    ds_min_num_f32 v0, v1
 ; GFX12-NEXT:    s_wait_dscnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_SE
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: local_atomic_fmin_noret_f32:
@@ -171,7 +169,6 @@ define double @local_atomic_fmin_ret_f64(ptr addrspace(3) %ptr, double %val) {
 ; GFX12-NEXT:    ds_min_num_rtn_f64 v[0:1], v0, v[1:2]
 ; GFX12-NEXT:    s_wait_dscnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_SE
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: local_atomic_fmin_ret_f64:
@@ -249,7 +246,6 @@ define void @local_atomic_fmin_noret_f64(ptr addrspace(3) %ptr, double %val) {
 ; GFX12-NEXT:    ds_min_num_f64 v0, v[1:2]
 ; GFX12-NEXT:    s_wait_dscnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_SE
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: local_atomic_fmin_noret_f64:

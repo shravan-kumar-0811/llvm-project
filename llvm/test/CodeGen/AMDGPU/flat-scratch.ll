@@ -277,7 +277,6 @@ define void @zero_init_foo() {
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:32
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: zero_init_foo:
@@ -368,7 +367,6 @@ define void @zero_init_foo() {
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:32
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
   %alloca = alloca [32 x i16], align 2, addrspace(5)
   call void @llvm.memset.p5.i64(ptr addrspace(5) align 2 dereferenceable(64) %alloca, i8 0, i64 64, i1 false)
@@ -907,7 +905,6 @@ define void @store_load_vindex_foo(i32 %idx) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b32 v0, v1, s32 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_vindex_foo:
@@ -980,7 +977,6 @@ define void @store_load_vindex_foo(i32 %idx) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b32 v0, v1, s32 scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   %i = alloca [32 x float], align 4, addrspace(5)
@@ -1024,7 +1020,6 @@ define void @private_ptr_foo(ptr addrspace(5) nocapture %arg) {
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
 ; GFX12-NEXT:    v_mov_b32_e32 v1, 0x41200000
 ; GFX12-NEXT:    scratch_store_b32 v0, v1, off offset:4
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: private_ptr_foo:
@@ -1066,7 +1061,6 @@ define void @private_ptr_foo(ptr addrspace(5) nocapture %arg) {
 ; GFX12-PAL-NEXT:    s_wait_kmcnt 0x0
 ; GFX12-PAL-NEXT:    v_mov_b32_e32 v1, 0x41200000
 ; GFX12-PAL-NEXT:    scratch_store_b32 v0, v1, off offset:4
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
   %gep = getelementptr inbounds float, ptr addrspace(5) %arg, i32 1
   store float 1.000000e+01, ptr addrspace(5) %gep, align 4
@@ -1371,7 +1365,6 @@ define void @zero_init_small_offset_foo() {
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:272
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:288
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:304
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: zero_init_small_offset_foo:
@@ -1472,7 +1465,6 @@ define void @zero_init_small_offset_foo() {
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:272
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:288
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:304
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
   %padding = alloca [64 x i32], align 4, addrspace(5)
   %alloca = alloca [32 x i16], align 2, addrspace(5)
@@ -2170,7 +2162,6 @@ define void @store_load_vindex_small_offset_foo(i32 %idx) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b32 v0, v1, s32 offset:256 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_vindex_small_offset_foo:
@@ -2256,7 +2247,6 @@ define void @store_load_vindex_small_offset_foo(i32 %idx) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b32 v0, v1, s32 offset:256 scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   %padding = alloca [64 x i32], align 4, addrspace(5)
@@ -2588,7 +2578,6 @@ define void @zero_init_large_offset_foo() {
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16400
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16416
 ; GFX12-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16432
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: zero_init_large_offset_foo:
@@ -2730,7 +2719,6 @@ define void @zero_init_large_offset_foo() {
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16400
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16416
 ; GFX12-PAL-NEXT:    scratch_store_b128 off, v[0:3], s32 offset:16432
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
   %padding = alloca [4096 x i32], align 4, addrspace(5)
   %alloca = alloca [32 x i16], align 2, addrspace(5)
@@ -3432,7 +3420,6 @@ define void @store_load_vindex_large_offset_foo(i32 %idx) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b32 v0, v1, s32 offset:16384 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_vindex_large_offset_foo:
@@ -3520,7 +3507,6 @@ define void @store_load_vindex_large_offset_foo(i32 %idx) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b32 v0, v1, s32 offset:16384 scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   %padding = alloca [4096 x i32], align 4, addrspace(5)
@@ -3770,7 +3756,6 @@ define void @store_load_large_imm_offset_foo() {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b32 v0, off, s32 offset:16000 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_large_imm_offset_foo:
@@ -3847,7 +3832,6 @@ define void @store_load_large_imm_offset_foo() {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b32 v0, off, s32 offset:16000 scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   %i = alloca [4096 x i32], align 4, addrspace(5)
@@ -4061,7 +4045,6 @@ define void @store_load_i64_aligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b64 v[0:1], v0, off scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_i64_aligned:
@@ -4120,7 +4103,6 @@ define void @store_load_i64_aligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b64 v[0:1], v0, off scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   store volatile i64 15, ptr addrspace(5) %arg, align 8
@@ -4174,7 +4156,6 @@ define void @store_load_i64_unaligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b64 v[0:1], v0, off scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_i64_unaligned:
@@ -4233,7 +4214,6 @@ define void @store_load_i64_unaligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b64 v[0:1], v0, off scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   store volatile i64 15, ptr addrspace(5) %arg, align 1
@@ -4291,7 +4271,6 @@ define void @store_load_v3i32_unaligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b96 v[0:2], v0, off scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_v3i32_unaligned:
@@ -4355,7 +4334,6 @@ define void @store_load_v3i32_unaligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b96 v[0:2], v0, off scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   store volatile <3 x i32> <i32 1, i32 2, i32 3>, ptr addrspace(5) %arg, align 1
@@ -4415,7 +4393,6 @@ define void @store_load_v4i32_unaligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_b128 v[0:3], v0, off scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_v4i32_unaligned:
@@ -4482,7 +4459,6 @@ define void @store_load_v4i32_unaligned(ptr addrspace(5) nocapture %arg) {
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_b128 v[0:3], v0, off scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   store volatile <4 x i32> <i32 1, i32 2, i32 3, i32 4>, ptr addrspace(5) %arg, align 1
@@ -4535,7 +4511,6 @@ define void @store_load_i32_negative_unaligned(ptr addrspace(5) nocapture %arg) 
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_u8 v0, v0, off offset:-1 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_i32_negative_unaligned:
@@ -4604,7 +4579,6 @@ define void @store_load_i32_negative_unaligned(ptr addrspace(5) nocapture %arg) 
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_u8 v0, v0, off offset:-1 scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   %ptr = getelementptr inbounds i8, ptr addrspace(5) %arg, i32 -1
@@ -4659,7 +4633,6 @@ define void @store_load_i32_large_negative_unaligned(ptr addrspace(5) nocapture 
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    scratch_load_u8 v0, v0, off offset:-4225 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX9-PAL-LABEL: store_load_i32_large_negative_unaligned:
@@ -4729,7 +4702,6 @@ define void @store_load_i32_large_negative_unaligned(ptr addrspace(5) nocapture 
 ; GFX12-PAL-NEXT:    s_wait_storecnt 0x0
 ; GFX12-PAL-NEXT:    scratch_load_u8 v0, v0, off offset:-4225 scope:SCOPE_SYS
 ; GFX12-PAL-NEXT:    s_wait_loadcnt 0x0
-; GFX12-PAL-NEXT:    s_wait_alu 0xfffe
 ; GFX12-PAL-NEXT:    s_setpc_b64 s[30:31]
 bb:
   %ptr = getelementptr inbounds i8, ptr addrspace(5) %arg, i32 -4225

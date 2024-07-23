@@ -2385,12 +2385,11 @@ define amdgpu_kernel void @constant_zextload_v32i1_to_v32i32(ptr addrspace(1) %o
 ; GFX12-NEXT:    v_and_b32_e32 v21, 1, v21
 ; GFX12-NEXT:    s_bfe_u32 s3, s2, 0x10013
 ; GFX12-NEXT:    s_bfe_u32 s6, s2, 0x10012
-; GFX12-NEXT:    s_wait_alu 0xfffe
+; GFX12-NEXT:    s_delay_alu instid0(SALU_CYCLE_1) | instskip(SKIP_3) | instid1(SALU_CYCLE_1)
 ; GFX12-NEXT:    v_dual_mov_b32 v30, s6 :: v_dual_and_b32 v13, 1, v13
 ; GFX12-NEXT:    s_bfe_u32 s7, s2, 0x10011
 ; GFX12-NEXT:    s_bfe_u32 s8, s2, 0x10010
 ; GFX12-NEXT:    s_bfe_u32 s9, s2, 0x10017
-; GFX12-NEXT:    s_delay_alu instid0(SALU_CYCLE_1)
 ; GFX12-NEXT:    v_dual_mov_b32 v27, s9 :: v_dual_and_b32 v24, 1, v6
 ; GFX12-NEXT:    s_bfe_u32 s10, s2, 0x10016
 ; GFX12-NEXT:    v_and_b32_e32 v9, 1, v9

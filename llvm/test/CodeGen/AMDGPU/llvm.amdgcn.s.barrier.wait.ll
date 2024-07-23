@@ -223,7 +223,6 @@ define void @test2_s_barrier_signal_var(i32 %arg) {
 ; GLOBAL-ISEL-NEXT:    v_readfirstlane_b32 m0, v0
 ; GLOBAL-ISEL-NEXT:    s_wait_storecnt 0x0
 ; GLOBAL-ISEL-NEXT:    s_barrier_signal m0
-; GLOBAL-ISEL-NEXT:    s_wait_alu 0xfffe
 ; GLOBAL-ISEL-NEXT:    s_setpc_b64 s[30:31]
   call void @llvm.amdgcn.s.barrier.signal.var(i32 %arg)
   ret void
@@ -499,7 +498,6 @@ define void @test2_s_barrier_signal_isfirst_var(ptr addrspace(1) %a, ptr addrspa
 ; GCN-NEXT:    v_mul_lo_u32 v0, v1, v0
 ; GCN-NEXT:    global_store_b32 v[7:8], v0, off
 ; GCN-NEXT:    s_wait_kmcnt 0x0
-; GCN-NEXT:    s_wait_alu 0xfffe
 ; GCN-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GLOBAL-ISEL-LABEL: test2_s_barrier_signal_isfirst_var:
@@ -531,7 +529,6 @@ define void @test2_s_barrier_signal_isfirst_var(ptr addrspace(1) %a, ptr addrspa
 ; GLOBAL-ISEL-NEXT:    v_mul_lo_u32 v0, v1, v0
 ; GLOBAL-ISEL-NEXT:    global_store_b32 v[7:8], v0, off
 ; GLOBAL-ISEL-NEXT:    s_wait_kmcnt 0x0
-; GLOBAL-ISEL-NEXT:    s_wait_alu 0xfffe
 ; GLOBAL-ISEL-NEXT:    s_setpc_b64 s[30:31]
   %tmp = call i32 @llvm.amdgcn.workitem.id.x()
   %tmp1 = getelementptr i32, ptr addrspace(1) %out, i32 %tmp
@@ -965,7 +962,6 @@ define void @test5_s_barrier_join_m0(i32 %arg) {
 ; GLOBAL-ISEL-NEXT:    s_wait_kmcnt 0x0
 ; GLOBAL-ISEL-NEXT:    v_readfirstlane_b32 m0, v0
 ; GLOBAL-ISEL-NEXT:    s_barrier_join m0
-; GLOBAL-ISEL-NEXT:    s_wait_alu 0xfffe
 ; GLOBAL-ISEL-NEXT:    s_setpc_b64 s[30:31]
   call void @llvm.amdgcn.s.barrier.join(i32 %arg)
   ret void
@@ -1224,7 +1220,6 @@ define void @test5_s_wakeup_barrier_m0(i32 %arg) {
 ; GLOBAL-ISEL-NEXT:    s_wait_kmcnt 0x0
 ; GLOBAL-ISEL-NEXT:    v_readfirstlane_b32 m0, v0
 ; GLOBAL-ISEL-NEXT:    s_wakeup_barrier m0
-; GLOBAL-ISEL-NEXT:    s_wait_alu 0xfffe
 ; GLOBAL-ISEL-NEXT:    s_setpc_b64 s[30:31]
   call void @llvm.amdgcn.s.wakeup.barrier(i32 %arg)
   ret void
@@ -1404,7 +1399,6 @@ define i32 @test5_s_get_barrier_state_m0(i32 %arg) {
 ; GCN-NEXT:    s_wait_kmcnt 0x0
 ; GCN-NEXT:    s_wait_alu 0xfffe
 ; GCN-NEXT:    v_mov_b32_e32 v0, s0
-; GCN-NEXT:    s_wait_alu 0xfffe
 ; GCN-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GLOBAL-ISEL-LABEL: test5_s_get_barrier_state_m0:
@@ -1420,7 +1414,6 @@ define i32 @test5_s_get_barrier_state_m0(i32 %arg) {
 ; GLOBAL-ISEL-NEXT:    s_wait_alu 0xfffe
 ; GLOBAL-ISEL-NEXT:    s_delay_alu instid0(SALU_CYCLE_1)
 ; GLOBAL-ISEL-NEXT:    v_mov_b32_e32 v0, s0
-; GLOBAL-ISEL-NEXT:    s_wait_alu 0xfffe
 ; GLOBAL-ISEL-NEXT:    s_setpc_b64 s[30:31]
   %state = call i32 @llvm.amdgcn.s.get.barrier.state(i32 %arg)
   ret i32 %state

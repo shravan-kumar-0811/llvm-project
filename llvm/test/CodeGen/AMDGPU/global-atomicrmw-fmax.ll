@@ -26,7 +26,6 @@ define float @global_agent_atomic_fmax_ret_f32(ptr addrspace(1) %ptr, float %val
 ; GFX12-NEXT:    global_atomic_max_num_f32 v0, v[0:1], v2, off th:TH_ATOMIC_RETURN scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_ret_f32:
@@ -189,7 +188,6 @@ define float @global_agent_atomic_fmax_ret_f32__offset12b_pos(ptr addrspace(1) %
 ; GFX12-NEXT:    global_atomic_max_num_f32 v0, v[0:1], v2, off offset:2044 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_ret_f32__offset12b_pos:
@@ -354,7 +352,6 @@ define float @global_agent_atomic_fmax_ret_f32__offset12b_neg(ptr addrspace(1) %
 ; GFX12-NEXT:    global_atomic_max_num_f32 v0, v[0:1], v2, off offset:-2048 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_ret_f32__offset12b_neg:
@@ -519,7 +516,6 @@ define void @global_agent_atomic_fmax_noret_f32(ptr addrspace(1) %ptr, float %va
 ; GFX12-NEXT:    global_atomic_max_num_f32 v[0:1], v2, off scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_noret_f32:
@@ -676,7 +672,6 @@ define void @global_agent_atomic_fmax_noret_f32__offset12b_pos(ptr addrspace(1) 
 ; GFX12-NEXT:    global_atomic_max_num_f32 v[0:1], v2, off offset:2044 scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_noret_f32__offset12b_pos:
@@ -836,7 +831,6 @@ define void @global_agent_atomic_fmax_noret_f32__offset12b_neg(ptr addrspace(1) 
 ; GFX12-NEXT:    global_atomic_max_num_f32 v[0:1], v2, off offset:-2048 scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_noret_f32__offset12b_neg:
@@ -1502,7 +1496,6 @@ define float @global_agent_atomic_fmax_ret_f32__ftz(ptr addrspace(1) %ptr, float
 ; GFX12-NEXT:    global_atomic_max_num_f32 v0, v[0:1], v2, off th:TH_ATOMIC_RETURN scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_ret_f32__ftz:
@@ -1665,7 +1658,6 @@ define float @global_agent_atomic_fmax_ret_f32__offset12b_pos__ftz(ptr addrspace
 ; GFX12-NEXT:    global_atomic_max_num_f32 v0, v[0:1], v2, off offset:2044 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_ret_f32__offset12b_pos__ftz:
@@ -1830,7 +1822,6 @@ define float @global_agent_atomic_fmax_ret_f32__offset12b_neg__ftz(ptr addrspace
 ; GFX12-NEXT:    global_atomic_max_num_f32 v0, v[0:1], v2, off offset:-2048 th:TH_ATOMIC_RETURN scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_ret_f32__offset12b_neg__ftz:
@@ -1995,7 +1986,6 @@ define void @global_agent_atomic_fmax_noret_f32__ftz(ptr addrspace(1) %ptr, floa
 ; GFX12-NEXT:    global_atomic_max_num_f32 v[0:1], v2, off scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_noret_f32__ftz:
@@ -2152,7 +2142,6 @@ define void @global_agent_atomic_fmax_noret_f32__offset12b_pos__ftz(ptr addrspac
 ; GFX12-NEXT:    global_atomic_max_num_f32 v[0:1], v2, off offset:2044 scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_noret_f32__offset12b_pos__ftz:
@@ -2312,7 +2301,6 @@ define void @global_agent_atomic_fmax_noret_f32__offset12b_neg__ftz(ptr addrspac
 ; GFX12-NEXT:    global_atomic_max_num_f32 v[0:1], v2, off offset:-2048 scope:SCOPE_DEV
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: global_agent_atomic_fmax_noret_f32__offset12b_neg__ftz:

@@ -605,10 +605,10 @@ define amdgpu_kernel void @udiv_i32(ptr addrspace(1) %out, i32 %x, i32 %y) {
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
 ; GFX12-NEXT:    s_cvt_f32_u32 s4, s3
 ; GFX12-NEXT:    s_sub_co_i32 s5, 0, s3
-; GFX12-NEXT:    s_wait_alu 0xfffe
-; GFX12-NEXT:    s_delay_alu instid0(SALU_CYCLE_1) | instskip(NEXT) | instid1(TRANS32_DEP_1)
+; GFX12-NEXT:    s_delay_alu instid0(SALU_CYCLE_2) | instskip(NEXT) | instid1(TRANS32_DEP_1)
 ; GFX12-NEXT:    v_rcp_iflag_f32_e32 v0, s4
 ; GFX12-NEXT:    v_readfirstlane_b32 s4, v0
+; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(SALU_CYCLE_2)
 ; GFX12-NEXT:    s_mul_f32 s4, s4, 0x4f7ffffe
 ; GFX12-NEXT:    s_wait_alu 0xfffe
@@ -812,7 +812,6 @@ define amdgpu_kernel void @atomic_add_local(ptr addrspace(3) %local) {
 ; GFX12:       ; %bb.0:
 ; GFX12-NEXT:    s_mov_b32 s0, exec_lo
 ; GFX12-NEXT:    s_mov_b32 s1, exec_lo
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    v_mbcnt_lo_u32_b32 v0, s0, 0
 ; GFX12-NEXT:    s_delay_alu instid0(VALU_DEP_1)
 ; GFX12-NEXT:    v_cmpx_eq_u32_e32 0, v0
@@ -820,6 +819,7 @@ define amdgpu_kernel void @atomic_add_local(ptr addrspace(3) %local) {
 ; GFX12-NEXT:  ; %bb.1:
 ; GFX12-NEXT:    s_load_b32 s1, s[2:3], 0x24
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
+; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_bcnt1_i32_b32 s0, s0
 ; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_mul_i32 s0, s0, 5
@@ -899,7 +899,6 @@ define void @flat_atomic_xchg_i32_noret(ptr %ptr, i32 %in) {
 ; GFX12-NEXT:    flat_atomic_swap_b32 v[0:1], v2 scope:SCOPE_SYS
 ; GFX12-NEXT:    s_wait_storecnt_dscnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_SYS
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
   %tmp0 = atomicrmw xchg ptr %ptr, i32 %in seq_cst
   ret void
@@ -1061,7 +1060,6 @@ define amdgpu_kernel void @atomic_add_ret_local(ptr addrspace(1) %out, ptr addrs
 ; GFX12:       ; %bb.0:
 ; GFX12-NEXT:    s_mov_b32 s1, exec_lo
 ; GFX12-NEXT:    s_mov_b32 s0, exec_lo
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    v_mbcnt_lo_u32_b32 v0, s1, 0
 ; GFX12-NEXT:    ; implicit-def: $vgpr1
 ; GFX12-NEXT:    s_delay_alu instid0(VALU_DEP_1)
@@ -1070,6 +1068,7 @@ define amdgpu_kernel void @atomic_add_ret_local(ptr addrspace(1) %out, ptr addrs
 ; GFX12-NEXT:  ; %bb.1:
 ; GFX12-NEXT:    s_load_b32 s4, s[2:3], 0x2c
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
+; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_bcnt1_i32_b32 s1, s1
 ; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_mul_i32 s1, s1, 5
@@ -1080,6 +1079,7 @@ define amdgpu_kernel void @atomic_add_ret_local(ptr addrspace(1) %out, ptr addrs
 ; GFX12-NEXT:    s_wait_dscnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_SE
 ; GFX12-NEXT:  .LBB7_2:
+; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_or_b32 exec_lo, exec_lo, s0
 ; GFX12-NEXT:    s_load_b64 s[0:1], s[2:3], 0x24
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
@@ -1247,7 +1247,6 @@ define amdgpu_kernel void @add_i32_constant(ptr addrspace(1) %out, ptr addrspace
 ; GFX12:       ; %bb.0: ; %entry
 ; GFX12-NEXT:    s_mov_b32 s1, exec_lo
 ; GFX12-NEXT:    s_mov_b32 s0, exec_lo
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    v_mbcnt_lo_u32_b32 v0, s1, 0
 ; GFX12-NEXT:    ; implicit-def: $vgpr1
 ; GFX12-NEXT:    s_delay_alu instid0(VALU_DEP_1)
@@ -1256,6 +1255,7 @@ define amdgpu_kernel void @add_i32_constant(ptr addrspace(1) %out, ptr addrspace
 ; GFX12-NEXT:  ; %bb.1:
 ; GFX12-NEXT:    s_load_b128 s[4:7], s[2:3], 0x34
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
+; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_bcnt1_i32_b32 s1, s1
 ; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_mul_i32 s1, s1, 5
@@ -1264,6 +1264,7 @@ define amdgpu_kernel void @add_i32_constant(ptr addrspace(1) %out, ptr addrspace
 ; GFX12-NEXT:    buffer_atomic_add_u32 v1, off, s[4:7], null th:TH_ATOMIC_RETURN
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:  .LBB8_2:
+; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_or_b32 exec_lo, exec_lo, s0
 ; GFX12-NEXT:    s_load_b64 s[0:1], s[2:3], 0x24
 ; GFX12-NEXT:    s_wait_kmcnt 0x0

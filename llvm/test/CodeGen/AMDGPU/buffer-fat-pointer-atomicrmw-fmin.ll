@@ -27,7 +27,6 @@ define float @buffer_fat_ptr_agent_atomic_fmin_ret_f32__offset(ptr addrspace(7) 
 ; GFX12-NEXT:    buffer_atomic_min_num_f32 v0, v1, s[0:3], null offen offset:1024 th:TH_ATOMIC_RETURN
 ; GFX12-NEXT:    s_wait_loadcnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: buffer_fat_ptr_agent_atomic_fmin_ret_f32__offset:
@@ -228,7 +227,6 @@ define void @buffer_fat_ptr_agent_atomic_fmin_noret_f32__offset(ptr addrspace(7)
 ; GFX12-NEXT:    buffer_atomic_min_num_f32 v0, v1, s[0:3], null offen offset:1024
 ; GFX12-NEXT:    s_wait_storecnt 0x0
 ; GFX12-NEXT:    global_inv scope:SCOPE_DEV
-; GFX12-NEXT:    s_wait_alu 0xfffe
 ; GFX12-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX940-LABEL: buffer_fat_ptr_agent_atomic_fmin_noret_f32__offset:
