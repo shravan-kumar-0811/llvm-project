@@ -79,11 +79,9 @@ struct OffloadArchToStringMap {
 };
 } // namespace
 
-#define SM2(sm, ca)                                                            \
-  { OffloadArch::SM_##sm, "sm_" #sm, ca }
+#define SM2(sm, ca) {OffloadArch::SM_##sm, "sm_" #sm, ca}
 #define SM(sm) SM2(sm, "compute_" #sm)
-#define GFX(gpu)                                                               \
-  { OffloadArch::GFX##gpu, "gfx" #gpu, "compute_amdgcn" }
+#define GFX(gpu) {OffloadArch::GFX##gpu, "gfx" #gpu, "compute_amdgcn"}
 static const OffloadArchToStringMap arch_names[] = {
     // clang-format off
     {OffloadArch::UNUSED, "", ""},
