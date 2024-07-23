@@ -321,6 +321,10 @@ Resolutions to C++ Defect Reports
 
 - Clang now considers ``noexcept(typeid(expr))`` more carefully, instead of always assuming that ``std::bad_typeid`` can be thrown.
   (`CWG2191: Incorrect result for noexcept(typeid(v)) <https://cplusplus.github.io/CWG/issues/2191.html>`_).
+  
+- Clang now allows comparing unequal object pointers that have been cast to ``void *``
+  in constant expressions. These comparisons always worked in non-constant expressions.
+  (`CWG2749: Treatment of "pointer to void" for relational comparisons <https://cplusplus.github.io/CWG/issues/2749.html>`_).
 
 C Language Changes
 ------------------
