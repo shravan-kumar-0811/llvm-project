@@ -556,6 +556,7 @@ bool parse_field(llvm::StringRef str, llvm::StringRef label) {
   return false;
 }
 
+<<<<<<< HEAD
 llvm::telemetry::TelemetryConfig *MakeTelemetryConfig() {
   bool enable_telemetry = false;
   std::vector<std::string> additional_destinations;
