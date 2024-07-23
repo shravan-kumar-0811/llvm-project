@@ -310,8 +310,8 @@ for (int i = 0; i < argc; ++i) {
 // CHECK1-NEXT:    store ptr [[DOTBOUND_TID_]], ptr [[DOTBOUND_TID__ADDR]], align 8
 // CHECK1-NEXT:    store ptr [[ARGV]], ptr [[ARGV_ADDR]], align 8
 // CHECK1-NEXT:    store ptr [[ARGC]], ptr [[ARGC_ADDR]], align 8
-// CHECK1-NEXT:    [[TMP0:%.*]] = load ptr, ptr [[ARGV_ADDR]], align 8, !nonnull [[META3:![0-9]+]], !dereferenceable [[META4:![0-9]+]], !align [[META4]]
-// CHECK1-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[ARGC_ADDR]], align 8, !nonnull [[META3]], !dereferenceable [[META5:![0-9]+]], !align [[META5]]
+// CHECK1-NEXT:    [[TMP0:%.*]] = load ptr, ptr [[ARGV_ADDR]], align 8, !nonnull [[META3:![0-9]+]], !align [[META4:![0-9]+]]
+// CHECK1-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[ARGC_ADDR]], align 8, !nonnull [[META3]], !align [[META5:![0-9]+]]
 // CHECK1-NEXT:    [[TMP2:%.*]] = load float, ptr @flag, align 4
 // CHECK1-NEXT:    [[TOBOOL:%.*]] = fcmp une float [[TMP2]], 0.000000e+00
 // CHECK1-NEXT:    br i1 [[TOBOOL]], label [[OMP_IF_THEN:%.*]], label [[OMP_IF_ELSE:%.*]]
@@ -561,8 +561,8 @@ for (int i = 0; i < argc; ++i) {
 // CHECK1-NEXT:    store ptr [[DOTBOUND_TID_]], ptr [[DOTBOUND_TID__ADDR]], align 8
 // CHECK1-NEXT:    store ptr [[ARGC]], ptr [[ARGC_ADDR]], align 8
 // CHECK1-NEXT:    store ptr [[R]], ptr [[R_ADDR]], align 8
-// CHECK1-NEXT:    [[TMP0:%.*]] = load ptr, ptr [[ARGC_ADDR]], align 8, !nonnull [[META3]], !dereferenceable [[META5]], !align [[META5]]
-// CHECK1-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[R_ADDR]], align 8, !nonnull [[META3]], !dereferenceable [[META5]], !align [[META5]]
+// CHECK1-NEXT:    [[TMP0:%.*]] = load ptr, ptr [[ARGC_ADDR]], align 8, !nonnull [[META3]], !align [[META5]]
+// CHECK1-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[R_ADDR]], align 8, !nonnull [[META3]], !align [[META5]]
 // CHECK1-NEXT:    [[TMP2:%.*]] = load i32, ptr [[TMP0]], align 4
 // CHECK1-NEXT:    store i32 [[TMP2]], ptr [[DOTCAPTURE_EXPR_]], align 4
 // CHECK1-NEXT:    [[TMP3:%.*]] = load i32, ptr [[DOTCAPTURE_EXPR_]], align 4
@@ -1209,8 +1209,8 @@ for (int i = 0; i < argc; ++i) {
 // CHECK3-NEXT:    store ptr [[DOTBOUND_TID_]], ptr [[DOTBOUND_TID__ADDR]], align 8
 // CHECK3-NEXT:    store ptr [[ARGC]], ptr [[ARGC_ADDR]], align 8
 // CHECK3-NEXT:    store ptr [[R]], ptr [[R_ADDR]], align 8
-// CHECK3-NEXT:    [[TMP0:%.*]] = load ptr, ptr [[ARGC_ADDR]], align 8, !nonnull [[META15:![0-9]+]], !dereferenceable [[META16:![0-9]+]], !align [[META16]]
-// CHECK3-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[R_ADDR]], align 8, !nonnull [[META15]], !dereferenceable [[META16]], !align [[META16]]
+// CHECK3-NEXT:    [[TMP0:%.*]] = load ptr, ptr [[ARGC_ADDR]], align 8, !nonnull [[META15:![0-9]+]], !align [[META16:![0-9]+]]
+// CHECK3-NEXT:    [[TMP1:%.*]] = load ptr, ptr [[R_ADDR]], align 8, !nonnull [[META15]], !align [[META16]]
 // CHECK3-NEXT:    [[TMP2:%.*]] = load i32, ptr [[TMP0]], align 4
 // CHECK3-NEXT:    store i32 [[TMP2]], ptr [[DOTCAPTURE_EXPR_]], align 4
 // CHECK3-NEXT:    [[TMP3:%.*]] = load i32, ptr [[DOTCAPTURE_EXPR_]], align 4

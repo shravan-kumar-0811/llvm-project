@@ -76,7 +76,7 @@ C++ Specific Potentially Breaking Changes
 
   To fix this, update libstdc++ to version 14.1.1 or greater.
 
-- Added ``!dereferenceable/!nonnull/!align`` metadata to load of references for better codegen.
+- Added ``!nonnull/!align`` metadata to load of references for better codegen.
 
 ABI Changes in This Version
 ---------------------------

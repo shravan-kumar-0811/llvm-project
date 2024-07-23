@@ -844,7 +844,7 @@ int main() {
 // CHECK1-NEXT:    [[IDXPROM:%.*]] = sext i32 [[TMP11]] to i64
 // CHECK1-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[VEC]], i64 0, i64 [[IDXPROM]]
 // CHECK1-NEXT:    store i32 [[TMP10]], ptr [[ARRAYIDX]], align 4, !llvm.access.group [[ACC_GRP17]]
-// CHECK1-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META18:![0-9]+]], !dereferenceable [[META19:![0-9]+]], !align [[META19]], !llvm.access.group [[ACC_GRP17]]
+// CHECK1-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META18:![0-9]+]], !align [[META19:![0-9]+]], !llvm.access.group [[ACC_GRP17]]
 // CHECK1-NEXT:    [[TMP13:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP17]]
 // CHECK1-NEXT:    [[IDXPROM5:%.*]] = sext i32 [[TMP13]] to i64
 // CHECK1-NEXT:    [[ARRAYIDX6:%.*]] = getelementptr inbounds [2 x %struct.S.0], ptr [[S_ARR]], i64 0, i64 [[IDXPROM5]]
@@ -1593,7 +1593,7 @@ int main() {
 // CHECK3-NEXT:    [[TMP11:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP18]]
 // CHECK3-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[VEC]], i32 0, i32 [[TMP11]]
 // CHECK3-NEXT:    store i32 [[TMP10]], ptr [[ARRAYIDX]], align 4, !llvm.access.group [[ACC_GRP18]]
-// CHECK3-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP2]], align 4, !nonnull [[META19:![0-9]+]], !dereferenceable [[META20:![0-9]+]], !align [[META20]], !llvm.access.group [[ACC_GRP18]]
+// CHECK3-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP2]], align 4, !nonnull [[META19:![0-9]+]], !align [[META20:![0-9]+]], !llvm.access.group [[ACC_GRP18]]
 // CHECK3-NEXT:    [[TMP13:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP18]]
 // CHECK3-NEXT:    [[ARRAYIDX4:%.*]] = getelementptr inbounds [2 x %struct.S.0], ptr [[S_ARR]], i32 0, i32 [[TMP13]]
 // CHECK3-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr align 4 [[ARRAYIDX4]], ptr align 4 [[TMP12]], i32 4, i1 false), !llvm.access.group [[ACC_GRP18]]
@@ -1956,13 +1956,13 @@ int main() {
 // CHECK5-NEXT:    [[ADD:%.*]] = add nsw i32 0, [[MUL]]
 // CHECK5-NEXT:    store i32 [[ADD]], ptr [[I]], align 4, !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    store i32 1, ptr [[G]], align 4, !llvm.access.group [[ACC_GRP8]]
-// CHECK5-NEXT:    [[TMP10:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META9:![0-9]+]], !dereferenceable [[META10:![0-9]+]], !align [[META10]], !llvm.access.group [[ACC_GRP8]]
+// CHECK5-NEXT:    [[TMP10:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META9:![0-9]+]], !align [[META10:![0-9]+]], !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    store volatile i32 1, ptr [[TMP10]], align 4, !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    store i32 2, ptr [[SIVAR]], align 4, !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    [[TMP11:%.*]] = getelementptr inbounds [[CLASS_ANON_0]], ptr [[REF_TMP]], i32 0, i32 0
 // CHECK5-NEXT:    store ptr [[G]], ptr [[TMP11]], align 8, !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    [[TMP12:%.*]] = getelementptr inbounds [[CLASS_ANON_0]], ptr [[REF_TMP]], i32 0, i32 1
-// CHECK5-NEXT:    [[TMP13:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META9]], !dereferenceable [[META10]], !align [[META10]], !llvm.access.group [[ACC_GRP8]]
+// CHECK5-NEXT:    [[TMP13:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META9]], !align [[META10]], !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    store ptr [[TMP13]], ptr [[TMP12]], align 8, !llvm.access.group [[ACC_GRP8]]
 // CHECK5-NEXT:    [[TMP14:%.*]] = getelementptr inbounds [[CLASS_ANON_0]], ptr [[REF_TMP]], i32 0, i32 2
 // CHECK5-NEXT:    store ptr [[SIVAR]], ptr [[TMP14]], align 8, !llvm.access.group [[ACC_GRP8]]
@@ -2215,7 +2215,7 @@ int main() {
 // CHECK7-NEXT:    [[IDXPROM:%.*]] = sext i32 [[TMP5]] to i64
 // CHECK7-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[VEC3]], i64 0, i64 [[IDXPROM]]
 // CHECK7-NEXT:    store i32 [[TMP4]], ptr [[ARRAYIDX]], align 4, !llvm.access.group [[ACC_GRP6]]
-// CHECK7-NEXT:    [[TMP6:%.*]] = load ptr, ptr [[_TMP6]], align 8, !nonnull [[META7:![0-9]+]], !dereferenceable [[META8:![0-9]+]], !align [[META8]], !llvm.access.group [[ACC_GRP6]]
+// CHECK7-NEXT:    [[TMP6:%.*]] = load ptr, ptr [[_TMP6]], align 8, !nonnull [[META7:![0-9]+]], !align [[META8:![0-9]+]], !llvm.access.group [[ACC_GRP6]]
 // CHECK7-NEXT:    [[TMP7:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP6]]
 // CHECK7-NEXT:    [[IDXPROM7:%.*]] = sext i32 [[TMP7]] to i64
 // CHECK7-NEXT:    [[ARRAYIDX8:%.*]] = getelementptr inbounds [2 x %struct.S.0], ptr [[S_ARR4]], i64 0, i64 [[IDXPROM7]]
@@ -2589,7 +2589,7 @@ int main() {
 // CHECK9-NEXT:    [[TMP5:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP7]]
 // CHECK9-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[VEC3]], i32 0, i32 [[TMP5]]
 // CHECK9-NEXT:    store i32 [[TMP4]], ptr [[ARRAYIDX]], align 4, !llvm.access.group [[ACC_GRP7]]
-// CHECK9-NEXT:    [[TMP6:%.*]] = load ptr, ptr [[_TMP6]], align 4, !nonnull [[META8:![0-9]+]], !dereferenceable [[META9:![0-9]+]], !align [[META9]], !llvm.access.group [[ACC_GRP7]]
+// CHECK9-NEXT:    [[TMP6:%.*]] = load ptr, ptr [[_TMP6]], align 4, !nonnull [[META8:![0-9]+]], !align [[META9:![0-9]+]], !llvm.access.group [[ACC_GRP7]]
 // CHECK9-NEXT:    [[TMP7:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP7]]
 // CHECK9-NEXT:    [[ARRAYIDX7:%.*]] = getelementptr inbounds [2 x %struct.S.0], ptr [[S_ARR4]], i32 0, i32 [[TMP7]]
 // CHECK9-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr align 4 [[ARRAYIDX7]], ptr align 4 [[TMP6]], i32 4, i1 false), !llvm.access.group [[ACC_GRP7]]
@@ -3329,7 +3329,7 @@ int main() {
 // CHECK13-NEXT:    [[IDXPROM:%.*]] = sext i32 [[TMP11]] to i64
 // CHECK13-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[VEC]], i64 0, i64 [[IDXPROM]]
 // CHECK13-NEXT:    store i32 [[TMP10]], ptr [[ARRAYIDX]], align 4, !llvm.access.group [[ACC_GRP18]]
-// CHECK13-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META19:![0-9]+]], !dereferenceable [[META20:![0-9]+]], !align [[META20]], !llvm.access.group [[ACC_GRP18]]
+// CHECK13-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META19:![0-9]+]], !align [[META20:![0-9]+]], !llvm.access.group [[ACC_GRP18]]
 // CHECK13-NEXT:    [[TMP13:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP18]]
 // CHECK13-NEXT:    [[IDXPROM5:%.*]] = sext i32 [[TMP13]] to i64
 // CHECK13-NEXT:    [[ARRAYIDX6:%.*]] = getelementptr inbounds [2 x %struct.S.0], ptr [[S_ARR]], i64 0, i64 [[IDXPROM5]]
@@ -3860,7 +3860,7 @@ int main() {
 // CHECK15-NEXT:    [[TMP11:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP19]]
 // CHECK15-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [2 x i32], ptr [[VEC]], i32 0, i32 [[TMP11]]
 // CHECK15-NEXT:    store i32 [[TMP10]], ptr [[ARRAYIDX]], align 4, !llvm.access.group [[ACC_GRP19]]
-// CHECK15-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP2]], align 4, !nonnull [[META20:![0-9]+]], !dereferenceable [[META21:![0-9]+]], !align [[META21]], !llvm.access.group [[ACC_GRP19]]
+// CHECK15-NEXT:    [[TMP12:%.*]] = load ptr, ptr [[_TMP2]], align 4, !nonnull [[META20:![0-9]+]], !align [[META21:![0-9]+]], !llvm.access.group [[ACC_GRP19]]
 // CHECK15-NEXT:    [[TMP13:%.*]] = load i32, ptr [[I]], align 4, !llvm.access.group [[ACC_GRP19]]
 // CHECK15-NEXT:    [[ARRAYIDX4:%.*]] = getelementptr inbounds [2 x %struct.S.0], ptr [[S_ARR]], i32 0, i32 [[TMP13]]
 // CHECK15-NEXT:    call void @llvm.memcpy.p0.p0.i32(ptr align 4 [[ARRAYIDX4]], ptr align 4 [[TMP12]], i32 4, i1 false), !llvm.access.group [[ACC_GRP19]]
@@ -4099,13 +4099,13 @@ int main() {
 // CHECK17-NEXT:    [[ADD:%.*]] = add nsw i32 0, [[MUL]]
 // CHECK17-NEXT:    store i32 [[ADD]], ptr [[I]], align 4, !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    store i32 1, ptr [[G]], align 4, !llvm.access.group [[ACC_GRP9]]
-// CHECK17-NEXT:    [[TMP10:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META10:![0-9]+]], !dereferenceable [[META11:![0-9]+]], !align [[META11]], !llvm.access.group [[ACC_GRP9]]
+// CHECK17-NEXT:    [[TMP10:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META10:![0-9]+]], !align [[META11:![0-9]+]], !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    store volatile i32 1, ptr [[TMP10]], align 4, !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    store i32 2, ptr [[SIVAR]], align 4, !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    [[TMP11:%.*]] = getelementptr inbounds [[CLASS_ANON]], ptr [[REF_TMP]], i32 0, i32 0
 // CHECK17-NEXT:    store ptr [[G]], ptr [[TMP11]], align 8, !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    [[TMP12:%.*]] = getelementptr inbounds [[CLASS_ANON]], ptr [[REF_TMP]], i32 0, i32 1
-// CHECK17-NEXT:    [[TMP13:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META10]], !dereferenceable [[META11]], !align [[META11]], !llvm.access.group [[ACC_GRP9]]
+// CHECK17-NEXT:    [[TMP13:%.*]] = load ptr, ptr [[_TMP3]], align 8, !nonnull [[META10]], !align [[META11]], !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    store ptr [[TMP13]], ptr [[TMP12]], align 8, !llvm.access.group [[ACC_GRP9]]
 // CHECK17-NEXT:    [[TMP14:%.*]] = getelementptr inbounds [[CLASS_ANON]], ptr [[REF_TMP]], i32 0, i32 2
 // CHECK17-NEXT:    store ptr [[SIVAR]], ptr [[TMP14]], align 8, !llvm.access.group [[ACC_GRP9]]

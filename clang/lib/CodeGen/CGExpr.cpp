@@ -2803,13 +2803,6 @@ CodeGenFunction::EmitLoadOfReference(LValue RefLVal,
   if (!PTy->isIncompleteType() && PTy->isConstantSizeType()) {
     llvm::LLVMContext &Ctx = getLLVMContext();
     llvm::MDBuilder MDB(Ctx);
-    // Emit !dereferenceable metadata
-    Load->setMetadata(
-        llvm::LLVMContext::MD_dereferenceable,
-        llvm::MDNode::get(Ctx,
-                          MDB.createConstant(llvm::ConstantInt::get(
-                              Builder.getInt64Ty(),
-                              CGM.getMinimumObjectSize(PTy).getQuantity()))));
     // Emit !nonnull metadata
     if (CGM.getTypes().getTargetAddressSpace(PTy) == 0 &&
         !CGM.getCodeGenOpts().NullPointerIsValid)
