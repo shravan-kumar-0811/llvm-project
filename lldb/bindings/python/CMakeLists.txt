@@ -118,6 +118,7 @@ function(finish_swig_python swig_target lldb_python_bindings_dir lldb_python_tar
       ${lldb_python_target_dir} "macosx"
       FILES "${LLDB_SOURCE_DIR}/examples/python/crashlog.py"
             "${LLDB_SOURCE_DIR}/examples/python/crashlog_scripted_process.py"
+            "${LLDB_SOURCE_DIR}/examples/python/paniclog_scripted_platform.py"
             "${LLDB_SOURCE_DIR}/examples/darwin/heap_find/heap.py")
 
     create_python_package(
