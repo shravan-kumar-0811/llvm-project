@@ -25,9 +25,11 @@ AST_MATCHER_P(QualType, possiblyPackExpansionOf,
   return InnerMatcher.matches(Node.getNonPackExpansionType(), Finder, Builder);
 }
 
-AST_MATCHER(ParmVarDecl, isTemplateTypeParameter) {
+AST_MATCHER_P(ParmVarDecl, isForwardingReferenceType,
+              ast_matchers::internal::Matcher<RValueReferenceType>,
+              InnerMatcher) {
   ast_matchers::internal::Matcher<QualType> Inner = possiblyPackExpansionOf(
-      qualType(rValueReferenceType(),
+      qualType(rValueReferenceType(InnerMatcher),
                references(templateTypeParmType(
                    hasDeclaration(templateTypeParmDecl()))),
                unless(references(qualType(isConstQualified())))));
@@ -129,15 +131,25 @@ void MissingStdForwardCheck::registerMatchers(MatchFinder *Finder) {
       unless(anyOf(hasAncestor(typeLoc()),
                    hasAncestor(expr(hasUnevaluatedContext())))));
 
+  auto StaticCast =
+      Options.get("IgnoreStaticCasts", false)
+          ? cxxStaticCastExpr(
+                hasDestinationType(lValueReferenceType(
+                    pointee(type(equalsBoundNode("qtype"))))),
+                hasSourceExpression(declRefExpr(to(equalsBoundNode("param")))))
+          : cxxStaticCastExpr(unless(anything()));
+
   Finder->addMatcher(
       parmVarDecl(
           parmVarDecl().bind("param"), hasIdentifier(),
-          unless(hasAttr(attr::Kind::Unused)), isTemplateTypeParameter(),
+          unless(hasAttr(attr::Kind::Unused)),
+          isForwardingReferenceType(pointee(type().bind("qtype"))),
           hasAncestor(functionDecl().bind("func")),
           hasAncestor(functionDecl(
               isDefinition(), equalsBoundNode("func"), ToParam,
-              unless(anyOf(isDeleted(),
-                           hasDescendant(std::move(ForwardCallMatcher))))))),
+              unless(anyOf(isDeleted(), hasDescendant(expr(
+                                            anyOf(std::move(ForwardCallMatcher),
+                                                  std::move(StaticCast))))))))),
       this);
 }
 

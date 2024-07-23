@@ -326,7 +326,8 @@ Changes in existing checks
   <clang-tidy/checks/cppcoreguidelines/missing-std-forward>` check by no longer
   giving false positives for deleted functions, by fixing false negatives when only
   a few parameters are forwarded and by ignoring parameters without a name (unused
-  arguments).
+  arguments). Add an option to allow using ``static_cast<T&>`` to explicitly
+  convey the intention of using a forwarding reference as an lvalue reference.
 
 - Improved :doc:`cppcoreguidelines-owning-memory
   <clang-tidy/checks/cppcoreguidelines/owning-memory>` check to properly handle
