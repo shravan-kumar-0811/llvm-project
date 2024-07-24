@@ -422,7 +422,8 @@ bool YAMLProfileReader::profileMatches(
 }
 
 bool YAMLProfileReader::mayHaveProfileData(const BinaryFunction &BF) {
-  if (opts::MatchProfileWithFunctionHash || opts::MatchWithCallGraph)
+  if (opts::MatchProfileWithFunctionHash || opts::MatchWithCallGraph ||
+      opts::ProfileUsePseudoProbes)
     return true;
   for (StringRef Name : BF.getNames())
     if (ProfileFunctionNames.contains(Name))
@@ -591,6 +592,43 @@ size_t YAMLProfileReader::matchWithCallGraph(BinaryContext &BC) {
   return MatchedWithCallGraph;
 }
 
+size_t YAMLProfileReader::matchWithPseudoProbes(BinaryContext &BC) {
+  if (!opts::ProfileUsePseudoProbes)
+    return 0;
+
+  const MCPseudoProbeDecoder *PseudoProbeDecoder = BC.getPseudoProbeDecoder();
+  assert(PseudoProbeDecoder &&
+         "If pseudo probes are in use, pseudo probe decoder should exist");
+  const auto &GUID2FuncDescMap = PseudoProbeDecoder->getGUID2FuncDescMap();
+  DenseMap<uint64_t, BinaryFunction *> PseudoProbeDescHashToBF;
+  DenseMap<uint64_t, BinaryFunction *> GUIDToBF;
+
+  for (BinaryFunction *BF : BC.getAllBinaryFunctions()) {
+    if (ProfiledFunctions.count(BF))
+      continue;
+    auto It = GUID2FuncDescMap.find(BF->getGUID());
+    if (It == GUID2FuncDescMap.end())
+      continue;
+    PseudoProbeDescHashToBF[It->second.FuncHash] = BF;
+  }
+
+  uint64_t MatchedWithPseudoProbes = 0;
+  for (yaml::bolt::BinaryFunctionProfile &YamlBF : YamlBP.Functions) {
+    if (YamlBF.Used)
+      continue;
+    auto It = PseudoProbeDescHashToBF.find(YamlBF.PseudoProbeDescHash);
+    if (It == PseudoProbeDescHashToBF.end())
+      continue;
+    BinaryFunction *BF = It->second;
+    if (ProfiledFunctions.count(BF))
+      continue;
+    matchProfileToFunction(YamlBF, *BF);
+    ++MatchedWithPseudoProbes;
+  }
+
+  return MatchedWithPseudoProbes;
+}
+
 size_t YAMLProfileReader::matchWithNameSimilarity(BinaryContext &BC) {
   if (opts::NameSimilarityFunctionMatchingThreshold == 0)
     return 0;
@@ -734,6 +772,7 @@ Error YAMLProfileReader::readProfile(BinaryContext &BC) {
   const size_t MatchedWithHash = matchWithHash(BC);
   const size_t MatchedWithLTOCommonName = matchWithLTOCommonName();
   const size_t MatchedWithCallGraph = matchWithCallGraph(BC);
+  const size_t MatchedWithPseudoProbes = matchWithPseudoProbes(BC);
   const size_t MatchedWithNameSimilarity = matchWithNameSimilarity(BC);
 
   for (auto [YamlBF, BF] : llvm::zip_equal(YamlBP.Functions, ProfileBFs))
@@ -755,6 +794,8 @@ Error YAMLProfileReader::readProfile(BinaryContext &BC) {
            << " functions with matching LTO common names\n";
     outs() << "BOLT-INFO: matched " << MatchedWithCallGraph
            << " functions with call graph\n";
+    outs() << "BOLT-INFO: matched " << MatchedWithPseudoProbes
+           << " functions with pseudo probes\n";
     outs() << "BOLT-INFO: matched " << MatchedWithNameSimilarity
            << " functions with similar names\n";
   }

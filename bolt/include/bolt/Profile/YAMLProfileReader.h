@@ -156,6 +156,9 @@ private:
   /// Matches functions using the call graph.
   size_t matchWithCallGraph(BinaryContext &BC);
 
+  /// Matches functions using the call graph.
+  size_t matchWithPseudoProbes(BinaryContext &BC);
+
   /// Matches functions with similarly named profiled functions.
   size_t matchWithNameSimilarity(BinaryContext &BC);
 
