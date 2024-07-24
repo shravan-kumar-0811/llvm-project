@@ -984,7 +984,6 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::Nest:
       case Attribute::NoAlias:
       case Attribute::NoCapture:
-      case Attribute::NoExt:
       case Attribute::NoUndef:
       case Attribute::NonNull:
       case Attribute::Preallocated:
@@ -1004,6 +1003,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       case Attribute::DeadOnUnwind:
       case Attribute::Range:
       case Attribute::Initializes:
+      case Attribute::NoExt:
       //  These are not really attributes.
       case Attribute::None:
       case Attribute::EndAttrKinds:
