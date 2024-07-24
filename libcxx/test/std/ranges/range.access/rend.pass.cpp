@@ -98,8 +98,8 @@ constexpr bool testArray() {
   assert(std::ranges::crend(b).base() == b);
   assert(std::ranges::crend(a).base() == a);
   assert(std::ranges::crend(c).base() == c);
-#endif // _LIBCPP_STD_VER < 23                                                                                        \
-       //
+#endif // _LIBCPP_STD_VER < 23
+
   return true;
 }
 
