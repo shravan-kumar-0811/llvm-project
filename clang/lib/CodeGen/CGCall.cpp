@@ -76,8 +76,8 @@ unsigned CodeGenTypes::ClangCallConvToLLVMCallConv(CallingConv CC) {
   case CC_PreserveNone: return llvm::CallingConv::PreserveNone;
     // clang-format off
   case CC_RISCVVectorCall: return llvm::CallingConv::RISCV_VectorCall;
-    // clang-format on
   case CC_RISCVVLSCall: return llvm::CallingConv::RISCV_VLSCall;
+    // clang-format on
   }
 }
 

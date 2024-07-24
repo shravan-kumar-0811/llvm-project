@@ -3509,8 +3509,8 @@ StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_PreserveNone: return "preserve_none";
     // clang-format off
   case CC_RISCVVectorCall: return "riscv_vector_cc";
-    // clang-format on
   case CC_RISCVVLSCall: return "riscv_vls_cc";
+    // clang-format on
   }
 
   llvm_unreachable("Invalid calling convention.");

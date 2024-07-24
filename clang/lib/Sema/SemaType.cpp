@@ -7482,7 +7482,7 @@ static Attr *getCCTypeAttr(ASTContext &Ctx, ParsedAttr &Attr) {
   case ParsedAttr::AT_RISCVVectorCC:
     return createSimpleAttr<RISCVVectorCCAttr>(Ctx, Attr);
   case ParsedAttr::AT_RISCVVLSCC:
-    return ::new (Ctx) RISCVVLSCCAttr(Ctx, Attr, /*dummy*/0);
+    return ::new (Ctx) RISCVVLSCCAttr(Ctx, Attr, /*dummy*/ 0);
   }
   llvm_unreachable("unexpected attribute kind!");
 }

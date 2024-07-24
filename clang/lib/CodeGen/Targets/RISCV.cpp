@@ -105,8 +105,8 @@ void RISCVABIInfo::computeInfo(CGFunctionInfo &FI) const {
   int ArgNum = 0;
   for (auto &ArgInfo : FI.arguments()) {
     bool IsFixed = ArgNum < NumFixedArgs;
-    ArgInfo.info =
-        classifyArgumentType(ArgInfo.type, IsFixed, ArgGPRsLeft, ArgFPRsLeft, ABIVLen);
+    ArgInfo.info = classifyArgumentType(ArgInfo.type, IsFixed, ArgGPRsLeft,
+                                        ArgFPRsLeft, ABIVLen);
     ArgNum++;
   }
 }
@@ -335,7 +335,7 @@ ABIArgInfo RISCVABIInfo::coerceVLSVector(QualType Ty, unsigned ABIVLen) const {
 
   unsigned NumElts = VT->getNumElements();
   llvm::ScalableVectorType *ResType;
-  llvm::Type *EltType = CGT.ConvertType(VT->getElementType());;
+  llvm::Type *EltType = CGT.ConvertType(VT->getElementType());
 
   if (ABIVLen == 0) {
     // RVV fixed-length vector
@@ -498,7 +498,8 @@ ABIArgInfo RISCVABIInfo::classifyArgumentType(QualType Ty, bool IsFixed,
   return getNaturalAlignIndirect(Ty, /*ByVal=*/false);
 }
 
-ABIArgInfo RISCVABIInfo::classifyReturnType(QualType RetTy, unsigned ABIVLen) const {
+ABIArgInfo RISCVABIInfo::classifyReturnType(QualType RetTy,
+                                            unsigned ABIVLen) const {
   if (RetTy->isVoidType())
     return ABIArgInfo::getIgnore();
 
@@ -507,8 +508,8 @@ ABIArgInfo RISCVABIInfo::classifyReturnType(QualType RetTy, unsigned ABIVLen) co
 
   // The rules for return and argument types are the same, so defer to
   // classifyArgumentType.
-  return classifyArgumentType(RetTy, /*IsFixed=*/true, ArgGPRsLeft,
-                              ArgFPRsLeft, ABIVLen);
+  return classifyArgumentType(RetTy, /*IsFixed=*/true, ArgGPRsLeft, ArgFPRsLeft,
+                              ABIVLen);
 }
 
 RValue RISCVABIInfo::EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
