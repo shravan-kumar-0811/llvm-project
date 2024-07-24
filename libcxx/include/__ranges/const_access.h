@@ -17,7 +17,9 @@
 #include <__ranges/rbegin.h>
 #include <__ranges/rend.h>
 #include <__type_traits/is_reference.h>
+#include <__type_traits/remove_cv.h>
 #include <__type_traits/remove_reference.h>
+#include <__utility/declval.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
