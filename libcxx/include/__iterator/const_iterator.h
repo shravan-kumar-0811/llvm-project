@@ -12,13 +12,25 @@
 
 #include <__compare/three_way_comparable.h>
 #include <__concepts/common_with.h>
+#include <__concepts/convertible_to.h>
 #include <__concepts/different_from.h>
+#include <__concepts/same_as.h>
+#include <__concepts/semiregular.h>
+#include <__concepts/totally_ordered.h>
 #include <__iterator/concepts.h>
+#include <__iterator/incrementable_traits.h>
+#include <__iterator/iter_move.h>
 #include <__iterator/iterator_traits.h>
+#include <__memory/addressof.h>
+#include <__memory/pointer_traits.h>
 #include <__type_traits/common_reference.h>
 #include <__type_traits/common_type.h>
+#include <__type_traits/conditional.h>
 #include <__type_traits/integral_constant.h>
+#include <__type_traits/is_reference.h>
 #include <__type_traits/is_specialization.h>
+#include <__utility/forward.h>
+#include <__utility/move.h>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header

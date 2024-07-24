@@ -9,7 +9,7 @@
 // UNSUPPORTED: c++03, c++11, c++14, c++17
 
 // std::ranges::end
-// std::ranges::cend
+// std::ranges::cend // until C++23
 
 #include <ranges>
 
