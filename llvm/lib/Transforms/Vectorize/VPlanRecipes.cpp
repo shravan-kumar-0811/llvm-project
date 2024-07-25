@@ -197,24 +197,43 @@ void VPLiveOut::fixPhi(VPlan &Plan, VPTransformState &State) {
   auto Lane = vputils::isUniformAfterVectorization(ExitValue)
                   ? VPLane::getFirstLane()
                   : VPLane::getLastLaneForVF(State.VF);
-  VPBasicBlock *MiddleVPBB =
-      cast<VPBasicBlock>(Plan.getVectorLoopRegion()->getSingleSuccessor());
-  VPRecipeBase *ExitingRecipe = ExitValue->getDefiningRecipe();
-  auto *ExitingVPBB = ExitingRecipe ? ExitingRecipe->getParent() : nullptr;
-  // Values leaving the vector loop reach live out phi's in the exiting block
-  // via middle block.
-  auto *PredVPBB = !ExitingVPBB || ExitingVPBB->getEnclosingLoopRegion()
-                       ? MiddleVPBB
-                       : ExitingVPBB;
+
+  VPBasicBlock *PredVPBB;
+  if (EarlyExit)
+    PredVPBB = cast<VPBasicBlock>(Plan.getVectorLoopRegion()->getEarlyExit());
+  else {
+    VPBasicBlock *MiddleVPBB =
+        cast<VPBasicBlock>(Plan.getVectorLoopRegion()->getSingleSuccessor());
+    VPRecipeBase *ExitRecipe = ExitValue->getDefiningRecipe();
+    auto *ExitVPBB = ExitRecipe ? ExitRecipe->getParent() : nullptr;
+    // Values leaving the vector loop reach live out phi's in the exiting block
+    // via middle block.
+    PredVPBB = !ExitVPBB || ExitVPBB->getEnclosingLoopRegion()
+                      ? MiddleVPBB
+                      : ExitVPBB;
+  }
+
   BasicBlock *PredBB = State.CFG.VPBB2IRBB[PredVPBB];
+
   // Set insertion point in PredBB in case an extract needs to be generated.
   // TODO: Model extracts explicitly.
   State.Builder.SetInsertPoint(PredBB, PredBB->getFirstNonPHIIt());
-  Value *V = State.get(ExitValue, VPIteration(State.UF - 1, Lane));
+
+  Value *NewIncoming = nullptr;
+  if (!Lane.isFirstLane() && EarlyExit) {
+    assert(State.UF == 1 && "Early exits unsupported for unrolled loops");
+    NewIncoming = State.get(ExitValue, 0);
+    Value *EarlyExitMask = Plan.getVectorLoopRegion()->getEarlyExitMask(&State);
+    Value *Ctz = State.Builder.CreateCountTrailingZeroElems(
+        State.Builder.getInt64Ty(), EarlyExitMask);
+    NewIncoming = State.Builder.CreateExtractElement(NewIncoming, Ctz);
+  } else
+    NewIncoming = State.get(ExitValue, VPIteration(State.UF - 1, Lane));
+
   if (Phi->getBasicBlockIndex(PredBB) != -1)
-    Phi->setIncomingValueForBlock(PredBB, V);
+    Phi->setIncomingValueForBlock(PredBB, NewIncoming);
   else
-    Phi->addIncoming(V, PredBB);
+    Phi->addIncoming(NewIncoming, PredBB);
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -350,6 +369,8 @@ bool VPInstruction::doesGeneratePerAllLanes() const {
   return Opcode == VPInstruction::PtrAdd && !vputils::onlyFirstLaneUsed(this);
 }
 
+// TODO: Can this function be made static given it's only ever called from one
+// place in this file?
 bool VPInstruction::canGenerateScalarForFirstLane() const {
   if (Instruction::isBinaryOp(getOpcode()))
     return true;
@@ -361,6 +382,7 @@ bool VPInstruction::canGenerateScalarForFirstLane() const {
   case VPInstruction::BranchOnCount:
   case VPInstruction::CalculateTripCountMinusVF:
   case VPInstruction::CanonicalIVIncrementForPart:
+  case VPInstruction::OrReduction:
   case VPInstruction::PtrAdd:
   case VPInstruction::ExplicitVectorLength:
     return true;
@@ -673,7 +695,10 @@ Value *VPInstruction::generatePerPart(VPTransformState &State, unsigned Part) {
     }
     return NewPhi;
   }
-
+  case VPInstruction::OrReduction: {
+    Value *Val = State.get(getOperand(0), Part);
+    return Builder.CreateOrReduce(Val);
+  }
   default:
     llvm_unreachable("Unsupported opcode for instruction");
   }
@@ -681,7 +706,8 @@ Value *VPInstruction::generatePerPart(VPTransformState &State, unsigned Part) {
 
 bool VPInstruction::isVectorToScalar() const {
   return getOpcode() == VPInstruction::ExtractFromEnd ||
-         getOpcode() == VPInstruction::ComputeReductionResult;
+         getOpcode() == VPInstruction::ComputeReductionResult ||
+         getOpcode() == VPInstruction::OrReduction;
 }
 
 bool VPInstruction::isSingleScalar() const {
@@ -847,6 +873,9 @@ void VPInstruction::print(raw_ostream &O, const Twine &Indent,
     break;
   case VPInstruction::PtrAdd:
     O << "ptradd";
+    break;
+  case VPInstruction::OrReduction:
+    O << "or reduction";
     break;
   default:
     O << Instruction::getOpcodeName(getOpcode());
