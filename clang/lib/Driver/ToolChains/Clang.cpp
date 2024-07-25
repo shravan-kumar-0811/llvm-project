@@ -2206,6 +2206,10 @@ void Clang::AddRISCVTargetArgs(const ArgList &Args,
           << A->getSpelling() << Val;
     }
   }
+
+  if (Arg *A = Args.getLastArg(options::OPT_mriscv_abi_vlen_EQ))
+    CmdArgs.push_back(
+        Args.MakeArgString(Twine("-mriscv-abi-vlen=") + A->getValue()));
 }
 
 void Clang::AddSparcTargetArgs(const ArgList &Args,

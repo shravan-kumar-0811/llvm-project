@@ -609,7 +609,7 @@ class CGFunctionInfo final
   unsigned MaxVectorWidth : 4;
 
   /// Log2 of ABI_VLEN used in RISCV VLS calling convention.
-  unsigned Log2RISCVABIVLen : 4;
+  unsigned Log2RISCVABIVLen : 5;
 
   RequiredArgs Required;
 

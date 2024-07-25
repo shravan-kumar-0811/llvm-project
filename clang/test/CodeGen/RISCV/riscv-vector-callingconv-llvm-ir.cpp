@@ -1,7 +1,7 @@
 // REQUIRES: riscv-registered-target
 // RUN: %clang_cc1 -std=c++11 -triple riscv64 -target-feature +v \
 // RUN:   -emit-llvm %s -o - | FileCheck -check-prefix=CHECK-LLVM %s
-// RUN: %clang_cc1 -std=c++11 -triple riscv64 -target-feature +v -target-feature +abi-vlen-256b \
+// RUN: %clang_cc1 -std=c++11 -triple riscv64 -mriscv-abi-vlen=256 -target-feature +v \
 // RUN:   -emit-llvm %s -o - | FileCheck -check-prefix=CHECK-LLVM-ABI-VLEN %s
 
 #include <riscv_vector.h>

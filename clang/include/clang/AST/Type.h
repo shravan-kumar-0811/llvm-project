@@ -1942,7 +1942,7 @@ protected:
     /// Extra information which affects how the function is called, like
     /// regparm and the calling convention.
     LLVM_PREFERRED_TYPE(CallingConv)
-    unsigned ExtInfo : 17;
+    unsigned ExtInfo : 18;
 
     /// The ref-qualifier associated with a \c FunctionProtoType.
     ///
@@ -4409,7 +4409,7 @@ public:
     };
     enum { NoCfCheckMask = 0x800 };
     enum { CmseNSCallMask = 0x1000 };
-    enum { Log2RISCVABIVLenMask = 0x1E000, Log2RISCVABIVLenOffset = 13 };
+    enum { Log2RISCVABIVLenMask = 0x3E000, Log2RISCVABIVLenOffset = 13 };
     uint32_t Bits = CC_C;
 
     ExtInfo(unsigned Bits) : Bits(static_cast<uint32_t>(Bits)) {}
