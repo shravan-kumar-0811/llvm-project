@@ -14419,6 +14419,9 @@ Value *CodeGenFunction::EmitRISCVCpuSupports(ArrayRef<StringRef> FeaturesStrs) {
   // which defines this interface.
   for (auto Feat : FeaturesStrs) {
     int BitPos = RISCVISAInfo::getRISCVFeaturesBitPosition(Feat);
+
+    // If there isn't BitPos for this feature, skip this version.
+    // It also report the warning to user during compilation.
     if (BitPos == -1)
       return Builder.getFalse();
 
