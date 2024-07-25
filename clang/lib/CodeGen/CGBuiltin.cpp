@@ -14372,7 +14372,7 @@ CodeGenFunction::EmitAArch64CpuSupports(ArrayRef<StringRef> FeaturesStrs) {
   return Result;
 }
 
-static Value *LoadRISCVFeatureBits(unsigned Index, CGBuilderTy &Builder,
+static Value *loadRISCVFeatureBits(unsigned Index, CGBuilderTy &Builder,
                                    CodeGenModule &CGM,
                                    llvm::LLVMContext &Context) {
   llvm::Type *Int32Ty = llvm::Type::getInt32Ty(Context);
@@ -14407,7 +14407,7 @@ Value *CodeGenFunction::EmitRISCVCpuSupports(const CallExpr *E) {
   assert(BitPos != -1 && "validation should have rejected this feature");
   Value *MaskV = Builder.getInt64(1ULL << BitPos);
   Value *Bitset = Builder.CreateAnd(
-      LoadRISCVFeatureBits(0, Builder, CGM, getLLVMContext()), MaskV);
+      loadRISCVFeatureBits(0, Builder, CGM, getLLVMContext()), MaskV);
   return Builder.CreateICmpEQ(Bitset, MaskV);
 }
 
@@ -14427,7 +14427,7 @@ Value *CodeGenFunction::EmitRISCVCpuSupports(ArrayRef<StringRef> FeaturesStrs) {
 
   Value *Mask = Builder.getInt64(RequireBitMaskForGroup0);
   Value *Bitset = Builder.CreateAnd(
-      LoadRISCVFeatureBits(0, Builder, CGM, getLLVMContext()), Mask);
+      loadRISCVFeatureBits(0, Builder, CGM, getLLVMContext()), Mask);
   return Builder.CreateICmpEQ(Bitset, Mask);
 }
 
