@@ -63,6 +63,7 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
 #include "llvm/TargetParser/RISCVISAInfo.h"
+#include "llvm/TargetParser/RISCVTargetParser.h"
 #include "llvm/TargetParser/X86TargetParser.h"
 #include <optional>
 #include <sstream>
@@ -14371,6 +14372,27 @@ CodeGenFunction::EmitAArch64CpuSupports(ArrayRef<StringRef> FeaturesStrs) {
   return Result;
 }
 
+static Value *loadRISCVFeatureBits(unsigned Index, CGBuilderTy &Builder,
+                                   CodeGenModule &CGM,
+                                   llvm::LLVMContext &Context) {
+  llvm::Type *Int32Ty = llvm::Type::getInt32Ty(Context);
+  llvm::Type *Int64Ty = llvm::Type::getInt64Ty(Context);
+  llvm::ArrayType *ArrayOfInt64Ty =
+      llvm::ArrayType::get(Int64Ty, llvm::RISCV::RISCVFeatureBitSize);
+  llvm::Type *StructTy = llvm::StructType::get(Int32Ty, ArrayOfInt64Ty);
+  llvm::Constant *RISCVFeaturesBits =
+      CGM.CreateRuntimeVariable(StructTy, "__riscv_feature_bits");
+  cast<llvm::GlobalValue>(RISCVFeaturesBits)->setDSOLocal(true);
+  Value *IndexVal = llvm::ConstantInt::get(Int32Ty, Index);
+  llvm::Value *GEPIndices[] = {Builder.getInt32(0), Builder.getInt32(1),
+                               IndexVal};
+  Value *Ptr =
+      Builder.CreateInBoundsGEP(StructTy, RISCVFeaturesBits, GEPIndices);
+  Value *FeaturesBit =
+      Builder.CreateAlignedLoad(Int64Ty, Ptr, CharUnits::fromQuantity(8));
+  return FeaturesBit;
+}
+
 Value *CodeGenFunction::EmitRISCVCpuSupports(const CallExpr *E) {
 
   const Expr *FeatureExpr = E->getArg(0)->IgnoreParenCasts();
@@ -14381,30 +14403,35 @@ Value *CodeGenFunction::EmitRISCVCpuSupports(const CallExpr *E) {
   // Note: We are making an unchecked assumption that the size of the
   // feature array is >= 1.  This holds for any version of compiler-rt
   // which defines this interface.
-  llvm::ArrayType *ArrayOfInt64Ty = llvm::ArrayType::get(Int64Ty, 1);
-  llvm::Type *StructTy = llvm::StructType::get(Int32Ty, ArrayOfInt64Ty);
-  llvm::Constant *RISCVFeaturesBits =
-      CGM.CreateRuntimeVariable(StructTy, "__riscv_feature_bits");
-  auto *GV = cast<llvm::GlobalValue>(RISCVFeaturesBits);
-  GV->setDSOLocal(true);
-
-  auto LoadFeatureBit = [&](unsigned Index) {
-    // Create GEP then load.
-    Value *IndexVal = llvm::ConstantInt::get(Int32Ty, Index);
-    llvm::Value *GEPIndices[] = {Builder.getInt32(0), Builder.getInt32(1),
-                                 IndexVal};
-    Value *Ptr =
-        Builder.CreateInBoundsGEP(StructTy, RISCVFeaturesBits, GEPIndices);
-    Value *FeaturesBit =
-        Builder.CreateAlignedLoad(Int64Ty, Ptr, CharUnits::fromQuantity(8));
-    return FeaturesBit;
-  };
-
   int BitPos = RISCVISAInfo::getRISCVFeaturesBitPosition(FeatureStr);
   assert(BitPos != -1 && "validation should have rejected this feature");
   Value *MaskV = Builder.getInt64(1ULL << BitPos);
-  Value *Bitset = Builder.CreateAnd(LoadFeatureBit(0), MaskV);
+  Value *Bitset = Builder.CreateAnd(
+      loadRISCVFeatureBits(0, Builder, CGM, getLLVMContext()), MaskV);
   return Builder.CreateICmpEQ(Bitset, MaskV);
+}
+
+Value *CodeGenFunction::EmitRISCVCpuSupports(ArrayRef<StringRef> FeaturesStrs) {
+  uint64_t RequireBitMaskForGroup0 = 0;
+
+  // Note: We are making an unchecked assumption that the size of the
+  // feature array is >= 1.  This holds for any version of compiler-rt
+  // which defines this interface.
+  for (auto Feat : FeaturesStrs) {
+    int BitPos = RISCVISAInfo::getRISCVFeaturesBitPosition(Feat);
+
+    // If there isn't BitPos for this feature, skip this version.
+    // It also report the warning to user during compilation.
+    if (BitPos == -1)
+      return Builder.getFalse();
+
+    RequireBitMaskForGroup0 |= (1ULL << BitPos);
+  }
+
+  Value *Mask = Builder.getInt64(RequireBitMaskForGroup0);
+  Value *Bitset = Builder.CreateAnd(
+      loadRISCVFeatureBits(0, Builder, CGM, getLLVMContext()), Mask);
+  return Builder.CreateICmpEQ(Bitset, Mask);
 }
 
 Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
