@@ -559,6 +559,20 @@ CreateRegionsCacheFromMemoryList(MinidumpParser &parser,
                    "Failed to read memory list: {0}");
     return false;
   }
+
+  size_t num_regions = ExpectedMemory->size();
+
+  llvm::ArrayRef<uint8_t> data =
+      parser.GetStream(StreamType::Memory64List);
+
+  llvm::ArrayRef<MinidumpMemoryDescriptor64> memory64_list;
+  if (!data.empty()) {
+      uint64_t base_rva;
+      std::tie(memory64_list, base_rva) =
+          MinidumpMemoryDescriptor64::ParseMemory64List(data);
+
+      num_regions += memory64_list.size();
+  }
   regions.reserve(ExpectedMemory->size());
   for (const MemoryDescriptor &memory_desc : *ExpectedMemory) {
     if (memory_desc.Memory.DataSize == 0)
@@ -570,26 +584,7 @@ CreateRegionsCacheFromMemoryList(MinidumpParser &parser,
     region.SetMapped(MemoryRegionInfo::eYes);
     regions.push_back(region);
   }
-  regions.shrink_to_fit();
-  return !regions.empty();
-}
 
-static bool
-CreateRegionsCacheFromMemory64List(MinidumpParser &parser,
-                                   std::vector<MemoryRegionInfo> &regions) {
-  llvm::ArrayRef<uint8_t> data =
-      parser.GetStream(StreamType::Memory64List);
-  if (data.empty())
-    return false;
-  llvm::ArrayRef<MinidumpMemoryDescriptor64> memory64_list;
-  uint64_t base_rva;
-  std::tie(memory64_list, base_rva) =
-      MinidumpMemoryDescriptor64::ParseMemory64List(data);
-
-  if (memory64_list.empty())
-    return false;
-
-  regions.reserve(memory64_list.size());
   for (const auto &memory_desc : memory64_list) {
     if (memory_desc.data_size == 0)
       continue;
@@ -620,9 +615,7 @@ std::pair<MemoryRegionInfos, bool> MinidumpParser::BuildMemoryRegions() {
     return return_sorted(true);
   if (CreateRegionsCacheFromMemoryInfoList(*this, result))
     return return_sorted(true);
-  if (CreateRegionsCacheFromMemoryList(*this, result))
-    return return_sorted(false);
-  CreateRegionsCacheFromMemory64List(*this, result);
+  CreateRegionsCacheFromMemoryList(*this, result);
   return return_sorted(false);
 }
 
