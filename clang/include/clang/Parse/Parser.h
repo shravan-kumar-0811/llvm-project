@@ -1907,7 +1907,7 @@ private:
   }
 
   bool diagnoseUnknownTemplateId(ExprResult TemplateName, SourceLocation Less);
-  bool isMissingTemplateKeywordBeforeScope();
+  bool isMissingTemplateKeywordBeforeScope(bool AnnotateInvalid);
   void checkPotentialAngleBracket(ExprResult &PotentialTemplateName);
   bool checkPotentialAngleBracketDelimiter(const AngleBracketTracker::Loc &,
                                            const Token &OpToken);
