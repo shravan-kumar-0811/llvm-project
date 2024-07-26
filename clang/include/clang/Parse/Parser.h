@@ -2743,7 +2743,7 @@ private:
   /// Determine whether the current token sequence might be
   ///   '<' template-argument-list '>'
   /// rather than a less-than expression.
-  TPResult isTemplateArgumentList(unsigned TokensToSkip);
+  TPResult isTemplateArgumentList(unsigned TokensToSkip, TemplateNameKind TNK);
 
   /// Determine whether an '(' after an 'explicit' keyword is part of a C++20
   /// 'explicit(bool)' declaration, in earlier language modes where that is an

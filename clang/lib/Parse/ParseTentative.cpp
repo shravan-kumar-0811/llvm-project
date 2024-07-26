@@ -2302,7 +2302,7 @@ Parser::TPResult Parser::TryParseBracketDeclarator() {
 /// of a template-id or simple-template-id, rather than a less-than comparison.
 /// This will often fail and produce an ambiguity, but should never be wrong
 /// if it returns True or False.
-Parser::TPResult Parser::isTemplateArgumentList(unsigned TokensToSkip) {
+Parser::TPResult Parser::isTemplateArgumentList(unsigned TokensToSkip, TemplateNameKind TNK) {
   if (!TokensToSkip) {
     if (Tok.isNot(tok::less))
       return TPResult::False;
@@ -2334,15 +2334,11 @@ Parser::TPResult Parser::isTemplateArgumentList(unsigned TokensToSkip) {
     if (InvalidAsTemplateArgumentList)
       return TPResult::False;
 
-    if (Tok.is(tok::l_paren)) {
-      // Skip the parens.
-      ConsumeParen();
-      if (!SkipUntil(tok::r_paren, StopAtSemi))
-        return TPResult::Error;
-    } else if (MightBeCXXScopeToken()) {
-      if (TryAnnotateCXXScopeToken())
-        return TPResult::Error;
-    }
+    if (!GreaterThanIsOperator || TNK != TNK_Non_template)
+      break;
+
+    if (TryAnnotateOptionalCXXScopeToken())
+      return TPResult::Error;
 
     if (!SkipUntil({tok::comma, tok::less,
         tok::greater, tok::greatergreater, tok::greatergreatergreater},
@@ -2352,7 +2348,8 @@ Parser::TPResult Parser::isTemplateArgumentList(unsigned TokensToSkip) {
     if (Tok.isNot(tok::comma)) {
       if (Tok.is(tok::less))
         break;
-      if (TryConsumeToken(tok::greater) && Tok.is(tok::coloncolon)) {
+      if (TryConsumeToken(tok::greater) && Tok.is(tok::coloncolon) &&
+          !NextToken().isOneOf(tok::kw_new, tok::kw_delete)) {
         TentativeParsingAction TPA(*this, /*Unannotated=*/true);
         if (isMissingTemplateKeywordBeforeScope(/*AnnotateInvalid=*/false)) {
           TPA.Revert();
@@ -2360,16 +2357,12 @@ Parser::TPResult Parser::isTemplateArgumentList(unsigned TokensToSkip) {
         }
         TPA.Commit();
       }
-      #if 0
-      if (TryConsumeToken(tok::greater) && Tok.is(tok::coloncolon) &&
-          isMissingTemplateKeywordBeforeScope(/*AnnotateInvalid=*/false))
-        return TPResult::True;
-      #endif
       return TPResult::Ambiguous;
     }
     ConsumeToken();
   }
 
+  #if 0
   // We can't do much to tell an expression apart from a template-argument,
   // but one good distinguishing factor is that a "decl-specifier" not
   // followed by '(' or '{' can't appear in an expression.
@@ -2380,6 +2373,7 @@ Parser::TPResult Parser::isTemplateArgumentList(unsigned TokensToSkip) {
     return TPResult::True;
   if (InvalidAsTemplateArgumentList)
     return TPResult::False;
+  #endif
 
   // FIXME: In many contexts, X<thing1, Type> can only be a
   // template-argument-list. But that's not true in general:
