@@ -1411,9 +1411,9 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
   }
 
   for (MVT VT : {MVT::v8i16, MVT::v4i32}) {
-    setOperationAction(ISD::TRUNCATE_SSAT_S, VT, Custom);
-    setOperationAction(ISD::TRUNCATE_SSAT_U, VT, Custom);
-    setOperationAction(ISD::TRUNCATE_USAT_U, VT, Custom);
+    setOperationAction(ISD::TRUNCATE_SSAT_S, VT, Legal);
+    setOperationAction(ISD::TRUNCATE_SSAT_U, VT, Legal);
+    setOperationAction(ISD::TRUNCATE_USAT_U, VT, Legal);
   }
 
   if (Subtarget->hasSME()) {
