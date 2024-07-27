@@ -100,7 +100,7 @@ template Expected<ArrayRef<MemoryDescriptor>>
     MinidumpFile::getListStream(StreamType) const;
 
 Expected<ArrayRef<uint8_t>>
-MinidumpFile::getDataSlice(ArrayRef<uint8_t> Data, size_t Offset, size_t Size) {
+MinidumpFile::getDataSlice(ArrayRef<uint8_t> Data, uint64_t Offset, uint64_t Size) {
   // Check for overflow.
   if (Offset + Size < Offset || Offset + Size < Size ||
       Offset + Size > Data.size())
@@ -153,4 +153,43 @@ MinidumpFile::create(MemoryBufferRef Source) {
 
   return std::unique_ptr<MinidumpFile>(
       new MinidumpFile(Source, Hdr, *ExpectedStreams, std::move(StreamMap)));
+}
+
+Expected<minidump::Memory64ListHeader> MinidumpFile::getMemoryList64Header() const {
+  if (!StreamMap.contains(StreamType::Memory64List))
+    return createError("No memory64 list");
+
+  Expected<llvm::minidump::Memory64ListHeader> MemoryList64 = getStream<Memory64ListHeader>(StreamType::Memory64List);
+  if (!MemoryList64)
+    return MemoryList64.takeError();
+
+  return MemoryList64;
+}
+
+Expected<ArrayRef<MemoryDescriptor_64>> MinidumpFile::getMemory64List() const {
+  Expected<minidump::Memory64ListHeader> MemoryList64 = getMemoryList64Header();
+  if (!MemoryList64)
+    return MemoryList64.takeError();
+  
+  uint64_t StartOffset = StreamMap.at(StreamType::Memory64List) + sizeof(Memory64ListHeader);
+  return getDataSliceAs<minidump::MemoryDescriptor_64>(getData(), StartOffset, sizeof(MemoryDescriptor_64) * MemoryList64->NumberOfMemoryRanges);
+}
+
+Expected<ArrayRef<uint8_t>>
+MinidumpFile::getRawData(minidump::MemoryDescriptor_64 Desc) const {
+  Expected<llvm::minidump::Memory64ListHeader> Memory64Header = getMemoryList64Header();
+  if (!Memory64Header)
+    return Memory64Header.takeError();
+  Expected<ArrayRef<MemoryDescriptor_64>> Memory64List = getMemory64List();
+  if (!Memory64List)
+    return Memory64List.takeError();
+  
+  uint64_t RVA = Memory64Header->BaseRVA;
+  for (const MemoryDescriptor_64 &InnerDesc : Memory64List.get()) {
+    if (Desc.StartOfMemoryRange == InnerDesc.StartOfMemoryRange) {
+      return getDataSlice(getData(), RVA, Desc.DataSize);
+    }
+  }
+
+  return createEOFError();
 }

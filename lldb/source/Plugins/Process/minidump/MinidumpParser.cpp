@@ -573,7 +573,8 @@ CreateRegionsCacheFromMemoryList(MinidumpParser &parser,
 
       num_regions += memory64_list.size();
   }
-  regions.reserve(ExpectedMemory->size());
+
+  regions.reserve(num_regions);
   for (const MemoryDescriptor &memory_desc : *ExpectedMemory) {
     if (memory_desc.Memory.DataSize == 0)
       continue;

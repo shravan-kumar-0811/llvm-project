@@ -136,6 +136,19 @@ static size_t layout(BlobAllocator &File, MinidumpYAML::ExceptionStream &S) {
   return DataEnd;
 }
 
+static size_t layout(BlobAllocator &File, MinidumpYAML::Memory64ListStream &S) {
+  size_t DataEnd = File.tell();
+  size_t BaseRVA = File.tell() + sizeof(minidump::Memory64ListHeader);
+  size_t NumStreams = S.Entries.size();
+  llvm::minidump::Memory64ListHeader Header;
+  Header.BaseRVA = BaseRVA;
+  Header.NumberOfMemoryRanges = NumStreams;
+  DataEnd += File.allocateObject(Header);
+  DataEnd += File.allocateArray(ArrayRef(S.Entries));
+
+  return DataEnd;
+}
+
 static void layout(BlobAllocator &File, MemoryListStream::entry_type &Range) {
   Range.Entry.Memory = layout(File, Range.Content);
 }
@@ -189,6 +202,9 @@ static Directory layout(BlobAllocator &File, Stream &S) {
   }
   case Stream::StreamKind::MemoryList:
     DataEnd = layout(File, cast<MemoryListStream>(S));
+    break;
+  case Stream::StreamKind::Memory64List:
+    DataEnd = layout(File, cast<Memory64ListStream>(S));
     break;
   case Stream::StreamKind::ModuleList:
     DataEnd = layout(File, cast<ModuleListStream>(S));
