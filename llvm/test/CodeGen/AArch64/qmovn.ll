@@ -84,15 +84,7 @@ entry:
 define <2 x i32> @vqmovni64_smaxmin(<2 x i64> %s0) {
 ; CHECK-LABEL: vqmovni64_smaxmin:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    mov w8, #2147483647 // =0x7fffffff
-; CHECK-NEXT:    dup v1.2d, x8
-; CHECK-NEXT:    mov x8, #-2147483648 // =0xffffffff80000000
-; CHECK-NEXT:    cmgt v2.2d, v1.2d, v0.2d
-; CHECK-NEXT:    bif v0.16b, v1.16b, v2.16b
-; CHECK-NEXT:    dup v1.2d, x8
-; CHECK-NEXT:    cmgt v2.2d, v0.2d, v1.2d
-; CHECK-NEXT:    bif v0.16b, v1.16b, v2.16b
-; CHECK-NEXT:    xtn v0.2s, v0.2d
+; CHECK-NEXT:    sqxtn v0.4h, v0.4s
 ; CHECK-NEXT:    ret
 entry:
   %c1 = icmp slt <2 x i64> %s0, <i64 2147483647, i64 2147483647>
@@ -106,15 +98,7 @@ entry:
 define <2 x i32> @vqmovni64_sminmax(<2 x i64> %s0) {
 ; CHECK-LABEL: vqmovni64_sminmax:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    mov x8, #-2147483648 // =0xffffffff80000000
-; CHECK-NEXT:    dup v1.2d, x8
-; CHECK-NEXT:    mov w8, #2147483647 // =0x7fffffff
-; CHECK-NEXT:    cmgt v2.2d, v0.2d, v1.2d
-; CHECK-NEXT:    bif v0.16b, v1.16b, v2.16b
-; CHECK-NEXT:    dup v1.2d, x8
-; CHECK-NEXT:    cmgt v2.2d, v1.2d, v0.2d
-; CHECK-NEXT:    bif v0.16b, v1.16b, v2.16b
-; CHECK-NEXT:    xtn v0.2s, v0.2d
+; CHECK-NEXT:    sqxtn v0.4h, v0.4s
 ; CHECK-NEXT:    ret
 entry:
   %c1 = icmp sgt <2 x i64> %s0, <i64 -2147483648, i64 -2147483648>
@@ -128,11 +112,7 @@ entry:
 define <2 x i32> @vqmovni64_umaxmin(<2 x i64> %s0) {
 ; CHECK-LABEL: vqmovni64_umaxmin:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    movi v1.2d, #0x000000ffffffff
-; CHECK-NEXT:    cmhi v1.2d, v1.2d, v0.2d
-; CHECK-NEXT:    and v0.16b, v0.16b, v1.16b
-; CHECK-NEXT:    orn v0.16b, v0.16b, v1.16b
-; CHECK-NEXT:    xtn v0.2s, v0.2d
+; CHECK-NEXT:    uqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %c1 = icmp ult <2 x i64> %s0, <i64 4294967295, i64 4294967295>
@@ -174,16 +154,9 @@ entry:
 define <4 x i32> @signed_minmax_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: signed_minmax_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    mov w8, #2147483647 // =0x7fffffff
+; CHECK-NEXT:    sqxtn v1.4h, v1.4s
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    dup v2.2d, x8
-; CHECK-NEXT:    mov x8, #-2147483648 // =0xffffffff80000000
-; CHECK-NEXT:    cmgt v3.2d, v2.2d, v1.2d
-; CHECK-NEXT:    bif v1.16b, v2.16b, v3.16b
-; CHECK-NEXT:    dup v2.2d, x8
-; CHECK-NEXT:    cmgt v3.2d, v1.2d, v2.2d
-; CHECK-NEXT:    bif v1.16b, v2.16b, v3.16b
-; CHECK-NEXT:    xtn2 v0.4s, v1.2d
+; CHECK-NEXT:    mov v0.d[1], v1.d[0]
 ; CHECK-NEXT:    ret
 entry:
   %min = call <2 x i64> @llvm.smin.v2i64(<2 x i64> %y, <2 x i64> <i64 2147483647, i64 2147483647>)
@@ -226,16 +199,9 @@ entry:
 define <4 x i32> @signed_maxmin_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: signed_maxmin_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    mov x8, #-2147483648 // =0xffffffff80000000
+; CHECK-NEXT:    sqxtn v1.4h, v1.4s
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    dup v2.2d, x8
-; CHECK-NEXT:    mov w8, #2147483647 // =0x7fffffff
-; CHECK-NEXT:    cmgt v3.2d, v1.2d, v2.2d
-; CHECK-NEXT:    bif v1.16b, v2.16b, v3.16b
-; CHECK-NEXT:    dup v2.2d, x8
-; CHECK-NEXT:    cmgt v3.2d, v2.2d, v1.2d
-; CHECK-NEXT:    bif v1.16b, v2.16b, v3.16b
-; CHECK-NEXT:    xtn2 v0.4s, v1.2d
+; CHECK-NEXT:    mov v0.d[1], v1.d[0]
 ; CHECK-NEXT:    ret
 entry:
   %max = call <2 x i64> @llvm.smax.v2i64(<2 x i64> %y, <2 x i64> <i64 -2147483648, i64 -2147483648>)
@@ -276,12 +242,9 @@ entry:
 define <4 x i32> @unsigned_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: unsigned_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    movi v2.2d, #0x000000ffffffff
+; CHECK-NEXT:    uqxtn v1.2s, v1.2d
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    cmhi v2.2d, v2.2d, v1.2d
-; CHECK-NEXT:    and v1.16b, v1.16b, v2.16b
-; CHECK-NEXT:    orn v1.16b, v1.16b, v2.16b
-; CHECK-NEXT:    xtn2 v0.4s, v1.2d
+; CHECK-NEXT:    mov v0.d[1], v1.d[0]
 ; CHECK-NEXT:    ret
 entry:
   %min = call <2 x i64> @llvm.umin.v2i64(<2 x i64> %y, <2 x i64> <i64 4294967295, i64 4294967295>)
@@ -332,13 +295,10 @@ define <4 x i32> @us_maxmin_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: us_maxmin_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
 ; CHECK-NEXT:    cmgt v2.2d, v1.2d, #0
-; CHECK-NEXT:    movi v3.2d, #0x000000ffffffff
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
 ; CHECK-NEXT:    and v1.16b, v1.16b, v2.16b
-; CHECK-NEXT:    cmgt v2.2d, v3.2d, v1.2d
-; CHECK-NEXT:    and v1.16b, v1.16b, v2.16b
-; CHECK-NEXT:    orn v1.16b, v1.16b, v2.16b
-; CHECK-NEXT:    xtn2 v0.4s, v1.2d
+; CHECK-NEXT:    uqxtn v1.2s, v1.2d
+; CHECK-NEXT:    mov v0.d[1], v1.d[0]
 ; CHECK-NEXT:    ret
 entry:
   %max = call <2 x i64> @llvm.smax.v2i64(<2 x i64> %y, <2 x i64> zeroinitializer)

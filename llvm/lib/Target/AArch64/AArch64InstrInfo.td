@@ -5423,6 +5423,9 @@ def : Pat<(v8i8 (truncusat_u (v8i16 V128:$Vn))),
 // trunc(umin(X, 65535)) -> UQXTRN v4i16
 def : Pat<(v4i16 (truncusat_u (v4i32 V128:$Vn))),
           (UQXTNv4i16 V128:$Vn)>;
+// trunc(umin(X, 4294967295)) -> UQXTRN v2i32
+def : Pat<(v2i32 (truncusat_u (v2i64 V128:$Vn))),
+          (UQXTNv2i32 V128:$Vn)>;
 // trunc(smin(smax(X, -128), 128)) -> SQXTRN
 //  with reversed min/max
 def : Pat<(v8i8 (truncssat_s (v8i16 V128:$Vn))),
@@ -5433,6 +5436,9 @@ def : Pat<(v8i8 (truncssat_u (v8i16 V128:$Vn))),
 // trunc(smin(smax(X, -32768), 32767)) -> SQXTRN
 //  with reversed min/max
 def : Pat<(v4i16 (truncssat_s (v4i32 V128:$Vn))),
+          (SQXTNv4i16 V128:$Vn)>;
+// trunc(smin(smax(X, -2147483648), 2147483647)) -> SQXTRN
+def : Pat<(v2i32 (truncssat_s (v2i64 V128:$Vn))),
           (SQXTNv4i16 V128:$Vn)>;
 // trunc(umin(smax(X, 0), 65535)) -> SQXTUN
 def : Pat<(v4i16 (truncssat_u (v4i32 V128:$Vn))),
