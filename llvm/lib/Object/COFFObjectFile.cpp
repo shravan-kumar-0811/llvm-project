@@ -837,10 +837,11 @@ Error COFFObjectFile::initLoadConfigPtr() {
     DynamicRelocTable =
         reinterpret_cast<const coff_dynamic_reloc_table *>(Contents.data());
 
-    if (DynamicRelocTable->Version != 1 && DynamicRelocTable->Version != 2) {
-      DynamicRelocTable = nullptr;
-      return Error::success();
-    }
+    if (DynamicRelocTable->Version != 1 && DynamicRelocTable->Version != 2)
+      return createStringError(
+          object_error::parse_failed,
+          "Unsupported dynamic relocations table version (" +
+              Twine(DynamicRelocTable->Version) + ")");
 
     Contents = Contents.drop_front(sizeof(*DynamicRelocTable));
     if (DynamicRelocTable->Size > Contents.size())

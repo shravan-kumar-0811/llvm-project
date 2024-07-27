@@ -124,7 +124,7 @@ sections:
     VirtualSize:     12
     StructuredData:
       - UInt32: 1 # pad
-      - UInt32: 0x10b # Version
+      - UInt32: 2 # Version
       - UInt32: 0 # Size
 symbols: []
 ...
