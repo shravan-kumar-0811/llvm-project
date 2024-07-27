@@ -5427,14 +5427,12 @@ def : Pat<(v4i16 (truncusat_u (v4i32 V128:$Vn))),
 def : Pat<(v2i32 (truncusat_u (v2i64 V128:$Vn))),
           (UQXTNv2i32 V128:$Vn)>;
 // trunc(smin(smax(X, -128), 128)) -> SQXTRN
-//  with reversed min/max
 def : Pat<(v8i8 (truncssat_s (v8i16 V128:$Vn))),
           (SQXTNv8i8 V128:$Vn)>;
 // trunc(umin(smax(X, 0), 255)) -> SQXTUN
 def : Pat<(v8i8 (truncssat_u (v8i16 V128:$Vn))),
           (SQXTUNv8i8 V128:$Vn)>;
 // trunc(smin(smax(X, -32768), 32767)) -> SQXTRN
-//  with reversed min/max
 def : Pat<(v4i16 (truncssat_s (v4i32 V128:$Vn))),
           (SQXTNv4i16 V128:$Vn)>;
 // trunc(smin(smax(X, -2147483648), 2147483647)) -> SQXTRN
@@ -5456,7 +5454,6 @@ def : Pat<(v8i16 (concat_vectors
           (UQXTNv8i16 (INSERT_SUBREG (IMPLICIT_DEF), V64:$Vd, dsub), V128:$Vn)>;
 
 // concat_vectors(Vd, trunc(smin(smax Vm, -128), 127) ~> SQXTN2(Vd, Vn)
-// with reversed min/max
 def : Pat<(v16i8 (concat_vectors
                  (v8i8 V64:$Vd),
                  (v8i8 (truncssat_s (v8i16 V128:$Vn))))),
@@ -5468,7 +5465,6 @@ def : Pat<(v16i8 (concat_vectors
           (SQXTUNv16i8 (INSERT_SUBREG (IMPLICIT_DEF), V64:$Vd, dsub), V128:$Vn)>;
 
 // concat_vectors(Vd, trunc(smin(smax Vm, -32768), 32767) ~> SQXTN2(Vd, Vn)
-// with reversed min/max
 def : Pat<(v8i16 (concat_vectors
                  (v4i16 V64:$Vd),
                  (v4i16 (truncssat_s (v4i32 V128:$Vn))))),
