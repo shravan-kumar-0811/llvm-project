@@ -14930,10 +14930,9 @@ SDValue DAGCombiner::visitTRUNCATE_USAT(SDNode *N) {
     if (!DAG.getTargetLoweringInfo().shouldConvertFpToSat(ISD::FP_TO_UINT_SAT,
                                                           FPVT, VT))
       return SDValue();
-    SDValue Sat = DAG.getNode(ISD::FP_TO_UINT_SAT, SDLoc(FPInstr), VT,
-                              FPInstr.getOperand(0),
-                              DAG.getValueType(VT.getScalarType()));
-    return Sat;
+    return DAG.getNode(ISD::FP_TO_UINT_SAT, SDLoc(FPInstr), VT,
+                       FPInstr.getOperand(0),
+                       DAG.getValueType(VT.getScalarType()));
   }
 
   return SDValue();
@@ -15089,9 +15088,8 @@ SDValue DAGCombiner::visitTRUNCATE(SDNode *N) {
     return DAG.getNode(ISD::TRUNCATE, DL, VT, N0.getOperand(0));
 
   // fold satruated truncate
-  if (SDValue SaturatedTR = foldToSaturated(N, VT, N0, SrcVT, DL, TLI, DAG)) {
+  if (SDValue SaturatedTR = foldToSaturated(N, VT, N0, SrcVT, DL, TLI, DAG))
     return SaturatedTR;
-  }
 
   // fold (truncate c1) -> c1
   if (SDValue C = DAG.FoldConstantArithmetic(ISD::TRUNCATE, DL, VT, {N0}))
