@@ -1254,6 +1254,12 @@ public:
   /// \return if target want to issue a prefetch in address space \p AS.
   bool shouldPrefetchAddressSpace(unsigned AS) const;
 
+  bool isPartialReductionSupported(const Instruction *ReductionInstr,
+                                   Type *InputType, unsigned ScaleFactor,
+                                   bool IsInputASignExtended,
+                                   bool IsInputBSignExtended,
+                                   const Instruction *BinOp = nullptr) const;
+
   /// \return The maximum interleave factor that any transform should try to
   /// perform for this target. This number depends on the level of parallelism
   /// and the number of execution units in the CPU.
@@ -2031,6 +2037,11 @@ public:
   /// \return if target want to issue a prefetch in address space \p AS.
   virtual bool shouldPrefetchAddressSpace(unsigned AS) const = 0;
 
+  virtual bool isPartialReductionSupported(
+      const Instruction *ReductionInstr, Type *InputType, unsigned ScaleFactor,
+      bool IsInputASignExtended, bool IsInputBSignExtended,
+      const Instruction *BinOp = nullptr) const = 0;
+
   virtual unsigned getMaxInterleaveFactor(ElementCount VF) = 0;
   virtual InstructionCost getArithmeticInstrCost(
       unsigned Opcode, Type *Ty, TTI::TargetCostKind CostKind,
@@ -2664,6 +2675,15 @@ public:
   /// \return if target want to issue a prefetch in address space \p AS.
   bool shouldPrefetchAddressSpace(unsigned AS) const override {
     return Impl.shouldPrefetchAddressSpace(AS);
+  }
+
+  bool isPartialReductionSupported(
+      const Instruction *ReductionInstr, Type *InputType, unsigned ScaleFactor,
+      bool IsInputASignExtended, bool IsInputBSignExtended,
+      const Instruction *BinOp = nullptr) const override {
+    return Impl.isPartialReductionSupported(ReductionInstr, InputType,
+                                            ScaleFactor, IsInputASignExtended,
+                                            IsInputBSignExtended, BinOp);
   }
 
   unsigned getMaxInterleaveFactor(ElementCount VF) override {

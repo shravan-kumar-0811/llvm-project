@@ -116,6 +116,10 @@ public:
                                        ArrayRef<VPValue *> Operands,
                                        VFRange &Range, VPBasicBlock *VPBB);
 
+  VPRecipeBase *tryToCreatePartialReduction(VFRange &Range,
+                                            PartialReductionChain &Chain,
+                                            ArrayRef<VPValue *> Operands);
+
   /// Set the recipe created for given ingredient.
   void setRecipe(Instruction *I, VPRecipeBase *R) {
     assert(!Ingredient2Recipe.contains(I) &&

@@ -7984,6 +7984,12 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
     return;
   }
   case Intrinsic::experimental_vector_partial_reduce_add: {
+
+    if (!TLI.shouldExpandPartialReductionIntrinsic(&I)) {
+      visitTargetIntrinsic(I, Intrinsic);
+      return;
+    }
+
     SDValue OpNode = getValue(I.getOperand(1));
     EVT ReducedTy = EVT::getEVT(I.getType());
     EVT FullTy = OpNode.getValueType();

@@ -293,6 +293,31 @@ struct FixedScalableVFPair {
   bool hasVector() const { return FixedVF.isVector() || ScalableVF.isVector(); }
 };
 
+/// A chain of instructions that form a partial reduction.
+/// Designed to match: reduction_bin_op (bin_op (extend (A), (extend (B))),
+/// accumulator)
+struct PartialReductionChain {
+  /// The top-level binary operation that forms the reduction to a scalar after
+  /// the loop body
+  Instruction *Reduction;
+  /// The inner binary operation that forms the reduction to a vector value
+  /// within the loop body
+  Instruction *BinOp;
+  /// The extension of each of the inner binary operation's operands
+  Instruction *ExtendA;
+  Instruction *ExtendB;
+
+  /// The inner binary operation's operands
+  Value *InputA;
+  Value *InputB;
+  /// The accumulator that is reduced to a scalar after the loop body
+  Value *Accumulator;
+
+  /// The scaling factor between the size of the reduction type and the
+  /// (possibly extended) inputs
+  unsigned ScaleFactor;
+};
+
 /// Planner drives the vectorization process after having passed
 /// Legality checks.
 class LoopVectorizationPlanner {
@@ -330,6 +355,8 @@ class LoopVectorizationPlanner {
 
   /// Profitable vector factors.
   SmallVector<VectorizationFactor, 8> ProfitableVFs;
+
+  SmallVector<PartialReductionChain> PartialReductionChains;
 
   /// A builder used to construct the current plan.
   VPBuilder Builder;
@@ -411,6 +438,10 @@ public:
   VectorizationFactor
   selectEpilogueVectorizationFactor(const ElementCount MaxVF, unsigned IC);
 
+  SmallVector<PartialReductionChain> getPartialReductionChains() const {
+    return PartialReductionChains;
+  }
+
 protected:
   /// Build VPlans for power-of-2 VF's between \p MinVF and \p MaxVF inclusive,
   /// according to the information gathered by Legal when it checked if it is
@@ -460,6 +491,9 @@ private:
   /// Determines if we have the infrastructure to vectorize the loop and its
   /// epilogue, assuming the main loop is vectorized by \p VF.
   bool isCandidateForEpilogueVectorization(const ElementCount VF) const;
+
+  bool getInstructionsPartialReduction(Instruction *I,
+                                       PartialReductionChain &Chain) const;
 };
 
 } // namespace llvm
