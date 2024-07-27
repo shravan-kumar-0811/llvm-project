@@ -14952,6 +14952,21 @@ SDValue DAGCombiner::visitTRUNCATE_USAT(SDNode *N) {
   return SDValue();
 }
 
+// Match min/max and return limit value as a parameter.
+static SDValue matchMinMax(SDValue V, unsigned Opcode, APInt &Limit,
+                           bool Signed) {
+  if (V.getOpcode() == Opcode) {
+    if (Signed) {
+      APInt C;
+      if (ISD::isConstantSplatVector(V.getOperand(1).getNode(), C) &&
+          C == Limit)
+        return V.getOperand(0);
+    } else if (ISD::isConstantSplatVector(V.getOperand(1).getNode(), Limit))
+      return V.getOperand(0);
+  }
+  return SDValue();
+}
+
 /// Detect patterns of truncation with unsigned saturation:
 ///
 /// (truncate (umin (x, unsigned_max_of_dest_type)) to dest_type).
@@ -14965,16 +14980,8 @@ static SDValue detectUSatUPattern(SDValue In, EVT VT) {
   assert(InVT.getScalarSizeInBits() > VT.getScalarSizeInBits() &&
          "Unexpected types for truncate operation");
 
-  // Match min/max and return limit value as a parameter.
-  auto MatchMinMax = [](SDValue V, unsigned Opcode, APInt &Limit) -> SDValue {
-    if (V.getOpcode() == Opcode &&
-        ISD::isConstantSplatVector(V.getOperand(1).getNode(), Limit))
-      return V.getOperand(0);
-    return SDValue();
-  };
-
   APInt C1, C2;
-  if (SDValue UMin = MatchMinMax(In, ISD::UMIN, C2))
+  if (SDValue UMin = matchMinMax(In, ISD::UMIN, C2, /*Signed*/ false))
     // C2 should be equal to UINT32_MAX / UINT16_MAX / UINT8_MAX according
     // the element size of the destination type.
     if (C2.isMask(VT.getScalarSizeInBits()))
@@ -14997,25 +15004,18 @@ static SDValue detectSSatSPattern(SDValue In, EVT VT) {
   unsigned NumSrcBits = In.getScalarValueSizeInBits();
   assert(NumSrcBits > NumDstBits && "Unexpected types for truncate operation");
 
-  auto MatchMinMax = [](SDValue V, unsigned Opcode,
-                        const APInt &Limit) -> SDValue {
-    APInt C;
-    if (V.getOpcode() == Opcode &&
-        ISD::isConstantSplatVector(V.getOperand(1).getNode(), C) && C == Limit)
-      return V.getOperand(0);
-    return SDValue();
-  };
-
   APInt SignedMax, SignedMin;
   SignedMax = APInt::getSignedMaxValue(NumDstBits).sext(NumSrcBits);
   SignedMin = APInt::getSignedMinValue(NumDstBits).sext(NumSrcBits);
-  if (SDValue SMin = MatchMinMax(In, ISD::SMIN, SignedMax)) {
-    if (SDValue SMax = MatchMinMax(SMin, ISD::SMAX, SignedMin)) {
+  if (SDValue SMin = matchMinMax(In, ISD::SMIN, SignedMax, /*Signed*/ true)) {
+    if (SDValue SMax =
+            matchMinMax(SMin, ISD::SMAX, SignedMin, /*Signed*/ true)) {
       return SMax;
     }
   }
-  if (SDValue SMax = MatchMinMax(In, ISD::SMAX, SignedMin)) {
-    if (SDValue SMin = MatchMinMax(SMax, ISD::SMIN, SignedMax)) {
+  if (SDValue SMax = matchMinMax(In, ISD::SMAX, SignedMin, /*Signed*/ true)) {
+    if (SDValue SMin =
+            matchMinMax(SMax, ISD::SMIN, SignedMax, /*Signed*/ true)) {
       return SMin;
     }
   }
@@ -15038,22 +15038,14 @@ static SDValue detectSSatUPattern(SDValue In, EVT VT, SelectionDAG &DAG,
   assert(InVT.getScalarSizeInBits() > VT.getScalarSizeInBits() &&
          "Unexpected types for truncate operation");
 
-  // Match min/max and return limit value as a parameter.
-  auto MatchMinMax = [](SDValue V, unsigned Opcode, APInt &Limit) -> SDValue {
-    if (V.getOpcode() == Opcode &&
-        ISD::isConstantSplatVector(V.getOperand(1).getNode(), Limit))
-      return V.getOperand(0);
-    return SDValue();
-  };
-
   APInt C1, C2;
-  if (SDValue SMin = MatchMinMax(In, ISD::SMIN, C2))
-    if (MatchMinMax(SMin, ISD::SMAX, C1))
+  if (SDValue SMin = matchMinMax(In, ISD::SMIN, C2, /*Signed*/ false))
+    if (matchMinMax(SMin, ISD::SMAX, C1, /*Signed*/ false))
       if (C1.isNonNegative() && C2.isMask(VT.getScalarSizeInBits()))
         return SMin;
 
-  if (SDValue SMax = MatchMinMax(In, ISD::SMAX, C1))
-    if (SDValue SMin = MatchMinMax(SMax, ISD::SMIN, C2))
+  if (SDValue SMax = matchMinMax(In, ISD::SMAX, C1, /*Signed*/ false))
+    if (SDValue SMin = matchMinMax(SMax, ISD::SMIN, C2, /*Signed*/ false))
       if (C1.isNonNegative() && C2.isMask(VT.getScalarSizeInBits()) &&
           C2.uge(C1))
         return DAG.getNode(ISD::SMAX, DL, InVT, SMin, In.getOperand(1));
