@@ -14923,9 +14923,23 @@ SDValue DAGCombiner::visitEXTEND_VECTOR_INREG(SDNode *N) {
 SDValue DAGCombiner::visitTRUNCATE_USAT(SDNode *N) {
   EVT VT = N->getValueType(0);
   SDValue N0 = N->getOperand(0);
-  SDValue FPInstr = N0.getOpcode() == ISD::SMAX ? N0.getOperand(0) : N0;
-  if (FPInstr.getOpcode() == ISD::FP_TO_SINT ||
-      FPInstr.getOpcode() == ISD::FP_TO_UINT) {
+
+  auto MatchFPTOINT = [&](SDValue Val) -> SDValue {
+    if (Val.getOpcode() == ISD::FP_TO_SINT ||
+        Val.getOpcode() == ISD::FP_TO_UINT)
+      return Val;
+    return SDValue();
+  };
+
+  SDValue FPInstr;
+  if (N0.getOpcode() == ISD::SMAX) {
+    FPInstr = MatchFPTOINT(N0.getOperand(0));
+    if (!FPInstr)
+      FPInstr = MatchFPTOINT(N0.getOperand(1));
+  } else
+    FPInstr = MatchFPTOINT(N0);
+
+  if (FPInstr) {
     EVT FPVT = FPInstr.getOperand(0).getValueType();
     if (!DAG.getTargetLoweringInfo().shouldConvertFpToSat(ISD::FP_TO_UINT_SAT,
                                                           FPVT, VT))
