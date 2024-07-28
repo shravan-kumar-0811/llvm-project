@@ -84,7 +84,7 @@ entry:
 define <2 x i32> @vqmovni64_smaxmin(<2 x i64> %s0) {
 ; CHECK-LABEL: vqmovni64_smaxmin:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    sqxtn v0.4h, v0.4s
+; CHECK-NEXT:    sqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %c1 = icmp slt <2 x i64> %s0, <i64 2147483647, i64 2147483647>
@@ -98,7 +98,7 @@ entry:
 define <2 x i32> @vqmovni64_sminmax(<2 x i64> %s0) {
 ; CHECK-LABEL: vqmovni64_sminmax:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    sqxtn v0.4h, v0.4s
+; CHECK-NEXT:    sqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %c1 = icmp sgt <2 x i64> %s0, <i64 -2147483648, i64 -2147483648>
@@ -154,7 +154,7 @@ entry:
 define <4 x i32> @signed_minmax_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: signed_minmax_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    sqxtn v1.4h, v1.4s
+; CHECK-NEXT:    sqxtn v1.2s, v1.2d
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
 ; CHECK-NEXT:    mov v0.d[1], v1.d[0]
 ; CHECK-NEXT:    ret
@@ -199,7 +199,7 @@ entry:
 define <4 x i32> @signed_maxmin_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: signed_maxmin_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    sqxtn v1.4h, v1.4s
+; CHECK-NEXT:    sqxtn v1.2s, v1.2d
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
 ; CHECK-NEXT:    mov v0.d[1], v1.d[0]
 ; CHECK-NEXT:    ret

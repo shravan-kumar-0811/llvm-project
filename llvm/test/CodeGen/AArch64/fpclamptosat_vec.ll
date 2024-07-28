@@ -8,7 +8,7 @@ define <2 x i32> @stest_f64i32(<2 x double> %x) {
 ; CHECK-LABEL: stest_f64i32:
 ; CHECK:       // %bb.0: // %entry
 ; CHECK-NEXT:    fcvtzs v0.2d, v0.2d
-; CHECK-NEXT:    sqxtn v0.4h, v0.4s
+; CHECK-NEXT:    sqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %conv = fptosi <2 x double> %x to <2 x i64>
@@ -653,7 +653,7 @@ define <2 x i32> @stest_f64i32_mm(<2 x double> %x) {
 ; CHECK-LABEL: stest_f64i32_mm:
 ; CHECK:       // %bb.0: // %entry
 ; CHECK-NEXT:    fcvtzs v0.2d, v0.2d
-; CHECK-NEXT:    sqxtn v0.4h, v0.4s
+; CHECK-NEXT:    sqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %conv = fptosi <2 x double> %x to <2 x i64>

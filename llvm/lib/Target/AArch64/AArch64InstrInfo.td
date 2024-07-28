@@ -5437,7 +5437,7 @@ def : Pat<(v4i16 (truncssat_s (v4i32 V128:$Vn))),
           (SQXTNv4i16 V128:$Vn)>;
 // trunc(smin(smax(X, -2147483648), 2147483647)) -> SQXTRN
 def : Pat<(v2i32 (truncssat_s (v2i64 V128:$Vn))),
-          (SQXTNv4i16 V128:$Vn)>;
+          (SQXTNv2i32 V128:$Vn)>;
 // trunc(umin(smax(X, 0), 65535)) -> SQXTUN
 def : Pat<(v4i16 (truncssat_u (v4i32 V128:$Vn))),
           (SQXTUNv4i16 V128:$Vn)>;
