@@ -3,8 +3,8 @@
 // RUN: %clang_cc1 -std=c++14 -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,cxx98-14,cxx11-17,since-cxx11,since-cxx14 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,since-cxx17,cxx11-17,since-cxx11,since-cxx14,cxx17 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,since-cxx17,since-cxx20,since-cxx11,since-cxx14 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
-// RUN: %clang_cc1 -std=c++23 -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,since-cxx17,since-cxx20,since-cxx11,since-cxx14 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
-// RUN: %clang_cc1 -std=c++2c -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,since-cxx17,since-cxx20,since-cxx11,since-cxx14 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++23 -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,since-cxx17,since-cxx20,since-cxx23,since-cxx11,since-cxx14 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++2c -triple x86_64-unknown-unknown %s -verify=expected,since-cxx14,since-cxx17,since-cxx20,since-cxx23,since-cxx11,since-cxx14 -fexceptions -Wno-deprecated-builtins -fcxx-exceptions -pedantic-errors
 
 #if __cplusplus == 199711L
 #define static_assert(...) __extension__ _Static_assert(__VA_ARGS__)
@@ -56,7 +56,7 @@ namespace cwg1804 { // cwg1804: 2.7
 template <typename, typename>
 struct A {
   void f1();
-  
+
   template <typename V>
   void f2(V);
 
@@ -73,7 +73,7 @@ struct A {
 template <typename U>
 struct A<int, U> {
   void f1();
-  
+
   template <typename V>
   void f2(V);
 
@@ -97,7 +97,7 @@ class D {
 template <typename U>
 struct A<double, U> {
   void f1();
-  
+
   template <typename V>
   void f2(V);
 
@@ -209,7 +209,7 @@ namespace cwg1814 { // cwg1814: yes
 namespace cwg1815 { // cwg1815: no
 #if __cplusplus >= 201402L
   // FIXME: needs codegen test
-  struct A { int &&r = 0; }; // #cwg1815-A 
+  struct A { int &&r = 0; }; // #cwg1815-A
   A a = {};
   // since-cxx14-warning@-1 {{lifetime extension of temporary created by aggregate initialization using a default member initializer is not yet supported; lifetime of temporary will end at the end of the full-expression}} FIXME
   //   since-cxx14-note@#cwg1815-A {{initializing field 'r' with default member initializer}}
@@ -221,6 +221,53 @@ namespace cwg1815 { // cwg1815: no
   B b; // #cwg1815-b
 #endif
 }
+
+namespace cwg1820 { // cwg1820: 3.5
+typedef int A;
+typedef int cwg1820::A;
+// expected-warning@-1 {{extra qualification on member 'A'}}
+// expected-error@-2 {{typedef declarator cannot be qualified}}
+
+namespace B {
+typedef int cwg1820::A;
+// expected-error@-1 {{cannot define or redeclare 'A' here because namespace 'B' does not enclose namespace 'cwg1820'}}
+// expected-error@-2 {{typedef declarator cannot be qualified}}
+}
+
+class C1 {
+  typedef int cwg1820::A;
+  // expected-error@-1 {{non-friend class member 'A' cannot have a qualified name}}
+  // expected-error@-2 {{typedef declarator cannot be qualified}}
+};
+
+template <typename>
+class C2 {
+  typedef int cwg1820::A;
+  // expected-error@-1 {{non-friend class member 'A' cannot have a qualified name}}
+  // expected-error@-2 {{typedef declarator cannot be qualified}}
+};
+
+void d1() {
+  typedef int cwg1820::A;
+  // expected-error@-1 {{definition or redeclaration of 'A' not allowed inside a function}}
+  // expected-error@-2 {{typedef declarator cannot be qualified}}
+}
+
+template<typename>
+void d2() {
+  typedef int cwg1820::A;
+  // expected-error@-1 {{definition or redeclaration of 'A' not allowed inside a function}}
+  // expected-error@-2 {{typedef declarator cannot be qualified}}
+}
+
+#if __cplusplus >= 201103L
+auto e = [] {
+  typedef int cwg1820::A;
+  // expected-error@-1 {{definition or redeclaration of 'A' not allowed inside a function}}
+  // expected-error@-2 {{typedef declarator cannot be qualified}}
+};
+#endif
+} // namespace cwg1820
 
 namespace cwg1821 { // cwg1821: 2.9
 struct A {
@@ -246,6 +293,32 @@ namespace cwg1822 { // cwg1822: yes
   };
 #endif
 }
+
+namespace cwg1824 { // cwg1824: 2.7
+template<typename T>
+struct A {
+  T t;
+};
+
+struct S {
+  A<S> f() { return A<S>(); }
+};
+} // namespace cwg1824
+
+namespace cwg1832 { // cwg1832: 3.0
+enum E { // #cwg1832-E
+  a = static_cast<int>(static_cast<E>(0))
+  // expected-error@-1 {{'E' is an incomplete type}}
+  //   expected-note@#cwg1832-E {{definition of 'cwg1832::E' is not complete until the closing '}'}}
+};
+
+#if __cplusplus >= 201103L
+enum E2: decltype(static_cast<E2>(0), 0) {};
+// expected-error@-1 {{unknown type name 'E2'}}
+enum class E3: decltype(static_cast<E3>(0), 0) {};
+// expected-error@-1 {{unknown type name 'E3'}}
+#endif
+} // namespace cwg1832
 
 namespace cwg1837 { // cwg1837: 3.3
 #if __cplusplus >= 201103L
@@ -291,6 +364,98 @@ namespace cwg1837 { // cwg1837: 3.3
 #endif
 }
 
+namespace cwg1862 { // cwg1862: no
+template<class T>
+struct A {
+  struct B {
+    void e();
+  };
+  
+  void f();
+  
+  struct D {
+    void g();
+  };
+  
+  T h();
+
+  template<T U>
+  T i();
+};
+
+template<>
+struct A<int> {
+  struct B {
+    void e();
+  };
+  
+  int f();
+  
+  struct D {
+    void g();
+  };
+  
+  template<int U>
+  int i();
+};
+
+template<>
+struct A<float*> {
+  int* h();
+};
+
+class C {
+  int private_int;
+
+  template<class T>
+  friend struct A<T>::B;
+  // expected-warning@-1 {{dependent nested name specifier 'A<T>::' for friend class declaration is not supported; turning off access control for 'C'}}
+
+  template<class T>
+  friend void A<T>::f();
+  // expected-warning@-1 {{dependent nested name specifier 'A<T>::' for friend class declaration is not supported; turning off access control for 'C'}}
+
+  // FIXME: this is ill-formed, because A<T>​::​D does not end with a simple-template-id
+  template<class T>
+  friend void A<T>::D::g();
+  // expected-warning@-1 {{dependent nested name specifier 'A<T>::D::' for friend class declaration is not supported; turning off access control for 'C'}}
+  
+  template<class T>
+  friend int *A<T*>::h();
+  // expected-warning@-1 {{dependent nested name specifier 'A<T *>::' for friend class declaration is not supported; turning off access control for 'C'}}
+  
+  template<class T>
+  template<T U>
+  friend T A<T>::i();
+  // expected-warning@-1 {{dependent nested name specifier 'A<T>::' for friend class declaration is not supported; turning off access control for 'C'}}
+};
+
+C c;
+
+template<class T>
+void A<T>::B::e() { (void)c.private_int; }
+void A<int>::B::e() { (void)c.private_int; }
+
+template<class T>
+void A<T>::f() { (void)c.private_int; }
+int A<int>::f() { (void)c.private_int; return 0; }
+
+// FIXME: both definition of 'D::g' are not friends, so they don't have access to 'private_int' 
+template<class T>
+void A<T>::D::g() { (void)c.private_int; }
+void A<int>::D::g() { (void)c.private_int; }
+
+template<class T>
+T A<T>::h() { (void)c.private_int; }
+int* A<float*>::h() { (void)c.private_int; return 0; }
+
+template<class T>
+template<T U>
+T A<T>::i() { (void)c.private_int; }
+template<int U>
+int A<int>::i() { (void)c.private_int; }
+} // namespace cwg1862
+
 namespace cwg1872 { // cwg1872: 9
 #if __cplusplus >= 201103L
   template<typename T> struct A : T {
@@ -315,8 +480,12 @@ namespace cwg1872 { // cwg1872: 9
   static_assert(y == 0);
 #endif
   constexpr int z = A<Z>().f();
-  // since-cxx11-error@-1 {{constexpr variable 'z' must be initialized by a constant expression}}
-  //   since-cxx11-note@-2 {{non-literal type 'A<Z>' cannot be used in a constant expression}}
+  // since-cxx11-error@-1 {{constexpr variable 'z' must be initialized by a constant expression}}a
+#if __cplusplus < 202302L
+  //   since-cxx11-note@-3 {{non-literal type 'A<Z>' cannot be used in a constant expression}}
+#else
+  //   since-cxx23-note@-5 {{cannot construct object of type 'A<cwg1872::Z>' with virtual base class in a constant expression}}
+#endif
 #endif
 }
 
