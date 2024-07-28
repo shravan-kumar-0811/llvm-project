@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <stdio.h>
+
 #include "cpu_model.h"
 
 #if !(defined(__i386__) || defined(_M_IX86) || defined(__x86_64__) ||          \
@@ -1088,6 +1090,7 @@ int CONSTRUCTOR_ATTRIBUTE __cpu_indicator_init(void) {
     return 0;
 
   if (getX86CpuIDAndInfo(0, &MaxLeaf, &Vendor, &ECX, &EDX) || MaxLeaf < 1) {
+    printf("%u\n", EDX);
     __cpu_model.__cpu_vendor = VENDOR_OTHER;
     return -1;
   }
