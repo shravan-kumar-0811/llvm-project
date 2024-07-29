@@ -29,7 +29,9 @@
 #include "llvm/Support/DJB.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/JSON.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
@@ -834,7 +836,7 @@ unsigned DWARFVerifier::verifyDebugInfoForm(const DWARFDie &Die,
   case DW_FORM_ref8:
   case DW_FORM_ref_udata: {
     // Verify all CU relative references are valid CU offsets.
-    std::optional<uint64_t> RefVal = AttrValue.Value.getAsReference();
+    std::optional<uint64_t> RefVal = AttrValue.Value.getAsRelativeReference();
     assert(RefVal);
     if (RefVal) {
       auto CUSize = DieCU->getNextUnitOffset() - DieCU->getOffset();
@@ -852,7 +854,8 @@ unsigned DWARFVerifier::verifyDebugInfoForm(const DWARFDie &Die,
       } else {
         // Valid reference, but we will verify it points to an actual
         // DIE later.
-        LocalReferences[*RefVal].insert(Die.getOffset());
+        LocalReferences[AttrValue.Value.getUnit()->getOffset() + *RefVal]
+            .insert(Die.getOffset());
       }
     }
     break;
@@ -860,7 +863,7 @@ unsigned DWARFVerifier::verifyDebugInfoForm(const DWARFDie &Die,
   case DW_FORM_ref_addr: {
     // Verify all absolute DIE references have valid offsets in the
     // .debug_info section.
-    std::optional<uint64_t> RefVal = AttrValue.Value.getAsReference();
+    std::optional<uint64_t> RefVal = AttrValue.Value.getAsDebugInfoReference();
     assert(RefVal);
     if (RefVal) {
       if (*RefVal >= DieCU->getInfoSection().Data.size()) {
@@ -1081,7 +1084,8 @@ DWARFVerifier::DWARFVerifier(raw_ostream &S, DWARFContext &D,
                              DIDumpOptions DumpOpts)
     : OS(S), DCtx(D), DumpOpts(std::move(DumpOpts)), IsObjectFile(false),
       IsMachOObject(false) {
-  ErrorCategory.ShowDetail(DumpOpts.Verbose || !DumpOpts.ShowAggregateErrors);
+  ErrorCategory.ShowDetail(this->DumpOpts.Verbose ||
+                           !this->DumpOpts.ShowAggregateErrors);
   if (const auto *F = DCtx.getDWARFObj().getFile()) {
     IsObjectFile = F->isRelocatableObject();
     IsMachOObject = F->isMachO();
@@ -2026,11 +2030,36 @@ void OutputCategoryAggregator::EnumerateResults(
 }
 
 void DWARFVerifier::summarize() {
-  if (ErrorCategory.GetNumCategories() && DumpOpts.ShowAggregateErrors) {
+  if (DumpOpts.ShowAggregateErrors && ErrorCategory.GetNumCategories()) {
     error() << "Aggregated error counts:\n";
     ErrorCategory.EnumerateResults([&](StringRef s, unsigned count) {
       error() << s << " occurred " << count << " time(s).\n";
     });
+  }
+  if (!DumpOpts.JsonErrSummaryFile.empty()) {
+    std::error_code EC;
+    raw_fd_ostream JsonStream(DumpOpts.JsonErrSummaryFile, EC,
+                              sys::fs::OF_Text);
+    if (EC) {
+      error() << "unable to open json summary file '"
+              << DumpOpts.JsonErrSummaryFile
+              << "' for writing: " << EC.message() << '\n';
+      return;
+    }
+
+    llvm::json::Object Categories;
+    uint64_t ErrorCount = 0;
+    ErrorCategory.EnumerateResults([&](StringRef Category, unsigned Count) {
+      llvm::json::Object Val;
+      Val.try_emplace("count", Count);
+      Categories.try_emplace(Category, std::move(Val));
+      ErrorCount += Count;
+    });
+    llvm::json::Object RootNode;
+    RootNode.try_emplace("error-categories", std::move(Categories));
+    RootNode.try_emplace("error-count", ErrorCount);
+
+    JsonStream << llvm::json::Value(std::move(RootNode));
   }
 }
 

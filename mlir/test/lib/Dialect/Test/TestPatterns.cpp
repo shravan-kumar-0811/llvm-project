@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "TestDialect.h"
+#include "TestOps.h"
 #include "TestTypes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -327,8 +328,12 @@ struct TestPatternDriver
 struct DumpNotifications : public RewriterBase::Listener {
   void notifyBlockInserted(Block *block, Region *previous,
                            Region::iterator previousIt) override {
-    llvm::outs() << "notifyBlockInserted into "
-                 << block->getParentOp()->getName() << ": ";
+    llvm::outs() << "notifyBlockInserted";
+    if (block->getParentOp()) {
+      llvm::outs() << " into " << block->getParentOp()->getName() << ": ";
+    } else {
+      llvm::outs() << " into unknown op: ";
+    }
     if (previous == nullptr) {
       llvm::outs() << "was unlinked\n";
     } else {
@@ -341,7 +346,9 @@ struct DumpNotifications : public RewriterBase::Listener {
     if (!previous.isSet()) {
       llvm::outs() << ", was unlinked\n";
     } else {
-      if (previous.getPoint() == previous.getBlock()->end()) {
+      if (!previous.getPoint().getNodePtr()) {
+        llvm::outs() << ", was linked, exact position unknown\n";
+      } else if (previous.getPoint() == previous.getBlock()->end()) {
         llvm::outs() << ", was last in block\n";
       } else {
         llvm::outs() << ", previous = " << previous.getPoint()->getName()
@@ -349,8 +356,17 @@ struct DumpNotifications : public RewriterBase::Listener {
       }
     }
   }
-  void notifyOperationRemoved(Operation *op) override {
-    llvm::outs() << "notifyOperationRemoved: " << op->getName() << "\n";
+  void notifyBlockErased(Block *block) override {
+    llvm::outs() << "notifyBlockErased\n";
+  }
+  void notifyOperationErased(Operation *op) override {
+    llvm::outs() << "notifyOperationErased: " << op->getName() << "\n";
+  }
+  void notifyOperationModified(Operation *op) override {
+    llvm::outs() << "notifyOperationModified: " << op->getName() << "\n";
+  }
+  void notifyOperationReplaced(Operation *op, ValueRange values) override {
+    llvm::outs() << "notifyOperationReplaced: " << op->getName() << "\n";
   }
 };
 
@@ -360,7 +376,8 @@ public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TestStrictPatternDriver)
 
   TestStrictPatternDriver() = default;
-  TestStrictPatternDriver(const TestStrictPatternDriver &other) {
+  TestStrictPatternDriver(const TestStrictPatternDriver &other)
+      : PassWrapper(other) {
     strictMode = other.strictMode;
   }
 
@@ -473,7 +490,10 @@ private:
             OperationName("test.new_op", op->getContext()).getIdentifier(),
             op->getOperands(), op->getResultTypes());
       }
-      rewriter.replaceOp(op, newOp->getResults());
+      // "replaceOp" could be used instead of "replaceAllOpUsesWith"+"eraseOp".
+      // A "notifyOperationReplaced" callback is triggered in either case.
+      rewriter.replaceAllOpUsesWith(op, newOp->getResults());
+      rewriter.eraseOp(op);
       return success();
     }
   };
@@ -665,6 +685,33 @@ namespace {
 //===----------------------------------------------------------------------===//
 // Region-Block Rewrite Testing
 
+/// This pattern applies a signature conversion to a block inside a detached
+/// region.
+struct TestDetachedSignatureConversion : public ConversionPattern {
+  TestDetachedSignatureConversion(MLIRContext *ctx)
+      : ConversionPattern("test.detached_signature_conversion", /*benefit=*/1,
+                          ctx) {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    if (op->getNumRegions() != 1)
+      return failure();
+    OperationState state(op->getLoc(), "test.legal_op_with_region", operands,
+                         op->getResultTypes(), {}, BlockRange());
+    Region *newRegion = state.addRegion();
+    rewriter.inlineRegionBefore(op->getRegion(0), *newRegion,
+                                newRegion->begin());
+    TypeConverter::SignatureConversion result(newRegion->getNumArguments());
+    for (unsigned i = 0, e = newRegion->getNumArguments(); i < e; ++i)
+      result.addInputs(i, rewriter.getF64Type());
+    rewriter.applySignatureConversion(&newRegion->front(), result);
+    Operation *newOp = rewriter.create(state);
+    rewriter.replaceOp(op, newOp->getResults());
+    return success();
+  }
+};
+
 /// This pattern is a simple pattern that inlines the first region of a given
 /// operation into the parent region.
 struct TestRegionRewriteBlockMovement : public ConversionPattern {
@@ -802,6 +849,21 @@ struct TestUndoBlockErase : public ConversionPattern {
     rewriter.create<ILLegalOpF>(op->getLoc(), rewriter.getF32Type());
     rewriter.eraseBlock(secondBlock);
     rewriter.modifyOpInPlace(op, [] {});
+    return success();
+  }
+};
+
+/// A pattern that modifies a property in-place, but keeps the op illegal.
+struct TestUndoPropertiesModification : public ConversionPattern {
+  TestUndoPropertiesModification(MLIRContext *ctx)
+      : ConversionPattern("test.with_properties", /*benefit=*/1, ctx) {}
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    if (!op->hasAttr("modify_inplace"))
+      return failure();
+    rewriter.modifyOpInPlace(
+        op, [&]() { cast<TestOpWithProperties>(op).getProperties().setA(42); });
     return success();
   }
 };
@@ -1077,15 +1139,16 @@ struct TestLegalizePatternDriver
     TestTypeConverter converter;
     mlir::RewritePatternSet patterns(&getContext());
     populateWithGenerated(patterns);
-    patterns
-        .add<TestRegionRewriteBlockMovement, TestRegionRewriteUndo,
-             TestCreateBlock, TestCreateIllegalBlock, TestUndoBlockArgReplace,
-             TestUndoBlockErase, TestPassthroughInvalidOp, TestSplitReturnType,
-             TestChangeProducerTypeI32ToF32, TestChangeProducerTypeF32ToF64,
-             TestChangeProducerTypeF32ToInvalid, TestUpdateConsumerType,
-             TestNonRootReplacement, TestBoundedRecursiveRewrite,
-             TestNestedOpCreationUndoRewrite, TestReplaceEraseOp,
-             TestCreateUnregisteredOp, TestUndoMoveOpBefore>(&getContext());
+    patterns.add<
+        TestRegionRewriteBlockMovement, TestDetachedSignatureConversion,
+        TestRegionRewriteUndo, TestCreateBlock, TestCreateIllegalBlock,
+        TestUndoBlockArgReplace, TestUndoBlockErase, TestPassthroughInvalidOp,
+        TestSplitReturnType, TestChangeProducerTypeI32ToF32,
+        TestChangeProducerTypeF32ToF64, TestChangeProducerTypeF32ToInvalid,
+        TestUpdateConsumerType, TestNonRootReplacement,
+        TestBoundedRecursiveRewrite, TestNestedOpCreationUndoRewrite,
+        TestReplaceEraseOp, TestCreateUnregisteredOp, TestUndoMoveOpBefore,
+        TestUndoPropertiesModification>(&getContext());
     patterns.add<TestDropOpSignatureConversion>(&getContext(), converter);
     mlir::populateAnyFunctionOpInterfaceTypeConversionPattern(patterns,
                                                               converter);
@@ -1096,6 +1159,8 @@ struct TestLegalizePatternDriver
     target.addLegalOp<ModuleOp>();
     target.addLegalOp<LegalOpA, LegalOpB, LegalOpC, TestCastOp, TestValidOp,
                       TerminatorOp, OneRegionOp>();
+    target.addLegalOp(
+        OperationName("test.legal_op_with_region", &getContext()));
     target
         .addIllegalOp<ILLegalOpF, TestRegionBuilderOp, TestOpWithRegionFold>();
     target.addDynamicallyLegalOp<TestReturnOp>([](TestReturnOp op) {
@@ -1132,11 +1197,19 @@ struct TestLegalizePatternDriver
     target.addDynamicallyLegalOp<TestRecursiveRewriteOp>(
         [](TestRecursiveRewriteOp op) { return op.getDepth() == 0; });
 
+    // Create a dynamically legal rule that can only be legalized by folding it.
+    target.addDynamicallyLegalOp<TestOpInPlaceSelfFold>(
+        [](TestOpInPlaceSelfFold op) { return op.getFolded(); });
+
     // Handle a partial conversion.
     if (mode == ConversionMode::Partial) {
       DenseSet<Operation *> unlegalizedOps;
-      if (failed(applyPartialConversion(
-              getOperation(), target, std::move(patterns), &unlegalizedOps))) {
+      ConversionConfig config;
+      DumpNotifications dumpNotifications;
+      config.listener = &dumpNotifications;
+      config.unlegalizedOps = &unlegalizedOps;
+      if (failed(applyPartialConversion(getOperation(), target,
+                                        std::move(patterns), config))) {
         getOperation()->emitRemark() << "applyPartialConversion failed";
       }
       // Emit remarks for each legalizable operation.
@@ -1152,8 +1225,11 @@ struct TestLegalizePatternDriver
         return (bool)op->getAttrOfType<UnitAttr>("test.dynamically_legal");
       });
 
+      ConversionConfig config;
+      DumpNotifications dumpNotifications;
+      config.listener = &dumpNotifications;
       if (failed(applyFullConversion(getOperation(), target,
-                                     std::move(patterns)))) {
+                                     std::move(patterns), config))) {
         getOperation()->emitRemark() << "applyFullConversion failed";
       }
       return;
@@ -1164,8 +1240,10 @@ struct TestLegalizePatternDriver
 
     // Analyze the convertible operations.
     DenseSet<Operation *> legalizedOps;
+    ConversionConfig config;
+    config.legalizableOps = &legalizedOps;
     if (failed(applyAnalysisConversion(getOperation(), target,
-                                       std::move(patterns), legalizedOps)))
+                                       std::move(patterns), config)))
       return signalPassFailure();
 
     // Emit remarks for each legalizable operation.
@@ -1467,8 +1545,9 @@ struct TestTestSignatureConversionNoConverter
     if (failed(
             converter.convertSignatureArgs(entry->getArgumentTypes(), result)))
       return failure();
-    rewriter.modifyOpInPlace(
-        op, [&] { rewriter.applySignatureConversion(&region, result); });
+    rewriter.modifyOpInPlace(op, [&] {
+      rewriter.applySignatureConversion(&region.front(), result);
+    });
     return success();
   }
 
@@ -1747,7 +1826,6 @@ struct TestMergeSingleBlockOps
     rewriter.inlineBlockBefore(&innerBlock, op);
     rewriter.eraseOp(innerTerminator);
     rewriter.eraseOp(op);
-    rewriter.modifyOpInPlace(op, [] {});
     return success();
   }
 };
@@ -1789,8 +1867,10 @@ struct TestMergeBlocksPatternDriver
         });
 
     DenseSet<Operation *> unlegalizedOps;
+    ConversionConfig config;
+    config.unlegalizedOps = &unlegalizedOps;
     (void)applyPartialConversion(getOperation(), target, std::move(patterns),
-                                 &unlegalizedOps);
+                                 config);
     for (auto *op : unlegalizedOps)
       op->emitRemark() << "op '" << op->getName() << "' is not legalizable";
   }
@@ -1814,7 +1894,7 @@ struct TestSelectiveOpReplacementPattern : public OpRewritePattern<TestCastOp> {
     OperandRange operands = op.getOperands();
 
     // Replace non-terminator uses with the first operand.
-    rewriter.replaceOpWithIf(op, operands[0], [](OpOperand &operand) {
+    rewriter.replaceUsesWithIf(op, operands[0], [](OpOperand &operand) {
       return operand.getOwner()->hasTrait<OpTrait::IsTerminator>();
     });
     // Replace everything else with the second operand if the operation isn't

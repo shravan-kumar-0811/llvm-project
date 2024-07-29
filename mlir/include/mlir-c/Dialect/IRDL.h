@@ -1,4 +1,4 @@
-//===-- mlir-c/Dialect/IRDL.h - C API for IRDL Dialect --------*- C -*-===//
+//===-- mlir-c/Dialect/IRDL.h - C API for IRDL --------------------*- C -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM
 // Exceptions.
@@ -17,6 +17,10 @@ extern "C" {
 #endif
 
 MLIR_DECLARE_CAPI_DIALECT_REGISTRATION(IRDL, irdl);
+
+/// Loads all IRDL dialects in the provided module, registering the dialects in
+/// the module's associated context.
+MLIR_CAPI_EXPORTED MlirLogicalResult mlirLoadIRDLDialects(MlirModule module);
 
 #ifdef __cplusplus
 }

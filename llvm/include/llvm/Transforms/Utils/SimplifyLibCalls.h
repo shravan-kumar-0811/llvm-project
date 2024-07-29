@@ -204,6 +204,8 @@ private:
   Value *mergeSqrtToExp(CallInst *CI, IRBuilderBase &B);
   Value *optimizeSinCosPi(CallInst *CI, bool IsSin, IRBuilderBase &B);
   Value *optimizeTrigInversionPairs(CallInst *CI, IRBuilderBase &B);
+  Value *optimizeSymmetric(CallInst *CI, LibFunc Func, IRBuilderBase &B);
+  Value *optimizeRemquo(CallInst *CI, IRBuilderBase &B);
   // Wrapper for all floating point library call optimizations
   Value *optimizeFloatingPointLibCall(CallInst *CI, LibFunc Func,
                                       IRBuilderBase &B);

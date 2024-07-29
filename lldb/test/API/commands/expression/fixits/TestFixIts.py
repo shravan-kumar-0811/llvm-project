@@ -79,11 +79,11 @@ class ExprCommandWithFixits(TestBase):
         self.assertTrue(value.IsValid())
         self.assertTrue(value.GetError().Fail())
         error_string = value.GetError().GetCString()
-        self.assertTrue(
-            error_string.find("fixed expression suggested:") != -1, "Fix was suggested"
+        self.assertNotEqual(
+            error_string.find("fixed expression suggested:"), -1, "Fix was suggested"
         )
-        self.assertTrue(
-            error_string.find("my_pointer->second.a") != -1, "Fix was right"
+        self.assertNotEqual(
+            error_string.find("my_pointer->second.a"), -1, "Fix was right"
         )
 
     def test_with_target_error_applies_fixit(self):
@@ -106,9 +106,8 @@ class ExprCommandWithFixits(TestBase):
         )
         self.assertIn("null_pointer->first", ret_val.GetError())
 
-    # The final function call runs into SIGILL on aarch64-linux.
     @expectedFailureAll(
-        archs=["aarch64"], oslist=["freebsd", "linux"], bugnumber="llvm.org/pr49407"
+        archs=["aarch64"], oslist=["freebsd"], bugnumber="llvm.org/pr49407"
     )
     def test_with_multiple_retries(self):
         """Test calling expressions with errors that can be fixed by the FixIts."""

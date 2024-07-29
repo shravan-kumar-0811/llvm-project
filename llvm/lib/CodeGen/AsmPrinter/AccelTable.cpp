@@ -32,23 +32,13 @@
 using namespace llvm;
 
 void AccelTableBase::computeBucketCount() {
-  // First get the number of unique hashes.
-  std::vector<uint32_t> Uniques;
+  SmallVector<uint32_t, 0> Uniques;
   Uniques.reserve(Entries.size());
   for (const auto &E : Entries)
     Uniques.push_back(E.second.HashValue);
-  array_pod_sort(Uniques.begin(), Uniques.end());
-  std::vector<uint32_t>::iterator P =
-      std::unique(Uniques.begin(), Uniques.end());
-
-  UniqueHashCount = std::distance(Uniques.begin(), P);
-
-  if (UniqueHashCount > 1024)
-    BucketCount = UniqueHashCount / 4;
-  else if (UniqueHashCount > 16)
-    BucketCount = UniqueHashCount / 2;
-  else
-    BucketCount = std::max<uint32_t>(UniqueHashCount, 1);
+  llvm::sort(Uniques);
+  UniqueHashCount = llvm::unique(Uniques) - Uniques.begin();
+  BucketCount = dwarf::getDebugNamesBucketCount(UniqueHashCount);
 }
 
 void AccelTableBase::finalize(AsmPrinter *Asm, StringRef Prefix) {
@@ -59,9 +49,7 @@ void AccelTableBase::finalize(AsmPrinter *Asm, StringRef Prefix) {
                       [](const AccelTableData *A, const AccelTableData *B) {
                         return *A < *B;
                       });
-    E.second.Values.erase(
-        std::unique(E.second.Values.begin(), E.second.Values.end()),
-        E.second.Values.end());
+    E.second.Values.erase(llvm::unique(E.second.Values), E.second.Values.end());
   }
 
   // Figure out how many buckets we need, then compute the bucket contents and
@@ -378,7 +366,8 @@ void AppleAccelTableWriter::emit() const {
 DWARF5AccelTableData::DWARF5AccelTableData(const DIE &Die,
                                            const uint32_t UnitID,
                                            const bool IsTU)
-    : OffsetVal(&Die), DieTag(Die.getTag()), IsTU(IsTU), UnitID(UnitID) {}
+    : OffsetVal(&Die), DieTag(Die.getTag()), AbbrevNumber(0), IsTU(IsTU),
+      UnitID(UnitID) {}
 
 void Dwarf5AccelTableWriter::Header::emit(Dwarf5AccelTableWriter &Ctx) {
   assert(CompUnitCount > 0 && "Index must have at least one CU.");

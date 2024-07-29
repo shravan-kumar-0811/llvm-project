@@ -26,6 +26,7 @@
 #include "lldb/Utility/UnimplementedError.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-private.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 #define LLDB_THREAD_MAX_STOP_EXC_DATA 8
 
@@ -74,9 +75,9 @@ public:
     eBroadcastBitThreadSelected = (1 << 4)
   };
 
-  static ConstString &GetStaticBroadcasterClass();
+  static llvm::StringRef GetStaticBroadcasterClass();
 
-  ConstString &GetBroadcasterClass() const override {
+  llvm::StringRef GetBroadcasterClass() const override {
     return GetStaticBroadcasterClass();
   }
 
@@ -1163,13 +1164,20 @@ public:
 
   void CalculatePublicStopInfo();
 
-  // Ask the thread subclass to set its stop info.
-  //
-  // Thread subclasses should call Thread::SetStopInfo(...) with the reason the
-  // thread stopped.
-  //
-  // \return
-  //      True if Thread::SetStopInfo(...) was called, false otherwise.
+  /// Ask the thread subclass to set its stop info.
+  ///
+  /// Thread subclasses should call Thread::SetStopInfo(...) with the reason the
+  /// thread stopped.
+  ///
+  /// A thread that is sitting at a breakpoint site, but has not yet executed
+  /// the breakpoint instruction, should have a breakpoint-hit StopInfo set.
+  /// When execution is resumed, any thread sitting at a breakpoint site will
+  /// instruction-step over the breakpoint instruction silently, and we will
+  /// never record this breakpoint as being hit, updating the hit count,
+  /// possibly executing breakpoint commands or conditions.
+  ///
+  /// \return
+  ///      True if Thread::SetStopInfo(...) was called, false otherwise.
   virtual bool CalculateStopInfo() = 0;
 
   // Gets the temporary resume state for a thread.

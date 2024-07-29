@@ -40,7 +40,7 @@
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/RuntimeLibcalls.h"
+#include "llvm/CodeGen/RuntimeLibcallUtil.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
@@ -2953,8 +2953,7 @@ bool ARMFastISel::tryToFoldLoadIntoMI(MachineInstr *MI, unsigned OpNo,
 }
 
 unsigned ARMFastISel::ARMLowerPICELF(const GlobalValue *GV, MVT VT) {
-  bool UseGOT_PREL = !TM.shouldAssumeDSOLocal(*GV->getParent(), GV);
-
+  bool UseGOT_PREL = !GV->isDSOLocal();
   LLVMContext *Context = &MF->getFunction().getContext();
   unsigned ARMPCLabelIndex = AFI->createPICLabelUId();
   unsigned PCAdj = Subtarget->isThumb() ? 4 : 8;

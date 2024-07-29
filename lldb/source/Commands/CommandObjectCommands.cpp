@@ -41,19 +41,7 @@ public:
             interpreter, "command source",
             "Read and execute LLDB commands from the file <filename>.",
             nullptr) {
-    CommandArgumentEntry arg;
-    CommandArgumentData file_arg;
-
-    // Define the first (and only) variant of this arg.
-    file_arg.arg_type = eArgTypeFilename;
-    file_arg.arg_repetition = eArgRepeatPlain;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(file_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeFilename);
   }
 
   ~CommandObjectCommandsSource() override = default;
@@ -61,13 +49,6 @@ public:
   std::optional<std::string> GetRepeatCommand(Args &current_command_args,
                                               uint32_t index) override {
     return std::string("");
-  }
-
-  void
-  HandleArgumentCompletion(CompletionRequest &request,
-                           OptionElementVector &opt_element_vector) override {
-    lldb_private::CommandCompletions::InvokeCommonCompletionCallbacks(
-        GetCommandInterpreter(), lldb::eDiskFileCompletion, request, nullptr);
   }
 
   Options *GetOptions() override { return &m_options; }
@@ -621,19 +602,7 @@ public:
             interpreter, "command unalias",
             "Delete one or more custom commands defined by 'command alias'.",
             nullptr) {
-    CommandArgumentEntry arg;
-    CommandArgumentData alias_arg;
-
-    // Define the first (and only) variant of this arg.
-    alias_arg.arg_type = eArgTypeAliasName;
-    alias_arg.arg_repetition = eArgRepeatPlain;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(alias_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeAliasName);
   }
 
   ~CommandObjectCommandsUnalias() override = default;
@@ -708,19 +677,7 @@ public:
             interpreter, "command delete",
             "Delete one or more custom commands defined by 'command regex'.",
             nullptr) {
-    CommandArgumentEntry arg;
-    CommandArgumentData alias_arg;
-
-    // Define the first (and only) variant of this arg.
-    alias_arg.arg_type = eArgTypeCommandName;
-    alias_arg.arg_repetition = eArgRepeatPlain;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg.push_back(alias_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg);
+    AddSimpleArgumentList(eArgTypeCommandName);
   }
 
   ~CommandObjectCommandsDelete() override = default;
@@ -822,8 +779,7 @@ a number follows 'f':"
         R"(
 
     (lldb) command regex f s/^$/finish/ 's/([0-9]+)/frame select %1/')");
-    CommandArgumentData thread_arg{eArgTypeSEDStylePair, eArgRepeatOptional};
-    m_arguments.push_back({thread_arg});
+    AddSimpleArgumentList(eArgTypeSEDStylePair, eArgRepeatOptional);
   }
 
   ~CommandObjectCommandsAddRegex() override = default;
@@ -1185,6 +1141,15 @@ public:
   bool IsRemovable() const override { return true; }
 
   ScriptedCommandSynchronicity GetSynchronicity() { return m_synchro; }
+
+  std::optional<std::string> GetRepeatCommand(Args &args,
+                                              uint32_t index) override {
+    ScriptInterpreter *scripter = GetDebugger().GetScriptInterpreter();
+    if (!scripter)
+      return std::nullopt;
+
+    return scripter->GetRepeatCommandForScriptedCommand(m_cmd_obj_sp, args);
+  }
 
   llvm::StringRef GetHelp() override {
     if (m_fetched_help_short)
@@ -1632,7 +1597,9 @@ private:
       options.ForEach(add_element);
       return error;
     }
-    
+
+    size_t GetNumOptions() { return m_num_options; }
+
   private:
     struct EnumValueStorage {
       EnumValueStorage() {
@@ -1871,6 +1838,15 @@ public:
 
   ScriptedCommandSynchronicity GetSynchronicity() { return m_synchro; }
 
+  std::optional<std::string> GetRepeatCommand(Args &args,
+                                              uint32_t index) override {
+    ScriptInterpreter *scripter = GetDebugger().GetScriptInterpreter();
+    if (!scripter)
+      return std::nullopt;
+
+    return scripter->GetRepeatCommandForScriptedCommand(m_cmd_obj_sp, args);
+  }
+
   llvm::StringRef GetHelp() override {
     if (m_fetched_help_short)
       return CommandObjectParsed::GetHelp();
@@ -1901,9 +1877,14 @@ public:
       SetHelpLong(docstring);
     return CommandObjectParsed::GetHelpLong();
   }
-  
-  Options *GetOptions() override { return &m_options; }
 
+  Options *GetOptions() override {
+    // CommandObjectParsed requires that a command with no options return
+    // nullptr.
+    if (m_options.GetNumOptions() == 0)
+      return nullptr;
+    return &m_options;
+  }
 
 protected:
   void DoExecute(Args &args,
@@ -1951,29 +1932,10 @@ public:
   CommandObjectCommandsScriptImport(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "command script import",
                             "Import a scripting module in LLDB.", nullptr) {
-    CommandArgumentEntry arg1;
-    CommandArgumentData cmd_arg;
-
-    // Define the first (and only) variant of this arg.
-    cmd_arg.arg_type = eArgTypeFilename;
-    cmd_arg.arg_repetition = eArgRepeatPlus;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg1.push_back(cmd_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg1);
+    AddSimpleArgumentList(eArgTypeFilename, eArgRepeatPlus);
   }
 
   ~CommandObjectCommandsScriptImport() override = default;
-
-  void
-  HandleArgumentCompletion(CompletionRequest &request,
-                           OptionElementVector &opt_element_vector) override {
-    lldb_private::CommandCompletions::InvokeCommonCompletionCallbacks(
-        GetCommandInterpreter(), lldb::eDiskFileCompletion, request, nullptr);
-  }
 
   Options *GetOptions() override { return &m_options; }
 
@@ -2080,20 +2042,7 @@ public:
                             "command, and the last element will be the new "
                             "command name."),
         IOHandlerDelegateMultiline("DONE") {
-    CommandArgumentEntry arg1;
-    CommandArgumentData cmd_arg;
-
-    // This is one or more command names, which form the path to the command
-    // you want to add.
-    cmd_arg.arg_type = eArgTypeCommand;
-    cmd_arg.arg_repetition = eArgRepeatPlus;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg1.push_back(cmd_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg1);
+    AddSimpleArgumentList(eArgTypeCommand, eArgRepeatPlus);
   }
 
   ~CommandObjectCommandsScriptAdd() override = default;
@@ -2414,20 +2363,7 @@ public:
             interpreter, "command script delete",
             "Delete a scripted command by specifying the path to the command.",
             nullptr) {
-    CommandArgumentEntry arg1;
-    CommandArgumentData cmd_arg;
-
-    // This is a list of command names forming the path to the command
-    // to be deleted.
-    cmd_arg.arg_type = eArgTypeCommand;
-    cmd_arg.arg_repetition = eArgRepeatPlus;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg1.push_back(cmd_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg1);
+    AddSimpleArgumentList(eArgTypeCommand, eArgRepeatPlus);
   }
 
   ~CommandObjectCommandsScriptDelete() override = default;
@@ -2563,20 +2499,7 @@ public:
             "Add a container command to lldb.  Adding to built-"
             "in container commands is not allowed.",
             "command container add [[path1]...] container-name") {
-    CommandArgumentEntry arg1;
-    CommandArgumentData cmd_arg;
-
-    // This is one or more command names, which form the path to the command
-    // you want to add.
-    cmd_arg.arg_type = eArgTypeCommand;
-    cmd_arg.arg_repetition = eArgRepeatPlus;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg1.push_back(cmd_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg1);
+    AddSimpleArgumentList(eArgTypeCommand, eArgRepeatPlus);
   }
 
   ~CommandObjectCommandsContainerAdd() override = default;
@@ -2704,20 +2627,7 @@ public:
             "Delete a container command previously added to "
             "lldb.",
             "command container delete [[path1] ...] container-cmd") {
-    CommandArgumentEntry arg1;
-    CommandArgumentData cmd_arg;
-
-    // This is one or more command names, which form the path to the command
-    // you want to add.
-    cmd_arg.arg_type = eArgTypeCommand;
-    cmd_arg.arg_repetition = eArgRepeatPlus;
-
-    // There is only one variant this argument could be; put it into the
-    // argument entry.
-    arg1.push_back(cmd_arg);
-
-    // Push the data for the first argument into the m_arguments vector.
-    m_arguments.push_back(arg1);
+    AddSimpleArgumentList(eArgTypeCommand, eArgRepeatPlus);
   }
 
   ~CommandObjectCommandsContainerDelete() override = default;

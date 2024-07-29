@@ -53,6 +53,13 @@ public:
       bool shouldVisitTemplateInstantiations() const { return true; }
       bool shouldVisitImplicitCode() const { return false; }
 
+      bool TraverseClassTemplateDecl(ClassTemplateDecl *Decl) {
+        if (isRefType(safeGetName(Decl)))
+          return true;
+        return RecursiveASTVisitor<LocalVisitor>::TraverseClassTemplateDecl(
+            Decl);
+      }
+
       bool VisitCallExpr(const CallExpr *CE) {
         Checker->visitCallExpr(CE);
         return true;
@@ -73,6 +80,11 @@ public:
       unsigned ArgIdx = isa<CXXOperatorCallExpr>(CE) && isa_and_nonnull<CXXMethodDecl>(F);
 
       if (auto *MemberCallExpr = dyn_cast<CXXMemberCallExpr>(CE)) {
+        if (auto *MD = MemberCallExpr->getMethodDecl()) {
+          auto name = safeGetName(MD);
+          if (name == "ref" || name == "deref")
+            return;
+        }
         auto *E = MemberCallExpr->getImplicitObjectArgument();
         QualType ArgType = MemberCallExpr->getObjectType();
         std::optional<bool> IsUncounted =
@@ -114,29 +126,30 @@ public:
   }
 
   bool isPtrOriginSafe(const Expr *Arg) const {
-    std::pair<const clang::Expr *, bool> ArgOrigin =
-        tryToFindPtrOrigin(Arg, true);
-
-    // Temporary ref-counted object created as part of the call argument
-    // would outlive the call.
-    if (ArgOrigin.second)
-      return true;
-
-    if (isa<CXXNullPtrLiteralExpr>(ArgOrigin.first)) {
-      // foo(nullptr)
-      return true;
-    }
-    if (isa<IntegerLiteral>(ArgOrigin.first)) {
-      // FIXME: Check the value.
-      // foo(NULL)
-      return true;
-    }
-
-    return isASafeCallArg(ArgOrigin.first);
+    return tryToFindPtrOrigin(Arg, /*StopAtFirstRefCountedObj=*/true,
+                              [](const clang::Expr *ArgOrigin, bool IsSafe) {
+                                if (IsSafe)
+                                  return true;
+                                if (isa<CXXNullPtrLiteralExpr>(ArgOrigin)) {
+                                  // foo(nullptr)
+                                  return true;
+                                }
+                                if (isa<IntegerLiteral>(ArgOrigin)) {
+                                  // FIXME: Check the value.
+                                  // foo(NULL)
+                                  return true;
+                                }
+                                if (isASafeCallArg(ArgOrigin))
+                                  return true;
+                                return false;
+                              });
   }
 
   bool shouldSkipCall(const CallExpr *CE) const {
     const auto *Callee = CE->getDirectCallee();
+
+    if (BR->getSourceManager().isInSystemHeader(CE->getExprLoc()))
+      return true;
 
     if (Callee && TFA.isTrivial(Callee))
       return true;
@@ -165,6 +178,9 @@ public:
     if (!Callee)
       return false;
 
+    if (isMethodOnWTFContainerType(Callee))
+      return true;
+
     auto overloadedOperatorType = Callee->getOverloadedOperator();
     if (overloadedOperatorType == OO_EqualEqual ||
         overloadedOperatorType == OO_ExclaimEqual ||
@@ -191,6 +207,38 @@ public:
       return true;
 
     return false;
+  }
+
+  bool isMethodOnWTFContainerType(const FunctionDecl *Decl) const {
+    if (!isa<CXXMethodDecl>(Decl))
+      return false;
+    auto *ClassDecl = Decl->getParent();
+    if (!ClassDecl || !isa<CXXRecordDecl>(ClassDecl))
+      return false;
+
+    auto *NsDecl = ClassDecl->getParent();
+    if (!NsDecl || !isa<NamespaceDecl>(NsDecl))
+      return false;
+
+    auto MethodName = safeGetName(Decl);
+    auto ClsNameStr = safeGetName(ClassDecl);
+    StringRef ClsName = ClsNameStr; // FIXME: Make safeGetName return StringRef.
+    auto NamespaceName = safeGetName(NsDecl);
+    // FIXME: These should be implemented via attributes.
+    return NamespaceName == "WTF" &&
+           (MethodName == "find" || MethodName == "findIf" ||
+            MethodName == "reverseFind" || MethodName == "reverseFindIf" ||
+            MethodName == "findIgnoringASCIICase" || MethodName == "get" ||
+            MethodName == "inlineGet" || MethodName == "contains" ||
+            MethodName == "containsIf" ||
+            MethodName == "containsIgnoringASCIICase" ||
+            MethodName == "startsWith" || MethodName == "endsWith" ||
+            MethodName == "startsWithIgnoringASCIICase" ||
+            MethodName == "endsWithIgnoringASCIICase" ||
+            MethodName == "substring") &&
+           (ClsName.ends_with("Vector") || ClsName.ends_with("Set") ||
+            ClsName.ends_with("Map") || ClsName == "StringImpl" ||
+            ClsName.ends_with("String"));
   }
 
   void reportBug(const Expr *CallArg, const ParmVarDecl *Param) const {
