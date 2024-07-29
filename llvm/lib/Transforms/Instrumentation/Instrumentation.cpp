@@ -13,6 +13,7 @@
 
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/TargetParser/Triple.h"
@@ -23,19 +24,32 @@ static cl::opt<bool> ClIgnoreRedundantInstrumentation(
     "ignore-redundant-instrumentation",
     cl::desc("Ignore redundant instrumentation"), cl::Hidden, cl::init(false));
 
+namespace {
+/// Diagnostic information for IR instrumentation reporting.
+class DiagnosticInfoInstrumentation : public DiagnosticInfo {
+  const Twine &Msg;
+
+public:
+  DiagnosticInfoInstrumentation(const Twine &DiagMsg,
+                                DiagnosticSeverity Severity = DS_Warning)
+      : DiagnosticInfo(DK_Linker, Severity), Msg(DiagMsg) {}
+  void print(DiagnosticPrinter &DP) const override { DP << Msg; }
+};
+} // namespace
+
 /// Check if module has flag attached, if not add the flag.
-bool llvm::checkIfAlreadyInstrumented(Module &M, StringRef flag) {
-  if (M.getModuleFlag(flag)) {
+bool llvm::checkIfAlreadyInstrumented(Module &M, StringRef Flag) {
+  if (M.getModuleFlag(Flag)) {
     if (ClIgnoreRedundantInstrumentation)
       return true;
     std::string diagInfo =
         "Redundant instrumentation detected, with module flag: " +
-        std::string(flag);
-    M.getContext().diagnose(
-        DiagnosticInfoInlineAsm(diagInfo, DiagnosticSeverity::DS_Warning));
+        std::string(Flag);
+    M.getContext().diagnose(DiagnosticInfoInstrumentation(
+        diagInfo, DiagnosticSeverity::DS_Warning));
     return true;
   }
-  M.addModuleFlag(Module::ModFlagBehavior::Override, flag, 1);
+  M.addModuleFlag(Module::ModFlagBehavior::Override, Flag, 1);
   return false;
 }
 
