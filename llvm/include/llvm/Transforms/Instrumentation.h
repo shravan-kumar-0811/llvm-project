@@ -19,6 +19,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Module.h"
 #include <cassert>
 #include <cstdint>
 #include <limits>
@@ -30,6 +31,9 @@ class Triple;
 class OptimizationRemarkEmitter;
 class Comdat;
 class CallBase;
+
+/// Check if module has flag attached, if not add the flag.
+bool checkIfAlreadyInstrumented(Module &M, StringRef flag);
 
 /// Instrumentation passes often insert conditional checks into entry blocks.
 /// Call this function before splitting the entry block to move instructions

@@ -12,11 +12,32 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Instrumentation.h"
+#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
+
+static cl::opt<bool> ClIgnoreRedundantInstrumentation(
+    "ignore-redundant-instrumentation",
+    cl::desc("Ignore redundant instrumentation"), cl::Hidden, cl::init(false));
+
+/// Check if module has flag attached, if not add the flag.
+bool llvm::checkIfAlreadyInstrumented(Module &M, StringRef flag) {
+  if (M.getModuleFlag(flag)) {
+    if (ClIgnoreRedundantInstrumentation)
+      return true;
+    std::string diagInfo =
+        "Redundant instrumentation detected, with module flag: " +
+        std::string(flag);
+    M.getContext().diagnose(
+        DiagnosticInfoInlineAsm(diagInfo, DiagnosticSeverity::DS_Warning));
+    return true;
+  }
+  M.addModuleFlag(Module::ModFlagBehavior::Override, flag, 1);
+  return false;
+}
 
 /// Moves I before IP. Returns new insert point.
 static BasicBlock::iterator moveBeforeInsertPoint(BasicBlock::iterator I, BasicBlock::iterator IP) {
