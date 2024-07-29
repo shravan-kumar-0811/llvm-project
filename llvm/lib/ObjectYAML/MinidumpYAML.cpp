@@ -260,7 +260,8 @@ void yaml::MappingTraits<MemoryInfo>::mapping(IO &IO, MemoryInfo &Info) {
   mapOptionalHex(IO, "Reserved1", Info.Reserved1, 0);
 }
 
-void yaml::MappingTraits<MemoryDescriptor_64>::mapping(IO &IO, MemoryDescriptor_64 &Mem) {
+void yaml::MappingTraits<MemoryDescriptor_64>::mapping(
+    IO &IO, MemoryDescriptor_64 &Mem) {
   mapRequiredHex(IO, "Start of memory range", Mem.StartOfMemoryRange);
   mapRequiredHex(IO, "Data Size", Mem.DataSize);
 }

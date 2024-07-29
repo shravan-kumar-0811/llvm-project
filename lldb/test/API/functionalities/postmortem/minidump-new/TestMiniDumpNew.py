@@ -6,7 +6,7 @@ import shutil
 
 import lldb
 from lldbsuite.test.decorators import *
-from lldbsuite.test.lldbtest import * 
+from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 
 
@@ -504,5 +504,3 @@ class MiniDumpNewTestCase(TestBase):
         self.assertTrue(region_info_list.GetMemoryRegionAtIndex(0, region))
         self.assertEqual(region.GetRegionBase(), 0x7FFF12A84030)
         self.assertTrue(region.GetRegionEnd(), 0x2FD0)
-
-        

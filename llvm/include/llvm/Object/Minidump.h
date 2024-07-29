@@ -106,7 +106,8 @@ public:
   /// Returns the header to the memory 64 list stream. An error is returned if
   /// the file does not contain this stream.
   Expected<minidump::Memory64ListHeader> getMemoryList64Header() const {
-    return getStream<minidump::Memory64ListHeader>(minidump::StreamType::Memory64List);
+    return getStream<minidump::Memory64ListHeader>(
+        minidump::StreamType::Memory64List);
   }
 
   Expected<ArrayRef<minidump::MemoryDescriptor_64>> getMemory64List() const;
@@ -160,8 +161,8 @@ private:
   }
 
   /// Return a slice of the given data array, with bounds checking.
-  static Expected<ArrayRef<uint8_t>> getDataSlice(ArrayRef<uint8_t> Data,
-                                                  uint64_t Offset, uint64_t Size);
+  static Expected<ArrayRef<uint8_t>>
+  getDataSlice(ArrayRef<uint8_t> Data, uint64_t Offset, uint64_t Size);
 
   /// Return the slice of the given data array as an array of objects of the
   /// given type. The function checks that the input array is large enough to

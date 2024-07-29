@@ -571,11 +571,11 @@ CreateRegionsCacheFromMemoryList(MinidumpParser &parser,
 
   llvm::ArrayRef<MinidumpMemoryDescriptor64> memory64_list;
   if (!data.empty()) {
-      uint64_t base_rva;
-      std::tie(memory64_list, base_rva) =
-          MinidumpMemoryDescriptor64::ParseMemory64List(data);
+    uint64_t base_rva;
+    std::tie(memory64_list, base_rva) =
+        MinidumpMemoryDescriptor64::ParseMemory64List(data);
 
-      num_regions += memory64_list.size();
+    num_regions += memory64_list.size();
   }
 
   regions.reserve(num_regions);

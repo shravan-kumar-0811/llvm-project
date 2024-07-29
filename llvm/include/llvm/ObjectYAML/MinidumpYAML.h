@@ -111,11 +111,13 @@ struct Memory64ListStream : public Stream {
   yaml::BinaryRef Content;
   minidump::Memory64ListHeader Header;
 
-  Memory64ListStream() 
-    : Stream(StreamKind::Memory64List, minidump::StreamType::Memory64List) {}
+  Memory64ListStream()
+      : Stream(StreamKind::Memory64List, minidump::StreamType::Memory64List) {}
 
-  explicit Memory64ListStream(std::vector<minidump::MemoryDescriptor_64> Entries)
-    : Stream(StreamKind::Memory64List, minidump::StreamType::Memory64List), Entries(Entries) {}
+  explicit Memory64ListStream(
+      std::vector<minidump::MemoryDescriptor_64> Entries)
+      : Stream(StreamKind::Memory64List, minidump::StreamType::Memory64List),
+        Entries(Entries) {}
 
   static bool classof(const Stream *S) {
     return S->Kind == StreamKind::Memory64List;
@@ -262,8 +264,10 @@ template <> struct MappingContextTraits<minidump::MemoryDescriptor, BinaryRef> {
                       BinaryRef &Content);
 };
 
-template <> struct MappingContextTraits<minidump::MemoryDescriptor_64, BinaryRef> {
-  static void mapping(IO &IO, minidump::MemoryDescriptor_64 &Memory, BinaryRef &Content);
+template <>
+struct MappingContextTraits<minidump::MemoryDescriptor_64, BinaryRef> {
+  static void mapping(IO &IO, minidump::MemoryDescriptor_64 &Memory,
+                      BinaryRef &Content);
 };
 
 } // namespace yaml
@@ -292,7 +296,6 @@ LLVM_YAML_DECLARE_MAPPING_TRAITS(
     llvm::MinidumpYAML::ModuleListStream::entry_type)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(
     llvm::MinidumpYAML::ThreadListStream::entry_type)
-
 
 LLVM_YAML_IS_SEQUENCE_VECTOR(std::unique_ptr<llvm::MinidumpYAML::Stream>)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MinidumpYAML::MemoryListStream::entry_type)

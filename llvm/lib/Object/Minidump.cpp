@@ -99,8 +99,9 @@ template Expected<ArrayRef<Thread>>
 template Expected<ArrayRef<MemoryDescriptor>>
     MinidumpFile::getListStream(StreamType) const;
 
-Expected<ArrayRef<uint8_t>>
-MinidumpFile::getDataSlice(ArrayRef<uint8_t> Data, uint64_t Offset, uint64_t Size) {
+Expected<ArrayRef<uint8_t>> MinidumpFile::getDataSlice(ArrayRef<uint8_t> Data,
+                                                       uint64_t Offset,
+                                                       uint64_t Size) {
   // Check for overflow.
   if (Offset + Size < Offset || Offset + Size < Size ||
       Offset + Size > Data.size())
@@ -160,9 +161,11 @@ Expected<ArrayRef<MemoryDescriptor_64>> MinidumpFile::getMemory64List() const {
   if (!MemoryList64)
     return MemoryList64.takeError();
 
-  std::optional<ArrayRef<uint8_t>> Stream = getRawStream(StreamType::Memory64List);
+  std::optional<ArrayRef<uint8_t>> Stream =
+      getRawStream(StreamType::Memory64List);
   if (!Stream)
     return createError("No such stream");
-  
-  return getDataSliceAs<minidump::MemoryDescriptor_64>(*Stream, sizeof(Memory64ListHeader), MemoryList64->NumberOfMemoryRanges);
+
+  return getDataSliceAs<minidump::MemoryDescriptor_64>(
+      *Stream, sizeof(Memory64ListHeader), MemoryList64->NumberOfMemoryRanges);
 }
