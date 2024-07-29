@@ -288,7 +288,8 @@ public:
                                SourceRange PatternRange,
                                ArrayRef<UnexpandedParameterPack> Unexpanded,
                                bool &ShouldExpand, bool &RetainExpansion,
-                               std::optional<unsigned> &NumExpansions) {
+                               std::optional<unsigned> &NumExpansions,
+                               bool ForConstraints = false) {
     ShouldExpand = false;
     return false;
   }
@@ -4004,6 +4005,37 @@ public:
     return getSema().BuildCXXFoldExpr(ULE, LParenLoc, LHS, Operator,
                                       EllipsisLoc, RHS, RParenLoc,
                                       NumExpansions);
+  }
+
+  void RebuildLambdaExprImpl(SourceLocation StartLoc, SourceLocation EndLoc,
+                             LambdaScopeInfo *LSI) {}
+
+  ExprResult RebuildLambdaExpr(SourceLocation StartLoc, SourceLocation EndLoc,
+                               LambdaScopeInfo *LSI) {
+    CXXRecordDecl *Class = LSI->Lambda;
+    CXXMethodDecl *CallOperator = LSI->CallOperator;
+    CallOperator->setLexicalDeclContext(Class);
+    Decl *TemplateOrNonTemplateCallOperatorDecl =
+        CallOperator->getDescribedFunctionTemplate()
+            ? CallOperator->getDescribedFunctionTemplate()
+            : cast<Decl>(CallOperator);
+    // FIXME: Is this really the best choice? Keeping the lexical decl context
+    // set as CurContext seems more faithful to the source.
+    TemplateOrNonTemplateCallOperatorDecl->setLexicalDeclContext(Class);
+
+    getDerived().RebuildLambdaExprImpl(StartLoc, EndLoc, LSI);
+
+    // Default arguments might contain unexpanded packs that would expand later.
+    for (ParmVarDecl *PVD : LSI->CallOperator->parameters()) {
+      if (Expr *Init = PVD->getInit())
+        LSI->ContainsUnexpandedParameterPack |=
+            Init->containsUnexpandedParameterPack();
+      else if (PVD->hasUninstantiatedDefaultArg())
+        LSI->ContainsUnexpandedParameterPack |=
+            PVD->getUninstantiatedDefaultArg()
+                ->containsUnexpandedParameterPack();
+    }
+    return getSema().BuildLambdaExpr(StartLoc, EndLoc, LSI);
   }
 
   /// Build an empty C++1z fold-expression with the given operator.
@@ -8262,6 +8294,7 @@ StmtResult
 TreeTransform<Derived>::TransformDeclStmt(DeclStmt *S) {
   bool DeclChanged = false;
   SmallVector<Decl *, 4> Decls;
+  LambdaScopeInfo *LSI = getSema().getCurLambda();
   for (auto *D : S->decls()) {
     Decl *Transformed = getDerived().TransformDefinition(D->getLocation(), D);
     if (!Transformed)
@@ -8269,6 +8302,15 @@ TreeTransform<Derived>::TransformDeclStmt(DeclStmt *S) {
 
     if (Transformed != D)
       DeclChanged = true;
+
+    if (LSI && isa<TypeDecl>(Transformed))
+      LSI->ContainsUnexpandedParameterPack |=
+          getSema()
+              .getASTContext()
+              .getTypeDeclType(cast<TypeDecl>(Transformed))
+              .getCanonicalType()
+              .getTypePtr()
+              ->containsUnexpandedParameterPack();
 
     Decls.push_back(Transformed);
   }
@@ -14469,6 +14511,9 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
         }
         NewVDs.push_back(NewVD);
         getSema().addInitCapture(LSI, NewVD, C->getCaptureKind() == LCK_ByRef);
+        // The Init expression might be expanded by an outer fold expression.
+        LSI->ContainsUnexpandedParameterPack |=
+            Init.get()->containsUnexpandedParameterPack();
       }
 
       if (Invalid)
@@ -14536,6 +14581,10 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
       continue;
     }
 
+    // The captured pack might be expanded by an outer fold expression.
+    if (auto *VD = dyn_cast<VarDecl>(CapturedVar); VD && !C->isPackExpansion())
+      LSI->ContainsUnexpandedParameterPack |= VD->isParameterPack();
+
     // Capture the transformed variable.
     getSema().tryCaptureVariable(CapturedVar, C->getLocation(), Kind,
                                  EllipsisLoc);
@@ -14547,9 +14596,14 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
   auto TPL = getDerived().TransformTemplateParameterList(
       E->getTemplateParameterList());
   LSI->GLTemplateParameterList = TPL;
-  if (TPL)
+  if (TPL) {
     getSema().AddTemplateParametersToLambdaCallOperator(NewCallOperator, Class,
                                                         TPL);
+    // The parameter list might reference to a pack that an outer fold
+    // expression would expand.
+    LSI->ContainsUnexpandedParameterPack |=
+        TPL->containsUnexpandedParameterPack();
+  }
 
   // Transform the type of the original lambda's call operator.
   // The transformation MUST be done in the CurrentInstantiationScope since
@@ -14588,6 +14642,8 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
 
     if (NewCallOpType.isNull())
       return ExprError();
+    LSI->ContainsUnexpandedParameterPack |=
+        NewCallOpType->containsUnexpandedParameterPack();
     NewCallOpTSI =
         NewCallOpTLBuilder.getTypeSourceInfo(getSema().Context, NewCallOpType);
   }
@@ -14600,11 +14656,20 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
     Params = FPTL.getParams();
   }
 
+  Expr *TrailingRequiresExpr =
+      E->getCallOperator()->getTrailingRequiresClause();
+  if (TrailingRequiresExpr) {
+    // If we're in an expansion, do not propagate up this flag. Otherwise we
+    // would fail to unexpand the surrounding CXXFoldExpr.
+    if (getSema().ArgumentPackSubstitutionIndex == -1)
+      LSI->ContainsUnexpandedParameterPack |=
+          TrailingRequiresExpr->containsUnexpandedParameterPack();
+  }
+
   getSema().CompleteLambdaCallOperator(
       NewCallOperator, E->getCallOperator()->getLocation(),
-      E->getCallOperator()->getInnerLocStart(),
-      E->getCallOperator()->getTrailingRequiresClause(), NewCallOpTSI,
-      E->getCallOperator()->getConstexprKind(),
+      E->getCallOperator()->getInnerLocStart(), TrailingRequiresExpr,
+      NewCallOpTSI, E->getCallOperator()->getConstexprKind(),
       E->getCallOperator()->getStorageClass(), Params,
       E->hasExplicitResultType());
 
@@ -14702,8 +14767,7 @@ TreeTransform<Derived>::TransformLambdaExpr(LambdaExpr *E) {
   Class->setTypeForDecl(nullptr);
   getSema().Context.getTypeDeclType(Class);
 
-  return getSema().BuildLambdaExpr(E->getBeginLoc(), Body.get()->getEndLoc(),
-                                   &LSICopy);
+  return RebuildLambdaExpr(E->getBeginLoc(), Body.get()->getEndLoc(), &LSICopy);
 }
 
 template<typename Derived>
@@ -15242,9 +15306,11 @@ TreeTransform<Derived>::TransformCXXFoldExpr(CXXFoldExpr *E) {
 
   Expr *Pattern = E->getPattern();
 
-  SmallVector<UnexpandedParameterPack, 2> Unexpanded;
-  getSema().collectUnexpandedParameterPacks(Pattern, Unexpanded);
-  assert(!Unexpanded.empty() && "Pack expansion without parameter packs?");
+  SmallVector<UnexpandedParameterPack, 2> Unexpanded, UnexpandedFromConstraints;
+  getSema().collectUnexpandedParameterPacksForFoldExprs(
+      Pattern, Unexpanded, UnexpandedFromConstraints);
+  assert((!Unexpanded.empty() || !UnexpandedFromConstraints.empty()) &&
+         "Pack expansion without parameter packs?");
 
   // Determine whether the set of unexpanded parameter packs can and should
   // be expanded.
@@ -15258,6 +15324,15 @@ TreeTransform<Derived>::TransformCXXFoldExpr(CXXFoldExpr *E) {
                                            Expand, RetainExpansion,
                                            NumExpansions))
     return true;
+
+  // Only constraints contain unexpanded packs.
+  if (Unexpanded.empty() && !UnexpandedFromConstraints.empty()) {
+    if (getDerived().TryExpandParameterPacks(
+            E->getEllipsisLoc(), Pattern->getSourceRange(),
+            UnexpandedFromConstraints, Expand, RetainExpansion, NumExpansions,
+            /*ForConstraints=*/true))
+      return true;
+  }
 
   if (!Expand) {
     // Do not expand any packs here, just transform and rebuild a fold
