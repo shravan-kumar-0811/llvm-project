@@ -162,6 +162,11 @@ Bug Fixes to C++ Support
 - Fixed a crash when an expression with a dependent ``__typeof__`` type is used as the operand of a unary operator. (#GH97646)
 - Fixed a failed assertion when checking invalid delete operator declaration. (#GH96191)
 
+- Properly reject defaulted relational operators with invalid types for explicit object parameters,
+  e.g., ``bool operator==(this int, const Foo&)`` (#GH100329), and rvalue reference parameters.
+
+- Properly reject defaulted copy/move assignment operators that have a non-reference explicit object parameter.
+
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
