@@ -1293,7 +1293,7 @@ static Value *foldCeilIdioms(BinaryOperator &I, InstCombinerImpl &IC) {
         match(N, m_OneUse(m_Sub(m_APInt(C), m_Intrinsic<Intrinsic::ctlz>(
                                                 m_Value(DivOp1), m_Zero())))) &&
         (*C == Div->getType()->getScalarSizeInBits() - 1) &&
-        IC.isKnownToBeAPowerOfTwo(DivOp1, true, 0, Div))
+        IC.isKnownToBeAPowerOfTwo(DivOp1, /*OrZero*/ false, 0, Div))
       return true;
 
     return false;
