@@ -786,8 +786,8 @@ void DisassemblerTables::emitModRMDecision(raw_ostream &o1, raw_ostream &o2,
   }
 
   // We assume that the index can fit into uint16_t.
-  assert(sEntryNumber < 65536U &&
-         "Index into ModRMDecision is too large for uint16_t!");
+  assert(sEntryNumber < -1U &&
+         "Index into ModRMDecision is too large for unsigned int!");
   (void)sEntryNumber;
 }
 
