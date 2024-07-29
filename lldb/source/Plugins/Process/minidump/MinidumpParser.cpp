@@ -553,14 +553,18 @@ static bool
 CreateRegionsCacheFromMemoryList(MinidumpParser &parser,
                                  std::vector<MemoryRegionInfo> &regions) {
   Log *log = GetLog(LLDBLog::Modules);
+  // Cache the expected memory32 into an optional
+  // because double checking the expected triggers the unchecked warning.
+  std::optional<llvm::ArrayRef<MemoryDescriptor>> memory32_list;
   auto ExpectedMemory = parser.GetMinidumpFile().getMemoryList();
   if (!ExpectedMemory) {
     LLDB_LOG_ERROR(log, ExpectedMemory.takeError(),
                    "Failed to read memory list: {0}");
-    return false;
+  } else {
+    memory32_list = *ExpectedMemory;
   }
 
-  size_t num_regions = ExpectedMemory->size();
+  size_t num_regions = memory32_list ? memory32_list->size() : 0;
 
   llvm::ArrayRef<uint8_t> data =
       parser.GetStream(StreamType::Memory64List);
@@ -575,15 +579,17 @@ CreateRegionsCacheFromMemoryList(MinidumpParser &parser,
   }
 
   regions.reserve(num_regions);
-  for (const MemoryDescriptor &memory_desc : *ExpectedMemory) {
-    if (memory_desc.Memory.DataSize == 0)
-      continue;
-    MemoryRegionInfo region;
-    region.GetRange().SetRangeBase(memory_desc.StartOfMemoryRange);
-    region.GetRange().SetByteSize(memory_desc.Memory.DataSize);
-    region.SetReadable(MemoryRegionInfo::eYes);
-    region.SetMapped(MemoryRegionInfo::eYes);
-    regions.push_back(region);
+  if (memory32_list) {
+    for (const MemoryDescriptor &memory_desc : *memory32_list) {
+      if (memory_desc.Memory.DataSize == 0)
+        continue;
+      MemoryRegionInfo region;
+      region.GetRange().SetRangeBase(memory_desc.StartOfMemoryRange);
+      region.GetRange().SetByteSize(memory_desc.Memory.DataSize);
+      region.SetReadable(MemoryRegionInfo::eYes);
+      region.SetMapped(MemoryRegionInfo::eYes);
+      regions.push_back(region);
+    }
   }
 
   for (const auto &memory_desc : memory64_list) {

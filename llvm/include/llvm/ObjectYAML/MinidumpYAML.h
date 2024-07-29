@@ -109,6 +109,7 @@ using MemoryListStream = detail::ListStream<detail::ParsedMemoryDescriptor>;
 struct Memory64ListStream : public Stream {
   std::vector<minidump::MemoryDescriptor_64> Entries;
   yaml::BinaryRef Content;
+  minidump::Memory64ListHeader Header;
 
   Memory64ListStream() 
     : Stream(StreamKind::Memory64List, minidump::StreamType::Memory64List) {}
