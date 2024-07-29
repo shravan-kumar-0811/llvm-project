@@ -4064,6 +4064,9 @@ Instruction *InstCombinerImpl::visitSelectInst(SelectInst &SI) {
   if (Instruction *I = foldBitCeil(SI, Builder))
     return I;
 
+  if (Instruction *I = foldSelectToCmp(SI))
+    return I;
+
   // Fold:
   // (select A && B, T, F) -> (select A, (select B, T, F), F)
   // (select A || B, T, F) -> (select A, T, (select B, T, F))
@@ -4142,9 +4145,6 @@ Instruction *InstCombinerImpl::visitSelectInst(SelectInst &SI) {
       }
     }
   }
-
-  if (auto *Instruction = foldSelectToCmp(SI))
-    return Instruction;
 
   return nullptr;
 }
