@@ -897,7 +897,6 @@ private:
   const void *LoadConfig = nullptr;
   const chpe_metadata *CHPEMetadata = nullptr;
   const coff_dynamic_reloc_table *DynamicRelocTable = nullptr;
-  std::shared_ptr<WritableMemoryBuffer> HybridBufferRef;
 
   Expected<StringRef> getString(uint32_t offset) const;
 
@@ -917,6 +916,7 @@ private:
   Error initDebugDirectoryPtr();
   Error initTLSDirectoryPtr();
   Error initLoadConfigPtr();
+  Error initDynamicRelocPtr(uint32_t SectionIndex, uint32_t SectionOffset);
 
 public:
   static Expected<std::unique_ptr<COFFObjectFile>>

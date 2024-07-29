@@ -798,218 +798,216 @@ Error COFFObjectFile::initLoadConfigPtr() {
           return E;
       }
     }
-  }
 
-  // Interpret and validate dynamic relocations.
-  uint32_t DynamicRelocTableOffset = 0, DynamicRelocTableSection = 0;
-  if (is64()) {
-    auto Config = getLoadConfig64();
     if (Config->Size >=
         offsetof(coff_load_configuration64, DynamicValueRelocTableSection) +
-            sizeof(Config->DynamicValueRelocTableSection)) {
-      DynamicRelocTableSection = Config->DynamicValueRelocTableSection;
-      DynamicRelocTableOffset = Config->DynamicValueRelocTableOffset;
-    }
+            sizeof(Config->DynamicValueRelocTableSection))
+      if (Error E = initDynamicRelocPtr(Config->DynamicValueRelocTableSection,
+                                        Config->DynamicValueRelocTableOffset))
+        return E;
   } else {
     auto Config = getLoadConfig32();
     if (Config->Size >=
         offsetof(coff_load_configuration32, DynamicValueRelocTableSection) +
             sizeof(Config->DynamicValueRelocTableSection)) {
-      DynamicRelocTableSection = Config->DynamicValueRelocTableSection;
-      DynamicRelocTableOffset = Config->DynamicValueRelocTableOffset;
+      if (Error E = initDynamicRelocPtr(Config->DynamicValueRelocTableSection,
+                                        Config->DynamicValueRelocTableOffset))
+        return E;
     }
   }
+  return Error::success();
+}
 
-  Expected<const coff_section *> Section = getSection(DynamicRelocTableSection);
+Error COFFObjectFile::initDynamicRelocPtr(uint32_t SectionIndex,
+                                          uint32_t SectionOffset) {
+  Expected<const coff_section *> Section = getSection(SectionIndex);
   if (!Section)
     return Section.takeError();
-  if (*Section) {
-    ArrayRef<uint8_t> Contents;
-    if (Error E = getSectionContents(*Section, Contents))
-      return E;
+  if (!*Section)
+    return Error::success();
 
-    Contents = Contents.drop_front(DynamicRelocTableOffset);
-    if (Contents.size() < sizeof(coff_dynamic_reloc_table))
-      return createStringError(object_error::parse_failed,
-                               "Too large DynamicValueRelocTableOffset (" +
-                                   Twine(DynamicRelocTableOffset) + ")");
+  // Interpret and validate dynamic relocations.
+  ArrayRef<uint8_t> Contents;
+  if (Error E = getSectionContents(*Section, Contents))
+    return E;
 
-    DynamicRelocTable =
-        reinterpret_cast<const coff_dynamic_reloc_table *>(Contents.data());
+  Contents = Contents.drop_front(SectionOffset);
+  if (Contents.size() < sizeof(coff_dynamic_reloc_table))
+    return createStringError(object_error::parse_failed,
+                             "Too large DynamicValueRelocTableOffset (" +
+                                 Twine(SectionOffset) + ")");
 
-    if (DynamicRelocTable->Version != 1 && DynamicRelocTable->Version != 2)
-      return createStringError(
-          object_error::parse_failed,
-          "Unsupported dynamic relocations table version (" +
-              Twine(DynamicRelocTable->Version) + ")");
+  DynamicRelocTable =
+      reinterpret_cast<const coff_dynamic_reloc_table *>(Contents.data());
 
-    Contents = Contents.drop_front(sizeof(*DynamicRelocTable));
-    if (DynamicRelocTable->Size > Contents.size())
-      return createStringError(object_error::parse_failed,
-                               "Indvalid dynamic relocations directory size (" +
-                                   Twine(DynamicRelocTable->Size) + ")");
-    Contents = Contents.take_front(DynamicRelocTable->Size);
+  if (DynamicRelocTable->Version != 1 && DynamicRelocTable->Version != 2)
+    return createStringError(object_error::parse_failed,
+                             "Unsupported dynamic relocations table version (" +
+                                 Twine(DynamicRelocTable->Version) + ")");
 
-    while (!Contents.empty()) {
-      uint32_t DynRelocSize;
-      uint64_t Symbol;
+  Contents = Contents.drop_front(sizeof(*DynamicRelocTable));
+  if (DynamicRelocTable->Size > Contents.size())
+    return createStringError(object_error::parse_failed,
+                             "Indvalid dynamic relocations directory size (" +
+                                 Twine(DynamicRelocTable->Size) + ")");
+  Contents = Contents.take_front(DynamicRelocTable->Size);
 
-      if (DynamicRelocTable->Version == 1) {
-        if (is64()) {
-          if (Contents.size() < sizeof(coff_dynamic_relocation64))
-            return createStringError(
-                object_error::parse_failed,
-                "Unexpected end of dynamic relocations data");
+  while (!Contents.empty()) {
+    uint32_t DynRelocSize;
+    uint64_t Symbol;
 
-          auto DynReloc = reinterpret_cast<const coff_dynamic_relocation64 *>(
-              Contents.data());
-          Symbol = DynReloc->Symbol;
-          DynRelocSize = DynReloc->BaseRelocSize;
-          Contents = Contents.drop_front(sizeof(*DynReloc));
-        } else {
-          if (Contents.size() < sizeof(coff_dynamic_relocation32))
-            return createStringError(
-                object_error::parse_failed,
-                "Unexpected end of dynamic relocations data");
+    if (DynamicRelocTable->Version == 1) {
+      if (is64()) {
+        if (Contents.size() < sizeof(coff_dynamic_relocation64))
+          return createStringError(
+              object_error::parse_failed,
+              "Unexpected end of dynamic relocations data");
 
-          auto DynReloc = reinterpret_cast<const coff_dynamic_relocation32 *>(
-              Contents.data());
-          Symbol = DynReloc->Symbol;
-          DynRelocSize = DynReloc->BaseRelocSize;
-          Contents = Contents.drop_front(sizeof(*DynReloc));
-        }
+        auto DynReloc = reinterpret_cast<const coff_dynamic_relocation64 *>(
+            Contents.data());
+        Symbol = DynReloc->Symbol;
+        DynRelocSize = DynReloc->BaseRelocSize;
+        Contents = Contents.drop_front(sizeof(*DynReloc));
       } else {
-        if (is64()) {
-          if (Contents.size() < sizeof(coff_dynamic_relocation64_v2))
-            return createStringError(
-                object_error::parse_failed,
-                "Unexpected end of dynamic relocations data");
+        if (Contents.size() < sizeof(coff_dynamic_relocation32))
+          return createStringError(
+              object_error::parse_failed,
+              "Unexpected end of dynamic relocations data");
 
-          auto DynReloc =
-              reinterpret_cast<const coff_dynamic_relocation64_v2 *>(
-                  Contents.data());
-          if (DynReloc->HeaderSize < sizeof(*DynReloc) ||
-              Contents.size() < DynReloc->HeaderSize)
-            return createStringError(
-                object_error::parse_failed,
-                "Invalid dynamic relocation header size (" +
-                    Twine(DynReloc->HeaderSize) + ")");
-
-          Symbol = DynReloc->Symbol;
-          DynRelocSize = DynReloc->FixupInfoSize;
-          Contents = Contents.drop_front(DynReloc->HeaderSize);
-        } else {
-          if (Contents.size() < sizeof(coff_dynamic_relocation32_v2))
-            return createStringError(
-                object_error::parse_failed,
-                "Unexpected end of dynamic relocations data");
-
-          auto DynReloc =
-              reinterpret_cast<const coff_dynamic_relocation32_v2 *>(
-                  Contents.data());
-          if (DynReloc->HeaderSize < sizeof(*DynReloc) ||
-              Contents.size() < DynReloc->HeaderSize)
-            return createStringError(
-                object_error::parse_failed,
-                "Invalid dynamic relocation header size (" +
-                    Twine(DynReloc->HeaderSize) + ")");
-
-          Symbol = DynReloc->Symbol;
-          DynRelocSize = DynReloc->FixupInfoSize;
-          Contents = Contents.drop_front(DynReloc->HeaderSize);
-        }
+        auto DynReloc = reinterpret_cast<const coff_dynamic_relocation32 *>(
+            Contents.data());
+        Symbol = DynReloc->Symbol;
+        DynRelocSize = DynReloc->BaseRelocSize;
+        Contents = Contents.drop_front(sizeof(*DynReloc));
       }
-      if (DynRelocSize > Contents.size())
-        return createStringError(object_error::parse_failed,
-                                 "Too large dynamic relocation size (" +
-                                     Twine(DynRelocSize) + ")");
+    } else {
+      if (is64()) {
+        if (Contents.size() < sizeof(coff_dynamic_relocation64_v2))
+          return createStringError(
+              object_error::parse_failed,
+              "Unexpected end of dynamic relocations data");
 
-      ArrayRef<uint8_t> RelocContents = Contents.take_front(DynRelocSize);
-      Contents = Contents.drop_front(DynRelocSize);
+        auto DynReloc = reinterpret_cast<const coff_dynamic_relocation64_v2 *>(
+            Contents.data());
+        if (DynReloc->HeaderSize < sizeof(*DynReloc) ||
+            Contents.size() < DynReloc->HeaderSize)
+          return createStringError(object_error::parse_failed,
+                                   "Invalid dynamic relocation header size (" +
+                                       Twine(DynReloc->HeaderSize) + ")");
 
-      switch (Symbol) {
-      case COFF::IMAGE_DYNAMIC_RELOCATION_ARM64X:
-        while (!RelocContents.empty()) {
-          if (RelocContents.size() < sizeof(coff_base_reloc_block_header))
-            return createStringError(
-                object_error::parse_failed,
-                "Unexpected end of ARM64X relocations data");
+        Symbol = DynReloc->Symbol;
+        DynRelocSize = DynReloc->FixupInfoSize;
+        Contents = Contents.drop_front(DynReloc->HeaderSize);
+      } else {
+        if (Contents.size() < sizeof(coff_dynamic_relocation32_v2))
+          return createStringError(
+              object_error::parse_failed,
+              "Unexpected end of dynamic relocations data");
 
-          auto Header = reinterpret_cast<const coff_base_reloc_block_header *>(
-              RelocContents.data());
-          if (Header->BlockSize <= sizeof(*Header))
-            return createStringError(object_error::parse_failed,
-                                     "ARM64X relocations block size (" +
-                                         Twine(Header->BlockSize) +
-                                         ") is too small");
-          if (Header->BlockSize % sizeof(uint32_t))
-            return createStringError(
-                object_error::parse_failed,
-                "Unaligned ARM64X relocations block size (" +
-                    Twine(Header->BlockSize) + ")");
-          if (Header->BlockSize > RelocContents.size())
-            return createStringError(object_error::parse_failed,
-                                     "ARM64X relocations block size (" +
-                                         Twine(Header->BlockSize) +
-                                         ") is too large");
-          if (Header->PageRVA & 0xfff)
-            return createStringError(object_error::parse_failed,
-                                     "Unaligned ARM64X relocations page RVA (" +
-                                         Twine(Header->PageRVA) + ")");
+        auto DynReloc = reinterpret_cast<const coff_dynamic_relocation32_v2 *>(
+            Contents.data());
+        if (DynReloc->HeaderSize < sizeof(*DynReloc) ||
+            Contents.size() < DynReloc->HeaderSize)
+          return createStringError(object_error::parse_failed,
+                                   "Invalid dynamic relocation header size (" +
+                                       Twine(DynReloc->HeaderSize) + ")");
 
-          ArrayRef<uint16_t> Relocs(
-              reinterpret_cast<const uint16_t *>(RelocContents.data() +
-                                                 sizeof(*Header)),
-              (Header->BlockSize - sizeof(*Header)) / sizeof(uint16_t));
-          RelocContents = RelocContents.drop_front(Header->BlockSize);
+        Symbol = DynReloc->Symbol;
+        DynRelocSize = DynReloc->FixupInfoSize;
+        Contents = Contents.drop_front(DynReloc->HeaderSize);
+      }
+    }
+    if (DynRelocSize > Contents.size())
+      return createStringError(object_error::parse_failed,
+                               "Too large dynamic relocation size (" +
+                                   Twine(DynRelocSize) + ")");
 
-          while (!Relocs.empty()) {
-            if (!Relocs[0]) {
-              if (Relocs.size() != 1)
-                return createStringError(
-                    object_error::parse_failed,
-                    "Unexpected ARM64X relocations terminator");
-              break;
-            }
+    ArrayRef<uint8_t> RelocContents = Contents.take_front(DynRelocSize);
+    Contents = Contents.drop_front(DynRelocSize);
 
-            uint16_t Arg = Relocs[0] >> 14, RelocSize = 1, Size;
-            switch ((Relocs[0] >> 12) & 3) {
-            case COFF::IMAGE_DVRT_ARM64X_FIXUP_TYPE_ZEROFILL:
-              Size = 1 << Arg;
-              break;
-            case COFF::IMAGE_DVRT_ARM64X_FIXUP_TYPE_VALUE:
-              if (!Arg)
-                return createStringError(
-                    object_error::parse_failed,
-                    "Invalid ARM64X relocation value size (0)");
-              Size = 1 << Arg;
-              RelocSize += Size / sizeof(Relocs[0]);
-              break;
-            case COFF::IMAGE_DVRT_ARM64X_FIXUP_TYPE_DELTA:
-              ++RelocSize;
-              Size = sizeof(uint32_t);
-              break;
-            default:
-              return createStringError(object_error::parse_failed,
-                                       "Invalid relocation type");
-            }
-            if (Header->PageRVA) {
-              uint64_t IntPtr;
-              uint16_t Offset = Relocs[0] & 0xfff;
-              if (Offset % Size)
-                return createStringError(object_error::parse_failed,
-                                         "Unaligned ARM64X relocation RVA (" +
-                                             Twine(Header->PageRVA + Offset) +
-                                             ")");
-              if (Error E = getRvaPtr(Header->PageRVA + Offset + Size, IntPtr,
-                                      "ARM64X reloc"))
-                return E;
-            }
-            Relocs = Relocs.drop_front(RelocSize);
+    switch (Symbol) {
+    case COFF::IMAGE_DYNAMIC_RELOCATION_ARM64X:
+      while (!RelocContents.empty()) {
+        if (RelocContents.size() < sizeof(coff_base_reloc_block_header))
+          return createStringError(object_error::parse_failed,
+                                   "Unexpected end of ARM64X relocations data");
+
+        auto Header = reinterpret_cast<const coff_base_reloc_block_header *>(
+            RelocContents.data());
+        if (Header->BlockSize <= sizeof(*Header))
+          return createStringError(object_error::parse_failed,
+                                   "ARM64X relocations block size (" +
+                                       Twine(Header->BlockSize) +
+                                       ") is too small");
+        if (Header->BlockSize % sizeof(uint32_t))
+          return createStringError(object_error::parse_failed,
+                                   "Unaligned ARM64X relocations block size (" +
+                                       Twine(Header->BlockSize) + ")");
+        if (Header->BlockSize > RelocContents.size())
+          return createStringError(object_error::parse_failed,
+                                   "ARM64X relocations block size (" +
+                                       Twine(Header->BlockSize) +
+                                       ") is too large");
+        if (Header->PageRVA & 0xfff)
+          return createStringError(object_error::parse_failed,
+                                   "Unaligned ARM64X relocations page RVA (" +
+                                       Twine(Header->PageRVA) + ")");
+
+        ArrayRef<uint16_t> Relocs(
+            reinterpret_cast<const uint16_t *>(RelocContents.data() +
+                                               sizeof(*Header)),
+            (Header->BlockSize - sizeof(*Header)) / sizeof(uint16_t));
+        RelocContents = RelocContents.drop_front(Header->BlockSize);
+
+        while (!Relocs.empty()) {
+          if (!Relocs[0]) {
+            if (Relocs.size() != 1)
+              return createStringError(
+                  object_error::parse_failed,
+                  "Unexpected ARM64X relocations terminator");
+            break;
           }
+
+          uint16_t Arg = Relocs[0] >> 14, RelocSize = 1, Size;
+          switch ((Relocs[0] >> 12) & 3) {
+          case COFF::IMAGE_DVRT_ARM64X_FIXUP_TYPE_ZEROFILL:
+            Size = 1 << Arg;
+            break;
+          case COFF::IMAGE_DVRT_ARM64X_FIXUP_TYPE_VALUE:
+            if (!Arg)
+              return createStringError(
+                  object_error::parse_failed,
+                  "Invalid ARM64X relocation value size (0)");
+            Size = 1 << Arg;
+            RelocSize += Size / sizeof(Relocs[0]);
+            break;
+          case COFF::IMAGE_DVRT_ARM64X_FIXUP_TYPE_DELTA:
+            ++RelocSize;
+            Size = sizeof(uint32_t);
+            break;
+          default:
+            return createStringError(object_error::parse_failed,
+                                     "Invalid relocation type");
+          }
+          if (RelocSize > Relocs.size())
+            return createStringError(object_error::parse_failed,
+                                     "Unexpected end of ARM64X relocations");
+          if (Header->PageRVA) {
+            uint64_t IntPtr;
+            uint16_t Offset = Relocs[0] & 0xfff;
+            if (Offset % Size)
+              return createStringError(object_error::parse_failed,
+                                       "Unaligned ARM64X relocation RVA (" +
+                                           Twine(Header->PageRVA + Offset) +
+                                           ")");
+            if (Error E = getRvaPtr(Header->PageRVA + Offset + Size, IntPtr,
+                                    "ARM64X reloc"))
+              return E;
+          }
+          Relocs = Relocs.drop_front(RelocSize);
         }
-        break;
       }
+      break;
     }
   }
 
