@@ -52,12 +52,6 @@ public:
     return getDataSlice(getData(), Desc.RVA, Desc.DataSize);
   }
 
-  /// Returns the raw contents of an object given by the MemoryDescriptor. An
-  /// error is returned if the descriptor points outside of the minidump file,
-  /// or if there is no memory64list.
-  Expected<ArrayRef<uint8_t>>
-  getRawData(minidump::MemoryDescriptor_64 Desc) const;
-
   /// Returns the minidump string at the given offset. An error is returned if
   /// we fail to parse the string, or the string is invalid UTF16.
   Expected<std::string> getString(size_t Offset) const;
@@ -111,7 +105,9 @@ public:
 
   /// Returns the header to the memory 64 list stream. An error is returned if
   /// the file does not contain this stream.
-  Expected<minidump::Memory64ListHeader> getMemoryList64Header() const;
+  Expected<minidump::Memory64ListHeader> getMemoryList64Header() const {
+    return getStream<minidump::Memory64ListHeader>(minidump::StreamType::Memory64List);
+  }
 
   Expected<ArrayRef<minidump::MemoryDescriptor_64>> getMemory64List() const;
 
@@ -220,6 +216,7 @@ Expected<ArrayRef<T>> MinidumpFile::getDataSliceAs(ArrayRef<uint8_t> Data,
       getDataSlice(Data, Offset, sizeof(T) * Count);
   if (!Slice)
     return Slice.takeError();
+
   return ArrayRef<T>(reinterpret_cast<const T *>(Slice->data()), Count);
 }
 

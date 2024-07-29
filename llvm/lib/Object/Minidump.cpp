@@ -155,41 +155,14 @@ MinidumpFile::create(MemoryBufferRef Source) {
       new MinidumpFile(Source, Hdr, *ExpectedStreams, std::move(StreamMap)));
 }
 
-Expected<minidump::Memory64ListHeader> MinidumpFile::getMemoryList64Header() const {
-  if (!StreamMap.contains(StreamType::Memory64List))
-    return createError("No memory64 list");
-
-  Expected<llvm::minidump::Memory64ListHeader> MemoryList64 = getStream<Memory64ListHeader>(StreamType::Memory64List);
-  if (!MemoryList64)
-    return MemoryList64.takeError();
-
-  return MemoryList64;
-}
-
 Expected<ArrayRef<MemoryDescriptor_64>> MinidumpFile::getMemory64List() const {
   Expected<minidump::Memory64ListHeader> MemoryList64 = getMemoryList64Header();
   if (!MemoryList64)
     return MemoryList64.takeError();
-  
-  uint64_t StartOffset = StreamMap.at(StreamType::Memory64List) + sizeof(Memory64ListHeader);
-  return getDataSliceAs<minidump::MemoryDescriptor_64>(getData(), StartOffset, sizeof(MemoryDescriptor_64) * MemoryList64->NumberOfMemoryRanges);
-}
 
-Expected<ArrayRef<uint8_t>>
-MinidumpFile::getRawData(minidump::MemoryDescriptor_64 Desc) const {
-  Expected<llvm::minidump::Memory64ListHeader> Memory64Header = getMemoryList64Header();
-  if (!Memory64Header)
-    return Memory64Header.takeError();
-  Expected<ArrayRef<MemoryDescriptor_64>> Memory64List = getMemory64List();
-  if (!Memory64List)
-    return Memory64List.takeError();
+  std::optional<ArrayRef<uint8_t>> Stream = getRawStream(StreamType::Memory64List);
+  if (!Stream)
+    return createError("No such stream");
   
-  uint64_t RVA = Memory64Header->BaseRVA;
-  for (const MemoryDescriptor_64 &InnerDesc : Memory64List.get()) {
-    if (Desc.StartOfMemoryRange == InnerDesc.StartOfMemoryRange) {
-      return getDataSlice(getData(), RVA, Desc.DataSize);
-    }
-  }
-
-  return createEOFError();
+  return getDataSliceAs<minidump::MemoryDescriptor_64>(*Stream, sizeof(Memory64ListHeader), MemoryList64->NumberOfMemoryRanges);
 }

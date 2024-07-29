@@ -523,9 +523,6 @@ Stream::create(const Directory &StreamDesc, const object::MinidumpFile &File) {
       return ExpectedList.takeError();
     std::vector<MemoryDescriptor_64> Ranges;
     for (const MemoryDescriptor_64 &MD : *ExpectedList) {
-      auto ExpectedContent = File.getRawData(MD);
-      if (!ExpectedContent)
-        return ExpectedContent.takeError();
       Ranges.push_back(MD);
     }
     return std::make_unique<Memory64ListStream>(std::move(Ranges));
