@@ -166,6 +166,10 @@ Bug Fixes to C++ Support
 - Fix a crash when checking destructor reference with an invalid initializer. (#GH97230)
 - Clang now correctly parses potentially declarative nested-name-specifiers in pointer-to-member declarators.
 
+- Emit an error when the same identifier appears with both internal and
+  external linkage in a translation unit Fixes:
+  (`#54215 <https://github.com/llvm/llvm-project/issues/54215>`_)
+
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
