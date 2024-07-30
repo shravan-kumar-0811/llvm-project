@@ -152,6 +152,8 @@ Bug Fixes in This Version
 - Fixed the definition of ``ATOMIC_FLAG_INIT`` in ``<stdatomic.h>`` so it can
   be used in C++.
 
+- `__builtin_launder` no longer requires a pointer to a complete type. (#GH90949)
+
 Bug Fixes to Compiler Builtins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
