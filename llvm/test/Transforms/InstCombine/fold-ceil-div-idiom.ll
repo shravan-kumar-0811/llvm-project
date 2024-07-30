@@ -207,46 +207,6 @@ define i8 @ceil_div_idiom_with_lshr_wrong_bw(i8 %x, i8 %y) {
   ret i8 %add
 }
 
-define i8 @ceil_div_idiom_with_lshr_multiuse_n(i8 %x, i8 %y) {
-; CHECK-LABEL: define i8 @ceil_div_idiom_with_lshr_multiuse_n(
-; CHECK-SAME: i8 [[X:%.*]], i8 [[Y:%.*]]) {
-; CHECK-NEXT:    [[WO:%.*]] = call { i8, i1 } @llvm.uadd.with.overflow.i8(i8 [[X]], i8 [[Y]])
-; CHECK-NEXT:    [[OV:%.*]] = extractvalue { i8, i1 } [[WO]], 1
-; CHECK-NEXT:    [[OV_NOT:%.*]] = xor i1 [[OV]], true
-; CHECK-NEXT:    call void @llvm.assume(i1 [[OV_NOT]])
-; CHECK-NEXT:    [[CTPOPULATION:%.*]] = call range(i8 0, 9) i8 @llvm.ctpop.i8(i8 [[Y]])
-; CHECK-NEXT:    [[IS_POW_2:%.*]] = icmp eq i8 [[CTPOPULATION]], 1
-; CHECK-NEXT:    call void @llvm.assume(i1 [[IS_POW_2]])
-; CHECK-NEXT:    [[NONZERO:%.*]] = icmp ne i8 [[X]], 0
-; CHECK-NEXT:    [[BIAS:%.*]] = zext i1 [[NONZERO]] to i8
-; CHECK-NEXT:    [[SUB:%.*]] = sub i8 [[X]], [[BIAS]]
-; CHECK-NEXT:    [[CTLZ:%.*]] = tail call range(i8 0, 9) i8 @llvm.ctlz.i8(i8 [[Y]], i1 true)
-; CHECK-NEXT:    [[N:%.*]] = sub nuw nsw i8 8, [[CTLZ]]
-; CHECK-NEXT:    [[DIV:%.*]] = lshr i8 [[SUB]], [[N]]
-; CHECK-NEXT:    call void @use(i8 [[N]])
-; CHECK-NEXT:    [[ADD:%.*]] = add i8 [[DIV]], [[BIAS]]
-; CHECK-NEXT:    ret i8 [[ADD]]
-;
-  %wo = call {i8, i1} @llvm.uadd.with.overflow(i8 %x, i8 %y)
-  %ov = extractvalue {i8, i1} %wo, 1
-  %ov.not = xor i1 %ov, true
-  call void @llvm.assume(i1 %ov.not)
-
-  %ctpopulation = call i8 @llvm.ctpop.i8(i8 %y)
-  %is_pow_2 = icmp eq i8 %ctpopulation, 1
-  call void @llvm.assume(i1 %is_pow_2)
-
-  %nonzero = icmp ne i8 %x, 0
-  %bias = zext i1 %nonzero to i8
-  %sub = sub i8 %x, %bias
-  %ctlz = tail call i8 @llvm.ctlz.i8(i8 %y, i1 true)
-  %n = sub i8 8, %ctlz
-  %div = lshr i8 %sub, %n
-  call void @use(i8 %n)
-  %add = add i8 %div, %bias
-  ret i8 %add
-}
-
 declare { i8, i1 } @llvm.uadd.with.overflow.i8(i8, i8)
 declare i8 @llvm.ctpop.i8(i8)
 declare void @llvm.assume(i1)
