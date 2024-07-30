@@ -288,6 +288,10 @@ class StructurizeCFG {
   void findUndefBlocks(BasicBlock *PHIBlock,
                        const SmallSet<BasicBlock *, 8> &Incomings,
                        SmallVector<BasicBlock *> &UndefBlks) const;
+
+  bool isCompatible(const BBValueVector &IncomingA,
+                    const BBValueVector &IncomingB, BBValueVector &Merged);
+
   void setPhiValues();
 
   void simplifyAffectedPhis();
@@ -710,10 +714,107 @@ void StructurizeCFG::findUndefBlocks(
   }
 }
 
+// Return true if two PHI nodes have compatible incoming values (for each
+// incoming block, either they have the same incoming value or only one PHI
+// node has a incoming value). And return the union of the incoming values
+// through \p Merged.
+bool StructurizeCFG::isCompatible(const BBValueVector &IncomingA,
+                                  const BBValueVector &IncomingB,
+                                  BBValueVector &Merged) {
+  MapVector<BasicBlock *, Value *> UnionSet;
+  for (auto &V : IncomingA)
+    UnionSet.insert(V);
+
+  for (auto &V : IncomingB) {
+    if (UnionSet.contains(V.first) && UnionSet[V.first] != V.second)
+      return false;
+    // Either IncomingA does not have this value or IncomingA has the same
+    // value.
+    UnionSet.insert(V);
+  }
+
+  Merged.clear();
+  Merged.append(UnionSet.takeVector());
+  return true;
+}
+
 /// Add the real PHI value as soon as everything is set up
 void StructurizeCFG::setPhiValues() {
   SmallVector<PHINode *, 8> InsertedPhis;
   SSAUpdater Updater(&InsertedPhis);
+
+  DenseMap<PHINode *, std::shared_ptr<BBValueVector>> MergedPHIMap;
+  // Find out phi nodes that have compatible incoming values (either they have
+  // the same value for the same block or one have undefined value, see example
+  // below). We only search again the phi's that are referenced by another phi,
+  // which is the cases we care.
+  //
+  // For example (-- means no incoming value):
+  // phi1 : BB1:phi2   BB2:v  BB3:--
+  // phi2:  BB1:--     BB2:v  BB3:w
+  //
+  // Then we can merge these incoming values and let phi1, phi2 use the
+  // same set of incoming values:
+  //
+  // phi1&phi2: BB1:phi2  BB2:v  BB3:w
+  //
+  // By doing this, phi1 and phi2 would share more intermediate phi nodes.
+  // This would help reducing number of phi nodes during SSA reconstruction and
+  // get less COPY instructions finally.
+  //
+  // This should be correct, because if a phi node does not have incoming
+  // value from certain block, this means the block is not the predecessor
+  // of the parent block, so we actually don't care its incoming value.
+  for (const auto &AddedPhi : AddedPhis) {
+    BasicBlock *To = AddedPhi.first;
+    if (!DeletedPhis.contains(To))
+      continue;
+    PhiMap &OldPhi = DeletedPhis[To];
+    for (const auto &PI : OldPhi) {
+      SmallVector<PHINode *> IncomingPHIs;
+      PHINode *Phi = PI.first;
+      for (const auto &VI : PI.second) {
+        // First, for each phi, check whether it has incoming value which is
+        // another phi.
+        if (PHINode *P = dyn_cast<PHINode>(VI.second))
+          IncomingPHIs.push_back(P);
+      }
+
+      auto GetUpdatedIncoming = [&](PHINode *Phi) {
+        return MergedPHIMap.contains(Phi) ? *MergedPHIMap[Phi]
+                                          : DeletedPhis[Phi->getParent()][Phi];
+      };
+      for (auto *OtherPhi : IncomingPHIs) {
+        // Skip phis that are not unrelated to the phi reconstruction for now.
+        if (!DeletedPhis.contains(OtherPhi->getParent()))
+          continue;
+
+        // Skip phis that were already merged with others.
+        if (MergedPHIMap.contains(Phi) && MergedPHIMap.contains(OtherPhi))
+          continue;
+
+        std::shared_ptr<BBValueVector> MergedIncomings;
+        if (MergedPHIMap.contains(Phi))
+          MergedIncomings = MergedPHIMap[Phi];
+        else if (MergedPHIMap.contains(OtherPhi))
+          MergedIncomings = MergedPHIMap[OtherPhi];
+        else
+          MergedIncomings = std::make_shared<BBValueVector>();
+
+        const auto &Incoming = GetUpdatedIncoming(Phi);
+        const auto &OtherIncoming = GetUpdatedIncoming(OtherPhi);
+        if (isCompatible(Incoming, OtherIncoming, *MergedIncomings)) {
+          // union the incoming values
+          if (!MergedPHIMap.contains(Phi))
+            MergedPHIMap.insert(std::pair(Phi, MergedIncomings));
+
+          if (!MergedPHIMap.contains(OtherPhi))
+            MergedPHIMap.insert(std::pair(OtherPhi, MergedIncomings));
+        }
+      }
+    }
+  }
+
   for (const auto &AddedPhi : AddedPhis) {
     BasicBlock *To = AddedPhi.first;
     const BBVector &From = AddedPhi.second;
@@ -731,18 +832,25 @@ void StructurizeCFG::setPhiValues() {
       Updater.AddAvailableValue(&Func->getEntryBlock(), Undef);
       Updater.AddAvailableValue(To, Undef);
 
-      SmallSet<BasicBlock *, 8> Incomings;
       SmallVector<BasicBlock *> ConstantPreds;
-      for (const auto &VI : PI.second) {
-        Incomings.insert(VI.first);
+
+      if (!CachedUndefs) {
+        SmallSet<BasicBlock *, 8> Incomings;
+        for (const auto &VI : PI.second)
+          Incomings.insert(VI.first);
+
+        // Get the undefined blocks shared for all the phi nodes.
+        findUndefBlocks(To, Incomings, UndefBlks);
+        CachedUndefs = true;
+      }
+
+      // Use updated incoming vector.
+      const auto &IncomingMap =
+          MergedPHIMap.contains(Phi) ? *MergedPHIMap[Phi] : PI.second;
+      for (const auto &VI : IncomingMap) {
         Updater.AddAvailableValue(VI.first, VI.second);
         if (isa<Constant>(VI.second))
           ConstantPreds.push_back(VI.first);
-      }
-
-      if (!CachedUndefs) {
-        findUndefBlocks(To, Incomings, UndefBlks);
-        CachedUndefs = true;
       }
 
       for (auto UB : UndefBlks) {
@@ -753,6 +861,10 @@ void StructurizeCFG::setPhiValues() {
         if (any_of(ConstantPreds,
                    [&](BasicBlock *CP) { return DT->dominates(CP, UB); }))
           continue;
+        // Maybe already get a value through sharing with other phi nodes.
+        if (Updater.HasValueForBlock(UB))
+          continue;
+
         Updater.AddAvailableValue(UB, Undef);
       }
 
