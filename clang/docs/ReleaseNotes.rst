@@ -43,6 +43,9 @@ C/C++ Language Potentially Breaking Changes
 C++ Specific Potentially Breaking Changes
 -----------------------------------------
 
+- Clang now emits errors for coroutine `await_suspend` functions whose return type is not
+  one of `void`, `bool`, or `std::coroutine_handle`.
+
 ABI Changes in This Version
 ---------------------------
 
