@@ -1288,11 +1288,10 @@ static Value *foldCeilIdioms(BinaryOperator &I, InstCombinerImpl &IC) {
       return true;
 
     Value *N;
-    const APInt *C;
     if (match(Div, m_LShr(m_Value(DivOp0), m_Value(N))) &&
-        match(N, m_Sub(m_APInt(C), m_Intrinsic<Intrinsic::ctlz>(m_Value(DivOp1),
-                                                                m_Zero()))) &&
-        (*C == Div->getType()->getScalarSizeInBits() - 1) &&
+        match(N,
+              m_Sub(m_SpecificInt(Div->getType()->getScalarSizeInBits() - 1),
+                    m_Intrinsic<Intrinsic::ctlz>(m_Value(DivOp1), m_Zero()))) &&
         IC.isKnownToBeAPowerOfTwo(DivOp1, /*OrZero*/ false, 0, Div))
       return true;
 
