@@ -14981,11 +14981,19 @@ static SDValue detectUSatUPattern(SDValue In, EVT VT) {
          "Unexpected types for truncate operation");
 
   APInt C1, C2;
-  if (SDValue UMin = matchMinMax(In, ISD::UMIN, C2, /*Signed*/ false))
+  if (SDValue UMin = matchMinMax(In, ISD::UMIN, C2, /*Signed*/ false)) {
     // C2 should be equal to UINT32_MAX / UINT16_MAX / UINT8_MAX according
     // the element size of the destination type.
-    if (C2.isMask(VT.getScalarSizeInBits()))
-      return UMin;
+    if (C2.isMask(VT.getScalarSizeInBits())) {
+      // (truncate (umin (smax (x, C1), C2)))
+      // where C1 == 0, C2 is unsigned max of destination type.
+      if (SDValue SMax = matchMinMax(UMin, ISD::SMAX, C1, /*Signed*/ false)) {
+        if (C1.isZero())
+          return SMax;
+      } else
+        return UMin;
+    }
+  }
 
   return SDValue();
 }
@@ -15023,27 +15031,24 @@ static SDValue detectSSatSPattern(SDValue In, EVT VT) {
 }
 
 /// Detect patterns of truncation with unsigned saturation:
-///
-/// (truncate (smin (smax (x, C1), C2)) to dest_type),
-/// where C1 >= 0 and C2 is unsigned max of destination type.
-///
-/// (truncate (smax (smin (x, C2), C1)) to dest_type)
-/// where C1 >= 0, C2 is unsigned max of destination type and C1 <= C2.
-///
 static SDValue detectSSatUPattern(SDValue In, EVT VT, SelectionDAG &DAG,
                                   const SDLoc &DL) {
   EVT InVT = In.getValueType();
-
+  
   // Saturation with truncation. We truncate from InVT to VT.
   assert(InVT.getScalarSizeInBits() > VT.getScalarSizeInBits() &&
          "Unexpected types for truncate operation");
 
   APInt C1, C2;
+  // (truncate (smin (smax (x, C1), C2)) to dest_type),
+  // where C1 >= 0 and C2 is unsigned max of destination type.
   if (SDValue SMin = matchMinMax(In, ISD::SMIN, C2, /*Signed*/ false))
     if (matchMinMax(SMin, ISD::SMAX, C1, /*Signed*/ false))
       if (C1.isNonNegative() && C2.isMask(VT.getScalarSizeInBits()))
         return SMin;
 
+  // (truncate (smax (smin (x, C2), C1)) to dest_type)
+  // where C1 >= 0, C2 is unsigned max of destination type and C1 <= C2.
   if (SDValue SMax = matchMinMax(In, ISD::SMAX, C1, /*Signed*/ false))
     if (SDValue SMin = matchMinMax(SMax, ISD::SMIN, C2, /*Signed*/ false))
       if (C1.isNonNegative() && C2.isMask(VT.getScalarSizeInBits()) &&
@@ -15058,21 +15063,18 @@ static SDValue foldToSaturated(SDNode *N, EVT &VT, SDValue &Src, EVT &SrcVT,
                                SelectionDAG &DAG) {
   if (Src.getOpcode() == ISD::SMIN || Src.getOpcode() == ISD::SMAX) {
     if (TLI.isOperationLegalOrCustom(ISD::TRUNCATE_SSAT_S, SrcVT) &&
-        TLI.isTypeDesirableForOp(ISD::TRUNCATE_SSAT_S, VT)) {
+        TLI.isTypeDesirableForOp(ISD::TRUNCATE_SSAT_S, VT))
       if (SDValue SSatVal = detectSSatSPattern(Src, VT))
         return DAG.getNode(ISD::TRUNCATE_SSAT_S, DL, VT, SSatVal);
-    } else if (TLI.isOperationLegalOrCustom(ISD::TRUNCATE_SSAT_U, SrcVT) &&
-               TLI.isTypeDesirableForOp(ISD::TRUNCATE_SSAT_U, VT)) {
+    if (TLI.isOperationLegalOrCustom(ISD::TRUNCATE_SSAT_U, SrcVT) &&
+        TLI.isTypeDesirableForOp(ISD::TRUNCATE_SSAT_U, VT))
       if (SDValue SSatVal = detectSSatUPattern(Src, VT, DAG, DL))
-        return DAG.getNode(ISD::TRUNCATE_SSAT_S, DL, VT, SSatVal);
-    }
+        return DAG.getNode(ISD::TRUNCATE_SSAT_U, DL, VT, SSatVal);
   } else if (Src.getOpcode() == ISD::UMIN) {
     if (TLI.isOperationLegalOrCustom(ISD::TRUNCATE_USAT_U, SrcVT) &&
-        TLI.isTypeDesirableForOp(ISD::TRUNCATE_USAT_U, VT)) {
-      if (SDValue USatVal = detectUSatUPattern(Src, VT)) {
+        TLI.isTypeDesirableForOp(ISD::TRUNCATE_USAT_U, VT))
+      if (SDValue USatVal = detectUSatUPattern(Src, VT))
         return DAG.getNode(ISD::TRUNCATE_USAT_U, DL, VT, USatVal);
-      }
-    }
   }
 
   return SDValue();
