@@ -1253,13 +1253,13 @@ static Instruction *foldToUnsignedSaturatedAdd(BinaryOperator &I) {
 static Value *foldCeilIdioms(BinaryOperator &I, InstCombinerImpl &IC) {
   assert(I.getOpcode() == Instruction::Add && "Expecting add instruction.");
   Value *A, *B;
-  ICmpInst::Predicate Pred;
   auto &ICB = IC.Builder;
 
   // Fold the log2 ceil idiom:
   // zext (ctpop(A) >u/!= 1) + (ctlz (A, true) ^ (BW - 1))
   //      -> BW - ctlz (A - 1, false)
   const APInt *XorC;
+  ICmpInst::Predicate Pred;
   if (match(&I,
             m_c_Add(
                 m_ZExt(m_ICmp(Pred, m_Intrinsic<Intrinsic::ctpop>(m_Value(A)),
@@ -1303,8 +1303,9 @@ static Value *foldCeilIdioms(BinaryOperator &I, InstCombinerImpl &IC) {
   if (match(&I, m_c_Add(m_Instruction(Div), m_Value(Bias))) &&
       MatchDivision(Div, Sub, B) &&
       match(Sub, m_Sub(m_Value(A), m_Value(Bias))) &&
-      match(Bias, m_ZExt(m_ICmp(Pred, m_Specific(A), m_ZeroInt()))) &&
-      Pred == ICmpInst::ICMP_NE && Bias->hasNUses(2)) {
+      match(Bias, m_ZExt(m_SpecificICmp(ICmpInst::ICMP_NE, m_Specific(A),
+                                        m_ZeroInt()))) &&
+      Bias->hasNUses(2)) {
     WithCache<const Value *> LHSCache(A), RHSCache(B);
     auto OR = IC.computeOverflowForUnsignedAdd(LHSCache, RHSCache, &I);
     if (OR == OverflowResult::NeverOverflows) {
