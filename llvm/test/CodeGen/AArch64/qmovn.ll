@@ -154,9 +154,8 @@ entry:
 define <4 x i32> @signed_minmax_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: signed_minmax_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    sqxtn v1.2s, v1.2d
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    mov v0.d[1], v1.d[0]
+; CHECK-NEXT:    sqxtn2 v0.4s, v1.2d
 ; CHECK-NEXT:    ret
 entry:
   %min = call <2 x i64> @llvm.smin.v2i64(<2 x i64> %y, <2 x i64> <i64 2147483647, i64 2147483647>)
@@ -199,9 +198,8 @@ entry:
 define <4 x i32> @signed_maxmin_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: signed_maxmin_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    sqxtn v1.2s, v1.2d
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    mov v0.d[1], v1.d[0]
+; CHECK-NEXT:    sqxtn2 v0.4s, v1.2d
 ; CHECK-NEXT:    ret
 entry:
   %max = call <2 x i64> @llvm.smax.v2i64(<2 x i64> %y, <2 x i64> <i64 -2147483648, i64 -2147483648>)
@@ -242,9 +240,8 @@ entry:
 define <4 x i32> @unsigned_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: unsigned_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    uqxtn v1.2s, v1.2d
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    mov v0.d[1], v1.d[0]
+; CHECK-NEXT:    uqxtn2 v0.4s, v1.2d
 ; CHECK-NEXT:    ret
 entry:
   %min = call <2 x i64> @llvm.umin.v2i64(<2 x i64> %y, <2 x i64> <i64 4294967295, i64 4294967295>)
@@ -255,14 +252,10 @@ entry:
 
 ; Test the (concat_vectors (X), (trunc(umin(smax(Y, 0), 2^n))))) pattern.
 
-; TODO: %min is a value between 0 and 255 and is within the unsigned range of i8.
-; So it is saturated truncate. we have an optimization opportunity.
 define <16 x i8> @us_maxmin_v8i16_to_v16i8(<8 x i8> %x, <8 x i16> %y) {
 ; CHECK-LABEL: us_maxmin_v8i16_to_v16i8:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    movi v2.2d, #0000000000000000
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    smax v1.8h, v1.8h, v2.8h
 ; CHECK-NEXT:    uqxtn2 v0.16b, v1.8h
 ; CHECK-NEXT:    ret
 entry:
@@ -273,14 +266,10 @@ entry:
   ret <16 x i8> %shuffle
 }
 
-; TODO: %min is a value between 0 and 65535 and is within the unsigned range of i16.
-; So it is saturated. we have an optimization opportunity.
 define <8 x i16> @us_maxmin_v4i32_to_v8i16(<4 x i16> %x, <4 x i32> %y) {
 ; CHECK-LABEL: us_maxmin_v4i32_to_v8i16:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    movi v2.2d, #0000000000000000
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    smax v1.4s, v1.4s, v2.4s
 ; CHECK-NEXT:    uqxtn2 v0.8h, v1.4s
 ; CHECK-NEXT:    ret
 entry:
@@ -294,11 +283,8 @@ entry:
 define <4 x i32> @us_maxmin_v2i64_to_v4i32(<2 x i32> %x, <2 x i64> %y) {
 ; CHECK-LABEL: us_maxmin_v2i64_to_v4i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    cmgt v2.2d, v1.2d, #0
 ; CHECK-NEXT:    // kill: def $d0 killed $d0 def $q0
-; CHECK-NEXT:    and v1.16b, v1.16b, v2.16b
-; CHECK-NEXT:    uqxtn v1.2s, v1.2d
-; CHECK-NEXT:    mov v0.d[1], v1.d[0]
+; CHECK-NEXT:    uqxtn2 v0.4s, v1.2d
 ; CHECK-NEXT:    ret
 entry:
   %max = call <2 x i64> @llvm.smax.v2i64(<2 x i64> %y, <2 x i64> zeroinitializer)
