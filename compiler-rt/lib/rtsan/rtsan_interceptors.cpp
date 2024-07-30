@@ -39,16 +39,14 @@
 
 using namespace __sanitizer;
 
-using __rtsan::rtsan_initialized;
-
 namespace {
 struct DlsymAlloc : public DlSymAllocator<DlsymAlloc> {
-  static bool UseImpl() { return !rtsan_initialized; }
+  static bool UseImpl() { return !__rtsan_is_initialized(); }
 };
 } // namespace
 
 void ExpectNotRealtime(const char *intercepted_function_name) {
-  if (!rtsan_initialized)
+  if (!__rtsan_is_initialized())
     __rtsan_init();
 
   __rtsan::GetContextForThisThread().ExpectNotRealtime(
