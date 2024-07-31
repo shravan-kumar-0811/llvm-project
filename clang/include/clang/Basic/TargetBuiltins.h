@@ -199,7 +199,7 @@ namespace clang {
       Float32,
       Float64,
       BFloat16,
-      Fpm8
+      MFloat8
     };
 
     NeonTypeFlags(unsigned F) : Flags(F) {}

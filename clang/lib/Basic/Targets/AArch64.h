@@ -47,7 +47,7 @@ class LLVM_LIBRARY_VISIBILITY AArch64TargetInfo : public TargetInfo {
   bool HasLS64 = false;
   bool HasRandGen = false;
   bool HasMatMul = false;
-  bool HasFpm8 = false;
+  bool HasMFloat8 = false;
   bool HasBFloat16 = false;
   bool HasSVE2 = false;
   bool HasSVE2AES = false;
@@ -170,7 +170,7 @@ public:
 
   bool hasBFloat16Type() const override;
 
-  bool hasFpm8Type() const override;
+  bool hasMFloat8Type() const override;
 
   CallingConvCheckResult checkCallingConvention(CallingConv CC) const override;
 

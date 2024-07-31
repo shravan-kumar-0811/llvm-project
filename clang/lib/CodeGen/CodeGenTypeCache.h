@@ -39,7 +39,7 @@ struct CodeGenTypeCache {
   llvm::Type *HalfTy, *BFloatTy, *FloatTy, *DoubleTy;
 
   /// fpm8 from FP8 is an alias for 8bits data
-  llvm::IntegerType *Fpm8Ty;
+  llvm::IntegerType *MFloat8Ty;
 
   /// int
   llvm::IntegerType *IntTy;

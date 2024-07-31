@@ -868,7 +868,7 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
 
   case BuiltinType::UChar:
   case BuiltinType::Char_U:
-  case BuiltinType::Fpm8:
+  case BuiltinType::MFloat8:
     Encoding = llvm::dwarf::DW_ATE_unsigned_char;
     break;
   case BuiltinType::Char_S:

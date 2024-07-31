@@ -729,7 +729,7 @@ bool AArch64TargetInfo::hasFeature(StringRef Feature) const {
       .Case("sha3", HasSHA3)
       .Cases("aes", "pmull", HasAES)
       .Cases("fp16", "fullfp16", HasFullFP16)
-      .Case("fp8", HasFpm8)
+      .Case("fp8", HasMFloat8)
       .Case("dit", HasDIT)
       .Case("dpb", HasCCPP)
       .Case("dpb2", HasCCDP)
@@ -942,7 +942,7 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasSM4 = true;
     }
     if (Feature == "+fp8") {
-      HasFpm8 = true;
+      HasMFloat8 = true;
     }
     if (Feature == "+strict-align")
       HasUnalignedAccess = false;
@@ -1216,7 +1216,7 @@ bool AArch64TargetInfo::hasBFloat16Type() const {
   return true;
 }
 
-bool AArch64TargetInfo::hasFpm8Type() const { return true; }
+bool AArch64TargetInfo::hasMFloat8Type() const { return true; }
 
 TargetInfo::CallingConvCheckResult
 AArch64TargetInfo::checkCallingConvention(CallingConv CC) const {

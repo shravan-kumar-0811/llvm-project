@@ -223,7 +223,7 @@ FLOATING_TYPE(Ibm128, Ibm128Ty)
 
 
 // '__fpm8'
-UNSIGNED_TYPE(Fpm8, Fpm8Ty)
+UNSIGNED_TYPE(MFloat8, MFloat8Ty)
 
 //===- Language-specific types --------------------------------------------===//
 
