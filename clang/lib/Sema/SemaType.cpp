@@ -7929,6 +7929,15 @@ static bool handleFunctionTypeAttr(TypeProcessingState &state, ParsedAttr &attr,
     if (attr.getNumArgs() &&
         !S.checkUInt32Argument(attr, attr.getArgAsExpr(0), ABIVLen))
       return false;
+    if (ABIVLen < 128 || ABIVLen > 65536) {
+      S.Diag(attr.getLoc(), diag::err_argument_invalid_range)
+          << ABIVLen << 128 << 65536;
+      return false;
+    }
+    if (!llvm::isPowerOf2_64(ABIVLen)) {
+      S.Diag(attr.getLoc(), diag::err_argument_not_power_of_2);
+      return false;
+    }
 
     auto EI = unwrapped.get()->getExtInfo().withLog2RISCVABIVLen(
         llvm::Log2_64(ABIVLen));

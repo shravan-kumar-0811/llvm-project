@@ -4774,6 +4774,16 @@ static void handleCallConvAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
     if (AL.getNumArgs() &&
         !S.checkUInt32Argument(AL, AL.getArgAsExpr(0), VectorLength))
       return;
+    if (VectorLength < 128 || VectorLength > 65536) {
+      S.Diag(AL.getLoc(), diag::err_argument_invalid_range)
+          << VectorLength << 128 << 65536;
+      return;
+    }
+    if (!llvm::isPowerOf2_64(VectorLength)) {
+      S.Diag(AL.getLoc(), diag::err_argument_not_power_of_2);
+      return;
+    }
+
     D->addAttr(::new (S.Context) RISCVVLSCCAttr(S.Context, AL, VectorLength));
     return;
   }

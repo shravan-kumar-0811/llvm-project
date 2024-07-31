@@ -19,7 +19,8 @@ void test_no_attribute2(int); // expected-note {{previous declaration is here}}
 __attribute__((riscv_vls_cc)) int var_vls; // expected-warning {{'riscv_vls_cc' only applies to function types; type here is 'int'}}
 
 __attribute__((riscv_vls_cc)) void func_vls();
-__attribute__((riscv_vls_cc(1))) void func_vls_invalid();
+__attribute__((riscv_vls_cc(1))) void func_vls_invalid(); // expected-error {{argument value 1 is outside the valid range [128, 65536]}} expected-warning {{'riscv_vls_cc' only applies to function types; type here is 'void (void)__attribute__((riscv_vls_cc))'}}
+__attribute__((riscv_vls_cc(129))) void func_vls_invalid(); // expected-error {{argument should be a power of 2}} expected-warning {{'riscv_vls_cc' only applies to function types; type here is 'void (void)__attribute__((riscv_vls_cc))'}}
 
 void test_vls_no_attribute(int); // expected-note {{previous declaration is here}}
 void __attribute__((riscv_vls_cc)) test_vls_no_attribute(int x) { } // expected-error {{function declared 'riscv_vls_cc' here was previously declared without calling convention}}
@@ -27,7 +28,8 @@ void __attribute__((riscv_vls_cc)) test_vls_no_attribute(int x) { } // expected-
 [[riscv::vls_cc]] int var2_vls; // expected-warning {{'vls_cc' only applies to function types; type here is 'int'}}
 
 [[riscv::vls_cc]] void func2_vls();
-[[riscv::vls_cc(1)]] void func_vls_invalid2();
+[[riscv::vls_cc(1)]] void func_vls_invalid2(); // expected-error {{argument value 1 is outside the valid range [128, 65536]}} expected-warning {{'vls_cc' only applies to function types; type here is 'void (void)'}}
+[[riscv::vls_cc(129)]] void func_vls_invalid2(); // expected-error {{argument should be a power of 2}} expected-warning {{'vls_cc' only applies to function types; type here is 'void (void)'}}
 
 void test_vls_no_attribute2(int); // expected-note {{previous declaration is here}}
 [[riscv::vls_cc]] void test_vls_no_attribute2(int x) { } // expected-error {{function declared 'riscv_vls_cc' here was previously declared without calling convention}}

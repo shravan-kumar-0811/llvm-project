@@ -41,6 +41,6 @@ void test_vls_no_cc(__attribute__((vector_size(16))) int arg) {}
 // CHECK-LLVM-ABI-VLEN: define dso_local riscv_vls_cc void @_Z25test_vls_default_abi_vlenDv4_i(<vscale x 2 x i32> noundef %arg.coerce)
 [[riscv::vls_cc]] void test_vls_default_abi_vlen(__attribute__((vector_size(16))) int arg) {}
 
-// CHECK-LLVM: define dso_local riscv_vls_cc void @_Z20test_vls_64_abi_vlenDv4_i(<vscale x 4 x i32> noundef %arg.coerce)
-// CHECK-LLVM-ABI-VLEN: define dso_local riscv_vls_cc void @_Z20test_vls_64_abi_vlenDv4_i(<vscale x 4 x i32> noundef %arg.coerce)
-[[riscv::vls_cc(64)]] void test_vls_64_abi_vlen(__attribute__((vector_size(16))) int arg) {}
+// CHECK-LLVM: define dso_local riscv_vls_cc void @_Z21test_vls_256_abi_vlenDv4_i(<vscale x 1 x i32> noundef %arg.coerce)
+// CHECK-LLVM-ABI-VLEN: define dso_local riscv_vls_cc void @_Z21test_vls_256_abi_vlenDv4_i(<vscale x 1 x i32> noundef %arg.coerce)
+[[riscv::vls_cc(256)]] void test_vls_256_abi_vlen(__attribute__((vector_size(16))) int arg) {}
