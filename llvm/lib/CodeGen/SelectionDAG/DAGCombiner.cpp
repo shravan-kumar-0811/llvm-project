@@ -14980,19 +14980,12 @@ static SDValue detectUSatUPattern(SDValue In, EVT VT) {
   assert(InVT.getScalarSizeInBits() > VT.getScalarSizeInBits() &&
          "Unexpected types for truncate operation");
 
-  APInt C1, C2;
-  if (SDValue UMin = matchMinMax(In, ISD::UMIN, C2, /*Signed*/ false)) {
+  APInt Max;
+  if (SDValue UMin = matchMinMax(In, ISD::UMIN, Max, /*Signed*/ false)) {
     // C2 should be equal to UINT32_MAX / UINT16_MAX / UINT8_MAX according
     // the element size of the destination type.
-    if (C2.isMask(VT.getScalarSizeInBits())) {
-      // (truncate (umin (smax (x, C1), C2)))
-      // where C1 == 0, C2 is unsigned max of destination type.
-      if (SDValue SMax = matchMinMax(UMin, ISD::SMAX, C1, /*Signed*/ false)) {
-        if (C1.isZero())
-          return SMax;
-      } else
-        return UMin;
-    }
+    if (Max.isMask(VT.getScalarSizeInBits()))
+      return UMin;
   }
 
   return SDValue();
@@ -15034,26 +15027,44 @@ static SDValue detectSSatSPattern(SDValue In, EVT VT) {
 static SDValue detectSSatUPattern(SDValue In, EVT VT, SelectionDAG &DAG,
                                   const SDLoc &DL) {
   EVT InVT = In.getValueType();
-  
+
   // Saturation with truncation. We truncate from InVT to VT.
   assert(InVT.getScalarSizeInBits() > VT.getScalarSizeInBits() &&
          "Unexpected types for truncate operation");
 
-  APInt C1, C2;
-  // (truncate (smin (smax (x, C1), C2)) to dest_type),
-  // where C1 >= 0 and C2 is unsigned max of destination type.
-  if (SDValue SMin = matchMinMax(In, ISD::SMIN, C2, /*Signed*/ false))
-    if (matchMinMax(SMin, ISD::SMAX, C1, /*Signed*/ false))
-      if (C1.isNonNegative() && C2.isMask(VT.getScalarSizeInBits()))
-        return SMin;
+  APInt Min, Max;
+  SDValue SMax, SMin, UMin, First;
+  // (truncate (smin (smax (x, Min), Max)) to dest_type),
+  // (truncate (smax (smin (x, Max), Min)) to dest_type)
+  // (truncate (umin (smax (x, Min), Max)) to dest_type)
+  // where Min >= 0, Max is unsigned max of destination type and Min <= Max.
+  if (First = SMax = matchMinMax(In, ISD::SMAX, Min, /*Signed*/ false))
+    SMin = matchMinMax(First, ISD::SMIN, Max, /*Signed*/ false);
+  else if (First = SMin = matchMinMax(In, ISD::SMIN, Max, /*Signed*/ false))
+    SMax = matchMinMax(First, ISD::SMAX, Min, /*Signed*/ false);
+  else if (First = UMin = matchMinMax(In, ISD::UMIN, Max, /*Signed*/ false))
+    SMax = matchMinMax(UMin, ISD::SMAX, Min, /*Signed*/ false);
 
-  // (truncate (smax (smin (x, C2), C1)) to dest_type)
-  // where C1 >= 0, C2 is unsigned max of destination type and C1 <= C2.
-  if (SDValue SMax = matchMinMax(In, ISD::SMAX, C1, /*Signed*/ false))
-    if (SDValue SMin = matchMinMax(SMax, ISD::SMIN, C2, /*Signed*/ false))
-      if (C1.isNonNegative() && C2.isMask(VT.getScalarSizeInBits()) &&
-          C2.uge(C1))
-        return DAG.getNode(ISD::SMAX, DL, InVT, SMin, In.getOperand(1));
+  if (SMax && Min.isNonNegative() && Max.isMask(VT.getScalarSizeInBits())) {
+    if (SMin) {
+      if (Min.isZero()) {
+        if (isa<ConstantSDNode>(First.getOperand(0)))
+          return First.getOperand(1);
+        return First.getOperand(0);
+      } else {
+        if (First == SMin)
+          return SMin;
+        else if (Max.uge(Min))
+          return DAG.getNode(ISD::SMAX, DL, InVT, SMin, In.getOperand(1));
+      }
+    } else if (UMin) {
+      if (Min.isZero()) {
+        if (isa<ConstantSDNode>(First.getOperand(0)))
+          return First.getOperand(1);
+        return First.getOperand(0);
+      }
+    }
+  }
 
   return SDValue();
 }
@@ -15071,6 +15082,10 @@ static SDValue foldToSaturated(SDNode *N, EVT &VT, SDValue &Src, EVT &SrcVT,
       if (SDValue SSatVal = detectSSatUPattern(Src, VT, DAG, DL))
         return DAG.getNode(ISD::TRUNCATE_SSAT_U, DL, VT, SSatVal);
   } else if (Src.getOpcode() == ISD::UMIN) {
+    if (TLI.isOperationLegalOrCustom(ISD::TRUNCATE_SSAT_U, SrcVT) &&
+        TLI.isTypeDesirableForOp(ISD::TRUNCATE_SSAT_U, VT))
+      if (SDValue SSatVal = detectSSatUPattern(Src, VT, DAG, DL))
+        return DAG.getNode(ISD::TRUNCATE_SSAT_U, DL, VT, SSatVal);
     if (TLI.isOperationLegalOrCustom(ISD::TRUNCATE_USAT_U, SrcVT) &&
         TLI.isTypeDesirableForOp(ISD::TRUNCATE_USAT_U, VT))
       if (SDValue USatVal = detectUSatUPattern(Src, VT))
