@@ -4653,11 +4653,11 @@ void DAGTypeLegalizer::ExpandIntRes_ShiftThroughStack(SDNode *N, SDValue &Lo,
 
   Flags.setExact(true);
   SDValue ByteOffset = DAG.getNode(ISD::SRL, dl, ShAmtVT, BitOffset,
-                               DAG.getConstant(3, dl, ShAmtVT), Flags);
+                                   DAG.getConstant(3, dl, ShAmtVT), Flags);
   // And clamp it, because OOB load is an immediate UB,
   // while shift overflow would have *just* been poison.
   ByteOffset = DAG.getNode(ISD::AND, dl, ShAmtVT, ByteOffset,
-                       DAG.getConstant(VTByteWidth - 1, dl, ShAmtVT));
+                           DAG.getConstant(VTByteWidth - 1, dl, ShAmtVT));
   // We have exactly two strategies on indexing into stack slot here:
   // 1. upwards starting from the beginning of the slot
   // 2. downwards starting from the middle of the slot
