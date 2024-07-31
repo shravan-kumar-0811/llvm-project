@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
@@ -761,6 +762,46 @@ static void updatePhysDepsDownwards(const MachineInstr *UseMI,
   }
 }
 
+/// Returns the distance between DefMI and UseMI if they're non-null and in the
+/// same BasicBlock, 0 otherwise.
+static unsigned computeDefUseDist(const MachineInstr *DefMI,
+                                  const MachineInstr *UseMI) {
+  if (!DefMI || !UseMI || DefMI == UseMI)
+    return 0;
+  const MachineBasicBlock *ParentBB = DefMI->getParent();
+  if (ParentBB != UseMI->getParent())
+    return 0;
+  auto DefIt = llvm::find_if(
+      *ParentBB, [DefMI](const MachineInstr &MI) { return DefMI == &MI; });
+  auto UseIt = llvm::find_if(
+      *ParentBB, [UseMI](const MachineInstr &MI) { return UseMI == &MI; });
+  return std::distance(DefIt, UseIt);
+}
+
+/// Wraps Sched.computeOperandLatency, accounting for the case when
+/// InstrSchedModel and InstrItineraries are not available: in this case,
+/// Sched.computeOperandLatency returns DefaultDefLatency, which is a very rough
+/// approximate; to improve this approximate, offset it by the approximate
+/// cycles elapsed from DefMI to UseMI (since the MIs could be re-ordered by the
+/// scheduler, and we don't have this information, this distance cannot be known
+/// exactly). When scheduling information is available,
+/// Sched.computeOperandLatency returns a much better estimate (especially if
+/// UseMI is non-null), so we just return that.
+static unsigned computeOperandLatency(const TargetSchedModel &Sched,
+                                      const MachineInstr *DefMI,
+                                      unsigned DefOperIdx,
+                                      const MachineInstr *UseMI,
+                                      unsigned UseOperIdx) {
+  assert(DefMI && "Non-null DefMI expected");
+  if (!Sched.hasInstrSchedModel() && !Sched.hasInstrItineraries()) {
+    unsigned DefaultDefLatency = Sched.getInstrInfo()->defaultDefLatency(
+        *Sched.getMCSchedModel(), *DefMI);
+    unsigned DefUseDist = computeDefUseDist(DefMI, UseMI);
+    return DefaultDefLatency > DefUseDist ? DefaultDefLatency - DefUseDist : 0;
+  }
+  return Sched.computeOperandLatency(DefMI, DefOperIdx, UseMI, UseOperIdx);
+}
+
 /// The length of the critical path through a trace is the maximum of two path
 /// lengths:
 ///
@@ -813,8 +854,8 @@ updateDepth(MachineTraceMetrics::TraceBlockInfo &TBI, const MachineInstr &UseMI,
     unsigned DepCycle = Cycles.lookup(Dep.DefMI).Depth;
     // Add latency if DefMI is a real instruction. Transients get latency 0.
     if (!Dep.DefMI->isTransient())
-      DepCycle += MTM.SchedModel
-        .computeOperandLatency(Dep.DefMI, Dep.DefOp, &UseMI, Dep.UseOp);
+      DepCycle += computeOperandLatency(MTM.SchedModel, Dep.DefMI, Dep.DefOp,
+                                        &UseMI, Dep.UseOp);
     Cycle = std::max(Cycle, DepCycle);
   }
   // Remember the instruction depth.
@@ -929,8 +970,8 @@ static unsigned updatePhysDepsUpwards(const MachineInstr &MI, unsigned Height,
       if (!MI.isTransient()) {
         // We may not know the UseMI of this dependency, if it came from the
         // live-in list. SchedModel can handle a NULL UseMI.
-        DepHeight += SchedModel.computeOperandLatency(&MI, MO.getOperandNo(),
-                                                      I->MI, I->Op);
+        DepHeight += computeOperandLatency(SchedModel, &MI, MO.getOperandNo(),
+                                           I->MI, I->Op);
       }
       Height = std::max(Height, DepHeight);
       // This regunit is dead above MI.
@@ -965,8 +1006,8 @@ static bool pushDepHeight(const DataDep &Dep, const MachineInstr &UseMI,
                           const TargetInstrInfo *TII) {
   // Adjust height by Dep.DefMI latency.
   if (!Dep.DefMI->isTransient())
-    UseHeight += SchedModel.computeOperandLatency(Dep.DefMI, Dep.DefOp, &UseMI,
-                                                  Dep.UseOp);
+    UseHeight += computeOperandLatency(SchedModel, Dep.DefMI, Dep.DefOp, &UseMI,
+                                       Dep.UseOp);
 
   // Update Heights[DefMI] to be the maximum height seen.
   MIHeightMap::iterator I;
@@ -1192,8 +1233,8 @@ MachineTraceMetrics::Trace::getPHIDepth(const MachineInstr &PHI) const {
   unsigned DepCycle = getInstrCycles(*Dep.DefMI).Depth;
   // Add latency if DefMI is a real instruction. Transients get latency 0.
   if (!Dep.DefMI->isTransient())
-    DepCycle += TE.MTM.SchedModel.computeOperandLatency(Dep.DefMI, Dep.DefOp,
-                                                        &PHI, Dep.UseOp);
+    DepCycle += computeOperandLatency(TE.MTM.SchedModel, Dep.DefMI, Dep.DefOp,
+                                      &PHI, Dep.UseOp);
   return DepCycle;
 }
 
