@@ -691,7 +691,7 @@ void USRGenerator::VisitType(QualType T) {
           Out << 'v'; break;
         case BuiltinType::Bool:
           Out << 'b'; break;
-        case BuiltinType::Fpm8:
+        case BuiltinType::MFloat8:
         case BuiltinType::UChar:
           Out << 'c'; break;
         case BuiltinType::Char8:

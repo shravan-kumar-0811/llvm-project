@@ -2492,7 +2492,7 @@ public:
   bool isDoubleType() const;
   bool isBFloat16Type() const;
   bool isFloat128Type() const;
-  bool isFpm8Type() const;
+  bool isMFloat8Type() const;
   bool isIbm128Type() const;
   bool isRealType() const;         // C99 6.2.5p17 (real floating + integer)
   bool isArithmeticType() const;   // C99 6.2.5p18 (integer + floating)
@@ -7945,8 +7945,8 @@ inline bool Type::isBFloat16Type() const {
   return isSpecificBuiltinType(BuiltinType::BFloat16);
 }
 
-inline bool Type::isFpm8Type() const {
-  return isSpecificBuiltinType(BuiltinType::Fpm8);
+inline bool Type::isMFloat8Type() const {
+  return isSpecificBuiltinType(BuiltinType::MFloat8);
 }
 
 inline bool Type::isFloat128Type() const {

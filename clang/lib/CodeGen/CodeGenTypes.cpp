@@ -419,7 +419,7 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
                                     Context.getFloatTypeSemantics(T),
                                     /* UseNativeHalf = */ false);
       break;
-    case BuiltinType::Fpm8:
+    case BuiltinType::MFloat8:
       ResultType = llvm::Type::getInt8Ty(getLLVMContext());
       break;
     case BuiltinType::NullPtr:

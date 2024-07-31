@@ -3199,9 +3199,9 @@ void CastOperation::CheckCStyleCast() {
     }
   }
 
-  if ((DestType->isFpm8Type() && !SrcType->isFpm8Type()) ||
-      (!DestType->isFpm8Type() && SrcType->isFpm8Type())) {
-    Self.Diag(SrcExpr.get()->getExprLoc(), diag::err_bad_fpm8_cast)
+  if ((DestType->isMFloat8Type() && !SrcType->isMFloat8Type()) ||
+      (!DestType->isMFloat8Type() && SrcType->isMFloat8Type())) {
+    Self.Diag(SrcExpr.get()->getExprLoc(), diag::err_bad_mfloat8_cast)
         << SrcType << DestType << SrcExpr.get()->getSourceRange();
     SrcExpr = ExprError();
     return;

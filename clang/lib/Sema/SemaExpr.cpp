@@ -8512,7 +8512,7 @@ QualType Sema::CheckConditionalOperands(ExprResult &Cond, ExprResult &LHS,
     return QualType();
   }
 
-  if (LHSTy->isFpm8Type() || RHSTy->isFpm8Type()) {
+  if (LHSTy->isMFloat8Type() || RHSTy->isMFloat8Type()) {
     Diag(QuestionLoc, diag::err_typecheck_cond_incompatible_operands)
         << LHSTy << RHSTy << LHS.get()->getSourceRange()
         << RHS.get()->getSourceRange();
