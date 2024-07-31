@@ -543,7 +543,7 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__ARM_FEATURE_BF16_SCALAR_ARITHMETIC", "1");
   }
 
-  if (HasFpm8) {
+  if (HasMFloat8) {
     Builder.defineMacro("__ARM_FEATURE_FP8", "1");
   }
   if ((FPU & SveMode) && HasBFloat16) {

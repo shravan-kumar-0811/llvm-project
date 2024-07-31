@@ -4,18 +4,31 @@
 
 // REQUIRES: aarch64-registered-target
 
-// CHECK-LABEL: define dso_local i8 @func1n(
-// CHECK-SAME: i8 noundef [[MFP8:%.*]]) #[[ATTR0:[0-9]+]] {
-// CHECK-NEXT:  entry:
-// CHECK-NEXT:    [[MFP8_ADDR:%.*]] = alloca i8, align 1
-// CHECK-NEXT:    [[F1N:%.*]] = alloca [10 x i8], align 1
-// CHECK-NEXT:    store i8 [[MFP8]], ptr [[MFP8_ADDR]], align 1
-// CHECK-NEXT:    [[TMP0:%.*]] = load i8, ptr [[MFP8_ADDR]], align 1
-// CHECK-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [10 x i8], ptr [[F1N]], i64 0, i64 2
-// CHECK-NEXT:    store i8 [[TMP0]], ptr [[ARRAYIDX]], align 1
-// CHECK-NEXT:    [[ARRAYIDX1:%.*]] = getelementptr inbounds [10 x i8], ptr [[F1N]], i64 0, i64 2
-// CHECK-NEXT:    [[TMP1:%.*]] = load i8, ptr [[ARRAYIDX1]], align 1
-// CHECK-NEXT:    ret i8 [[TMP1]]
+// CHECK-C-LABEL: define dso_local i8 @func1n(
+// CHECK-C-SAME: i8 noundef [[MFP8:%.*]]) #[[ATTR0:[0-9]+]] {
+// CHECK-C-NEXT:  [[ENTRY:.*:]]
+// CHECK-C-NEXT:    [[MFP8_ADDR:%.*]] = alloca i8, align 1
+// CHECK-C-NEXT:    [[F1N:%.*]] = alloca [10 x i8], align 1
+// CHECK-C-NEXT:    store i8 [[MFP8]], ptr [[MFP8_ADDR]], align 1
+// CHECK-C-NEXT:    [[TMP0:%.*]] = load i8, ptr [[MFP8_ADDR]], align 1
+// CHECK-C-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [10 x i8], ptr [[F1N]], i64 0, i64 2
+// CHECK-C-NEXT:    store i8 [[TMP0]], ptr [[ARRAYIDX]], align 1
+// CHECK-C-NEXT:    [[ARRAYIDX1:%.*]] = getelementptr inbounds [10 x i8], ptr [[F1N]], i64 0, i64 2
+// CHECK-C-NEXT:    [[TMP1:%.*]] = load i8, ptr [[ARRAYIDX1]], align 1
+// CHECK-C-NEXT:    ret i8 [[TMP1]]
+//
+// CHECK-CXX-LABEL: define dso_local noundef i8 @_Z6func1nw(
+// CHECK-CXX-SAME: i8 noundef [[MFP8:%.*]]) #[[ATTR0:[0-9]+]] {
+// CHECK-CXX-NEXT:  [[ENTRY:.*:]]
+// CHECK-CXX-NEXT:    [[MFP8_ADDR:%.*]] = alloca i8, align 1
+// CHECK-CXX-NEXT:    [[F1N:%.*]] = alloca [10 x i8], align 1
+// CHECK-CXX-NEXT:    store i8 [[MFP8]], ptr [[MFP8_ADDR]], align 1
+// CHECK-CXX-NEXT:    [[TMP0:%.*]] = load i8, ptr [[MFP8_ADDR]], align 1
+// CHECK-CXX-NEXT:    [[ARRAYIDX:%.*]] = getelementptr inbounds [10 x i8], ptr [[F1N]], i64 0, i64 2
+// CHECK-CXX-NEXT:    store i8 [[TMP0]], ptr [[ARRAYIDX]], align 1
+// CHECK-CXX-NEXT:    [[ARRAYIDX1:%.*]] = getelementptr inbounds [10 x i8], ptr [[F1N]], i64 0, i64 2
+// CHECK-CXX-NEXT:    [[TMP1:%.*]] = load i8, ptr [[ARRAYIDX1]], align 1
+// CHECK-CXX-NEXT:    ret i8 [[TMP1]]
 //
 __mfp8 func1n(__mfp8 mfp8) {
   __mfp8 f1n[10];
@@ -26,7 +39,7 @@ __mfp8 func1n(__mfp8 mfp8) {
 
 #include <arm_neon.h>
 
-// CHECK-C-LABEL: define dso_local <16 x i8> @test_ret_fpm8x16_t(
+// CHECK-C-LABEL: define dso_local <16 x i8> @test_ret_mfloat8x16_t(
 // CHECK-C-SAME: <16 x i8> noundef [[V:%.*]]) #[[ATTR0]] {
 // CHECK-C-NEXT:  [[ENTRY:.*:]]
 // CHECK-C-NEXT:    [[V_ADDR:%.*]] = alloca <16 x i8>, align 16
@@ -34,7 +47,7 @@ __mfp8 func1n(__mfp8 mfp8) {
 // CHECK-C-NEXT:    [[TMP0:%.*]] = load <16 x i8>, ptr [[V_ADDR]], align 16
 // CHECK-C-NEXT:    ret <16 x i8> [[TMP0]]
 //
-// CHECK-CXX-LABEL: define dso_local noundef <16 x i8> @_Z18test_ret_fpm8x16_t13__Fpm8_tx16_t(
+// CHECK-CXX-LABEL: define dso_local noundef <16 x i8> @_Z21test_ret_mfloat8x16_t16__MFloat8_tx16_t(
 // CHECK-CXX-SAME: <16 x i8> noundef [[V:%.*]]) #[[ATTR0]] {
 // CHECK-CXX-NEXT:  [[ENTRY:.*:]]
 // CHECK-CXX-NEXT:    [[V_ADDR:%.*]] = alloca <16 x i8>, align 16
@@ -42,11 +55,11 @@ __mfp8 func1n(__mfp8 mfp8) {
 // CHECK-CXX-NEXT:    [[TMP0:%.*]] = load <16 x i8>, ptr [[V_ADDR]], align 16
 // CHECK-CXX-NEXT:    ret <16 x i8> [[TMP0]]
 //
-fpm8x16_t test_ret_fpm8x16_t(fpm8x16_t v) {
+mfloat8x16_t test_ret_mfloat8x16_t(mfloat8x16_t v) {
   return v;
 }
 
-// CHECK-C-LABEL: define dso_local <8 x i8> @test_ret_fpm8x8_t(
+// CHECK-C-LABEL: define dso_local <8 x i8> @test_ret_mfloat8x8_t(
 // CHECK-C-SAME: <8 x i8> noundef [[V:%.*]]) #[[ATTR0]] {
 // CHECK-C-NEXT:  [[ENTRY:.*:]]
 // CHECK-C-NEXT:    [[V_ADDR:%.*]] = alloca <8 x i8>, align 8
@@ -54,7 +67,7 @@ fpm8x16_t test_ret_fpm8x16_t(fpm8x16_t v) {
 // CHECK-C-NEXT:    [[TMP0:%.*]] = load <8 x i8>, ptr [[V_ADDR]], align 8
 // CHECK-C-NEXT:    ret <8 x i8> [[TMP0]]
 //
-// CHECK-CXX-LABEL: define dso_local noundef <8 x i8> @_Z17test_ret_fpm8x8_t12__Fpm8_tx8_t(
+// CHECK-CXX-LABEL: define dso_local noundef <8 x i8> @_Z20test_ret_mfloat8x8_t15__MFloat8_tx8_t(
 // CHECK-CXX-SAME: <8 x i8> noundef [[V:%.*]]) #[[ATTR0]] {
 // CHECK-CXX-NEXT:  [[ENTRY:.*:]]
 // CHECK-CXX-NEXT:    [[V_ADDR:%.*]] = alloca <8 x i8>, align 8
@@ -62,7 +75,7 @@ fpm8x16_t test_ret_fpm8x16_t(fpm8x16_t v) {
 // CHECK-CXX-NEXT:    [[TMP0:%.*]] = load <8 x i8>, ptr [[V_ADDR]], align 8
 // CHECK-CXX-NEXT:    ret <8 x i8> [[TMP0]]
 //
-fpm8x8_t test_ret_fpm8x8_t(fpm8x8_t v) {
+mfloat8x8_t test_ret_mfloat8x8_t(mfloat8x8_t v) {
   return v;
 }
 
