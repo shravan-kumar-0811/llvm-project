@@ -26,6 +26,13 @@ Non-comprehensive list of changes in this release
 ELF Improvements
 ----------------
 
+* Section ``CLASS`` linker script syntax binds input sections to named classes,
+  which are referenced later one or more times. This provides access to the
+  automatic spilling mechanism of `--enable-non-contiguous-regions` without
+  globally changing the semantics of section matching. It also independently
+  increases the expressive power of linker scripts.
+  (`#95323 <https://github.com/llvm/llvm-project/pull/95323>`_)
+
 Breaking changes
 ----------------
 
