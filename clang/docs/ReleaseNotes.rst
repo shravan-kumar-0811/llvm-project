@@ -43,6 +43,10 @@ C/C++ Language Potentially Breaking Changes
 C++ Specific Potentially Breaking Changes
 -----------------------------------------
 
+- The type trait builtin ``__is_nullptr`` has been removed, since it has very
+  few users and can be written as ``__is_same(__remove_cv(T), decltype(nullptr))``,
+  which GCC supports as well.
+
 ABI Changes in This Version
 ---------------------------
 
@@ -117,7 +121,7 @@ Improvements to Clang's diagnostics
 - Some template related diagnostics have been improved.
 
   .. code-block:: c++
-    
+
      void foo() { template <typename> int i; } // error: templates can only be declared in namespace or class scope
 
      struct S {
