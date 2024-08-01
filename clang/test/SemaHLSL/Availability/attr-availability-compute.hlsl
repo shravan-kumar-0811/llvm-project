@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple dxil-pc-shadermodel5.0-compute -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple dxil-pc-shadermodel5.0-compute -fsyntax-only -Wno-undefined-internal -verify %s
 
 // Platform shader model, no environment parameter
 __attribute__((availability(shadermodel, introduced = 6.0)))

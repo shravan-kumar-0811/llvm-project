@@ -120,18 +120,26 @@ behavior between Clang and DXC. Some examples include:
   precision relative to the other overloads (as FXC does) or generating code
   that will fail validation (as DXC does).
 
-Correctness improvements (bug fixes)
-====================================
+Correctness improvements and bug fixes
+======================================
 
 Entry point functions & ``static`` keyword
 ------------------------------------------
-Marking a shader entry point function ``static`` will result in an error.
+Marking a shader entry point function ``static`` will result in a error.
 
-This is identical to DXC behavior when an entry point is specified as compiler
-argument. However, DXC does not report an error when compiling a shader library
-that has an entry point function with ``[shader("stage")]`` attribute that is
-also marked ``static``. Additionally, this function definition is not included
-in the final DXIL.
+In DXC using ``static`` on an entry point function will cause the function
+to have internal linkage and it will not be included in the final DXIL.
+For shaders that specify the entry function name on the commandline 
+(such as ``-E main``) the compilation will produce an error:
+
+  ``error: cannot find entry function main``
+
+For shader libraries with entry points marked with ``[shader("stage")]``
+attribute the functions will simply not be included in the final DXIL
+and no error or warning is reported.
+
+Clang will always report an error if a shader entry point function is marked
+static.
 
 Library export functions
 ------------------------
@@ -143,3 +151,17 @@ a library export as long as one of the declarations was marked ``export``.
 This change aligns with C++ principle that a linkage of a function can be
 determined when a first declaration of that function is parsed and any
 subsequent redeclarations of the same function cannot change the it.
+
+For example:
+
+.. code-block:: c++
+
+  export void f()
+
+  void f() {}
+
+will produce an error:
+
+.. code-block:: c++
+
+  redeclaration of exported function 'f' must be marked 'export'
