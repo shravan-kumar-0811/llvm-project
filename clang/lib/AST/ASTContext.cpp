@@ -12363,9 +12363,8 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
   if (D->hasAttr<AliasAttr>() || D->hasAttr<UsedAttr>())
     return true;
 
-  // HLSL entry functiona are required.
+  // HLSL entry functions are required.
   if (D->hasAttr<HLSLShaderAttr>())
-    // FIXME: check for HLSL export attribute too
     return true;
 
   if (const auto *FD = dyn_cast<FunctionDecl>(D)) {

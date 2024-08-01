@@ -676,16 +676,10 @@ LinkageComputer::getLVForNamespaceScopeDecl(const NamedDecl *D,
     return getLVForNamespaceScopeDecl(VD, computation, IgnoreVarTypeLinkage);
 
   } else if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
-    // HLSL: functions that are not shader entry points or exported library
-    // functions have internal linkage by default.
-    if (Context.getLangOpts().HLSL &&
-        !(FD->isInExportDeclContext() || FD->hasAttr<HLSLShaderAttr>())) {
-      // Non-library shader entry points might not have an implicit
-      // HLSLShaderAttr added yet so we need to check the entry point name.
-      const TargetInfo &TI = Context.getTargetInfo();
-      if (TI.getTriple().getEnvironment() != llvm::Triple::Library &&
-          FD->getName() != TI.getTargetOpts().HLSLEntry)
-        return LinkageInfo::internal();
+    // HLSL: Functions that are not exported library functions have internal linkage by default.
+    // That includes shader entry point functions, which will be wrapped by an external linkage function with unmangled C-style name during CodeGen.
+    if (Context.getLangOpts().HLSL && !(FD->isInExportDeclContext())) {
+      return LinkageInfo::internal();
     }
   }
   assert(!isa<FieldDecl>(D) && "Didn't expect a FieldDecl!");

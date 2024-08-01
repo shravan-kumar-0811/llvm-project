@@ -35,11 +35,11 @@ static void f9(); // expected-error {{static declaration of 'f9' follows non-sta
 static void f10(); // expected-note {{previous declaration is here}}
 export void f10(); // expected-error {{cannot export redeclaration 'f10' here since the previous declaration has internal linkage}}
 
-export void f11();
-void f11() {}
+export void f11(); //   expected-note{{previous declaration is here}}
+void f11() {}      //   expected-error{{redeclaration of exported function 'f11' must be marked 'export'}}
 
 void f12();           //   expected-note{{previous declaration is here}}
-export void f12() {}  //   expected-error{{cannot export redeclaration 'f12' here since the previous declaration is not exported}}
+export void f12() {}  //   expected-error{{cannot export redeclaration 'f12' here since the previous declaration has internal linkage}}
 
 export float V1; // expected-error {{export declaration can only be used on functions}}
 

@@ -366,8 +366,6 @@ void CGHLSLRuntime::emitFunctionProlog(const FunctionDecl *FD,
     // body have external linkage by default.
     if (!FD->isDefined())
       Fn->setLinkage(GlobalValue::ExternalLinkage);
-
-    // FIXME: also set external linkage on exported functions
   }
 }
 
@@ -387,8 +385,7 @@ void CGHLSLRuntime::emitEntryFunction(const FunctionDecl *FD,
   setHLSLEntryAttributes(FD, EntryFn);
 
   // Set the called function as internal linkage.
-  assert(Fn->getLinkage() == GlobalValue::ExternalLinkage);
-  Fn->setLinkage(GlobalValue::InternalLinkage);
+  assert(Fn->getLinkage() == GlobalValue::InternalLinkage);
 
   BasicBlock *BB = BasicBlock::Create(Ctx, "entry", EntryFn);
   IRBuilder<> B(BB);

@@ -132,3 +132,14 @@ argument. However, DXC does not report an error when compiling a shader library
 that has an entry point function with ``[shader("stage")]`` attribute that is
 also marked ``static``. Additionally, this function definition is not included
 in the final DXIL.
+
+Library export functions
+------------------------
+
+All declarations of a shader library export function must be marked with the
+``export`` keyword. This is different from DXC where a function was considered
+a library export as long as one of the declarations was marked ``export``.
+
+This change aligns with C++ principle that a linkage of a function can be
+determined when a first declaration of that function is parsed and any
+subsequent redeclarations of the same function cannot change the it.
