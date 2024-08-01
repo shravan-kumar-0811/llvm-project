@@ -790,7 +790,7 @@ estimateDefUseCycles(const TargetSchedModel &Sched, const MachineInstr *DefMI,
 
     NumMicroOps += Sched.getNumMicroOps(&*It);
   }
-  return NumMicroOps / Sched.getIssueWidth() - 1;
+  return NumMicroOps / Sched.getIssueWidth();
 }
 
 /// Wraps Sched.computeOperandLatency, accounting for the case when
