@@ -762,20 +762,35 @@ static void updatePhysDepsDownwards(const MachineInstr *UseMI,
   }
 }
 
-/// Returns the distance between DefMI and UseMI if they're non-null and in the
-/// same BasicBlock, 0 otherwise.
-static unsigned computeDefUseDist(const MachineInstr *DefMI,
-                                  const MachineInstr *UseMI) {
+/// Estimates the number of cycles elapsed between DefMI and UseMI if they're
+/// non-null and in the same BasicBlock. Returns std::nullopt when UseMI is in a
+/// different MBB than DefMI, or when it is a dangling MI.
+static std::optional<unsigned>
+estimateDefUseCycles(const TargetSchedModel &Sched, const MachineInstr *DefMI,
+                     const MachineInstr *UseMI) {
   if (!DefMI || !UseMI || DefMI == UseMI)
     return 0;
   const MachineBasicBlock *ParentBB = DefMI->getParent();
   if (ParentBB != UseMI->getParent())
-    return 0;
-  auto DefIt = llvm::find_if(
-      *ParentBB, [DefMI](const MachineInstr &MI) { return DefMI == &MI; });
-  auto UseIt = llvm::find_if(
-      *ParentBB, [UseMI](const MachineInstr &MI) { return UseMI == &MI; });
-  return std::distance(DefIt, UseIt);
+    return std::nullopt;
+
+  const auto DefIt =
+      llvm::find_if(ParentBB->instrs(),
+                    [DefMI](const MachineInstr &MI) { return DefMI == &MI; });
+  const auto UseIt =
+      llvm::find_if(ParentBB->instrs(),
+                    [UseMI](const MachineInstr &MI) { return UseMI == &MI; });
+  assert(std::distance(DefIt, UseIt) > 0 &&
+         "Def expected to appear before use");
+  unsigned NumMicroOps = 0;
+  for (auto It = DefIt; It != UseIt; ++It) {
+    // In some cases, UseMI is a dangling MI beyond the end of the MBB.
+    if (It.isEnd())
+      return std::nullopt;
+
+    NumMicroOps += Sched.getNumMicroOps(&*It);
+  }
+  return NumMicroOps / Sched.getIssueWidth() - 1;
 }
 
 /// Wraps Sched.computeOperandLatency, accounting for the case when
@@ -783,7 +798,7 @@ static unsigned computeDefUseDist(const MachineInstr *DefMI,
 /// Sched.computeOperandLatency returns DefaultDefLatency, which is a very rough
 /// approximate; to improve this approximate, offset it by the approximate
 /// cycles elapsed from DefMI to UseMI (since the MIs could be re-ordered by the
-/// scheduler, and we don't have this information, this distance cannot be known
+/// scheduler, and we don't have this information, this cannot be known
 /// exactly). When scheduling information is available,
 /// Sched.computeOperandLatency returns a much better estimate (especially if
 /// UseMI is non-null), so we just return that.
@@ -796,8 +811,11 @@ static unsigned computeOperandLatency(const TargetSchedModel &Sched,
   if (!Sched.hasInstrSchedModel() && !Sched.hasInstrItineraries()) {
     unsigned DefaultDefLatency = Sched.getInstrInfo()->defaultDefLatency(
         *Sched.getMCSchedModel(), *DefMI);
-    unsigned DefUseDist = computeDefUseDist(DefMI, UseMI);
-    return DefaultDefLatency > DefUseDist ? DefaultDefLatency - DefUseDist : 0;
+    std::optional<unsigned> DefUseCycles =
+        estimateDefUseCycles(Sched, DefMI, UseMI);
+    if (!DefUseCycles || DefaultDefLatency <= DefUseCycles)
+      return 0;
+    return DefaultDefLatency - *DefUseCycles;
   }
   return Sched.computeOperandLatency(DefMI, DefOperIdx, UseMI, UseOperIdx);
 }
