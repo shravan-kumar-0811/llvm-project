@@ -43,7 +43,7 @@ struct __atomic_base // false
     return static_cast<__atomic_base const volatile*>(this)->is_lock_free();
   }
   _LIBCPP_HIDE_FROM_ABI void store(_Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
-      _LIBCPP_CHECK_STORE_MEMORY_ORDER(__m) {
+    requires is_always_lock_free _LIBCPP_CHECK_STORE_MEMORY_ORDER(__m) {
     std::__cxx_atomic_store(std::addressof(__a_), __d, __m);
   }
   _LIBCPP_HIDE_FROM_ABI void store(_Tp __d, memory_order __m = memory_order_seq_cst) _NOEXCEPT
@@ -51,7 +51,7 @@ struct __atomic_base // false
     std::__cxx_atomic_store(std::addressof(__a_), __d, __m);
   }
   _LIBCPP_HIDE_FROM_ABI _Tp load(memory_order __m = memory_order_seq_cst) const volatile _NOEXCEPT
-      _LIBCPP_CHECK_LOAD_MEMORY_ORDER(__m) {
+    requires is_always_lock_free _LIBCPP_CHECK_LOAD_MEMORY_ORDER(__m) {
     return std::__cxx_atomic_load(std::addressof(__a_), __m);
   }
   _LIBCPP_HIDE_FROM_ABI _Tp load(memory_order __m = memory_order_seq_cst) const _NOEXCEPT
@@ -60,7 +60,8 @@ struct __atomic_base // false
   }
   _LIBCPP_HIDE_FROM_ABI operator _Tp() const volatile _NOEXCEPT { return load(); }
   _LIBCPP_HIDE_FROM_ABI operator _Tp() const _NOEXCEPT { return load(); }
-  _LIBCPP_HIDE_FROM_ABI _Tp exchange(_Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+  _LIBCPP_HIDE_FROM_ABI _Tp exchange(_Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires is_always_lock_free {
     return std::__cxx_atomic_exchange(std::addressof(__a_), __d, __m);
   }
   _LIBCPP_HIDE_FROM_ABI _Tp exchange(_Tp __d, memory_order __m = memory_order_seq_cst) _NOEXCEPT {
@@ -68,7 +69,7 @@ struct __atomic_base // false
   }
   _LIBCPP_HIDE_FROM_ABI bool
   compare_exchange_weak(_Tp& __e, _Tp __d, memory_order __s, memory_order __f) volatile _NOEXCEPT
-      _LIBCPP_CHECK_EXCHANGE_MEMORY_ORDER(__s, __f) {
+    requires is_always_lock_free _LIBCPP_CHECK_EXCHANGE_MEMORY_ORDER(__s, __f) {
     return std::__cxx_atomic_compare_exchange_weak(std::addressof(__a_), std::addressof(__e), __d, __s, __f);
   }
   _LIBCPP_HIDE_FROM_ABI bool compare_exchange_weak(_Tp& __e, _Tp __d, memory_order __s, memory_order __f) _NOEXCEPT
@@ -77,7 +78,7 @@ struct __atomic_base // false
   }
   _LIBCPP_HIDE_FROM_ABI bool
   compare_exchange_strong(_Tp& __e, _Tp __d, memory_order __s, memory_order __f) volatile _NOEXCEPT
-      _LIBCPP_CHECK_EXCHANGE_MEMORY_ORDER(__s, __f) {
+    requires is_always_lock_free _LIBCPP_CHECK_EXCHANGE_MEMORY_ORDER(__s, __f) {
     return std::__cxx_atomic_compare_exchange_strong(std::addressof(__a_), std::addressof(__e), __d, __s, __f);
   }
   _LIBCPP_HIDE_FROM_ABI bool compare_exchange_strong(_Tp& __e, _Tp __d, memory_order __s, memory_order __f) _NOEXCEPT
@@ -85,7 +86,8 @@ struct __atomic_base // false
     return std::__cxx_atomic_compare_exchange_strong(std::addressof(__a_), std::addressof(__e), __d, __s, __f);
   }
   _LIBCPP_HIDE_FROM_ABI bool
-  compare_exchange_weak(_Tp& __e, _Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+  compare_exchange_weak(_Tp& __e, _Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires is_always_lock_free {
     return std::__cxx_atomic_compare_exchange_weak(std::addressof(__a_), std::addressof(__e), __d, __m, __m);
   }
   _LIBCPP_HIDE_FROM_ABI bool
@@ -93,7 +95,8 @@ struct __atomic_base // false
     return std::__cxx_atomic_compare_exchange_weak(std::addressof(__a_), std::addressof(__e), __d, __m, __m);
   }
   _LIBCPP_HIDE_FROM_ABI bool
-  compare_exchange_strong(_Tp& __e, _Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+  compare_exchange_strong(_Tp& __e, _Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires is_always_lock_free {
     return std::__cxx_atomic_compare_exchange_strong(std::addressof(__a_), std::addressof(__e), __d, __m, __m);
   }
   _LIBCPP_HIDE_FROM_ABI bool
@@ -141,55 +144,127 @@ struct __atomic_base<_Tp, true> : public __atomic_base<_Tp, false> {
 
   _LIBCPP_HIDE_FROM_ABI _LIBCPP_CONSTEXPR __atomic_base(_Tp __d) _NOEXCEPT : __base(__d) {}
 
-  _LIBCPP_HIDE_FROM_ABI _Tp fetch_add(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+  _LIBCPP_HIDE_FROM_ABI _Tp fetch_add(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
     return std::__cxx_atomic_fetch_add(std::addressof(this->__a_), __op, __m);
   }
+
   _LIBCPP_HIDE_FROM_ABI _Tp fetch_add(_Tp __op, memory_order __m = memory_order_seq_cst) _NOEXCEPT {
     return std::__cxx_atomic_fetch_add(std::addressof(this->__a_), __op, __m);
   }
-  _LIBCPP_HIDE_FROM_ABI _Tp fetch_sub(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+
+  _LIBCPP_HIDE_FROM_ABI _Tp fetch_sub(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
     return std::__cxx_atomic_fetch_sub(std::addressof(this->__a_), __op, __m);
   }
+
   _LIBCPP_HIDE_FROM_ABI _Tp fetch_sub(_Tp __op, memory_order __m = memory_order_seq_cst) _NOEXCEPT {
     return std::__cxx_atomic_fetch_sub(std::addressof(this->__a_), __op, __m);
   }
-  _LIBCPP_HIDE_FROM_ABI _Tp fetch_and(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+
+  _LIBCPP_HIDE_FROM_ABI _Tp fetch_and(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
     return std::__cxx_atomic_fetch_and(std::addressof(this->__a_), __op, __m);
   }
+
   _LIBCPP_HIDE_FROM_ABI _Tp fetch_and(_Tp __op, memory_order __m = memory_order_seq_cst) _NOEXCEPT {
     return std::__cxx_atomic_fetch_and(std::addressof(this->__a_), __op, __m);
   }
-  _LIBCPP_HIDE_FROM_ABI _Tp fetch_or(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+
+  _LIBCPP_HIDE_FROM_ABI _Tp fetch_or(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
     return std::__cxx_atomic_fetch_or(std::addressof(this->__a_), __op, __m);
   }
+
   _LIBCPP_HIDE_FROM_ABI _Tp fetch_or(_Tp __op, memory_order __m = memory_order_seq_cst) _NOEXCEPT {
     return std::__cxx_atomic_fetch_or(std::addressof(this->__a_), __op, __m);
   }
-  _LIBCPP_HIDE_FROM_ABI _Tp fetch_xor(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT {
+
+  _LIBCPP_HIDE_FROM_ABI _Tp fetch_xor(_Tp __op, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
     return std::__cxx_atomic_fetch_xor(std::addressof(this->__a_), __op, __m);
   }
+
   _LIBCPP_HIDE_FROM_ABI _Tp fetch_xor(_Tp __op, memory_order __m = memory_order_seq_cst) _NOEXCEPT {
     return std::__cxx_atomic_fetch_xor(std::addressof(this->__a_), __op, __m);
   }
 
-  _LIBCPP_HIDE_FROM_ABI _Tp operator++(int) volatile _NOEXCEPT { return fetch_add(_Tp(1)); }
   _LIBCPP_HIDE_FROM_ABI _Tp operator++(int) _NOEXCEPT { return fetch_add(_Tp(1)); }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator--(int) volatile _NOEXCEPT { return fetch_sub(_Tp(1)); }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator++(int) volatile _NOEXCEPT
+  requires __base::is_always_lock_free
+  {
+    return fetch_add(_Tp(1));
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator--(int) _NOEXCEPT { return fetch_sub(_Tp(1)); }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator++() volatile _NOEXCEPT { return fetch_add(_Tp(1)) + _Tp(1); }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator--(int) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_sub(_Tp(1));
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator++() _NOEXCEPT { return fetch_add(_Tp(1)) + _Tp(1); }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator--() volatile _NOEXCEPT { return fetch_sub(_Tp(1)) - _Tp(1); }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator++() volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_add(_Tp(1)) + _Tp(1);
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator--() _NOEXCEPT { return fetch_sub(_Tp(1)) - _Tp(1); }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator+=(_Tp __op) volatile _NOEXCEPT { return fetch_add(__op) + __op; }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator--() volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_sub(_Tp(1)) - _Tp(1);
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator+=(_Tp __op) _NOEXCEPT { return fetch_add(__op) + __op; }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator-=(_Tp __op) volatile _NOEXCEPT { return fetch_sub(__op) - __op; }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator+=(_Tp __op) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_add(__op) + __op;
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator-=(_Tp __op) _NOEXCEPT { return fetch_sub(__op) - __op; }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator&=(_Tp __op) volatile _NOEXCEPT { return fetch_and(__op) & __op; }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator-=(_Tp __op) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_sub(__op) - __op;
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator&=(_Tp __op) _NOEXCEPT { return fetch_and(__op) & __op; }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator|=(_Tp __op) volatile _NOEXCEPT { return fetch_or(__op) | __op; }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator&=(_Tp __op) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_and(__op) & __op;
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator|=(_Tp __op) _NOEXCEPT { return fetch_or(__op) | __op; }
-  _LIBCPP_HIDE_FROM_ABI _Tp operator^=(_Tp __op) volatile _NOEXCEPT { return fetch_xor(__op) ^ __op; }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator|=(_Tp __op) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_or(__op) | __op;
+  }
+
   _LIBCPP_HIDE_FROM_ABI _Tp operator^=(_Tp __op) _NOEXCEPT { return fetch_xor(__op) ^ __op; }
+
+  _LIBCPP_HIDE_FROM_ABI _Tp operator^=(_Tp __op) volatile _NOEXCEPT
+    requires __base::is_always_lock_free
+  {
+    return fetch_xor(__op) ^ __op;
+  }
 };
 
 // Here we need _IsIntegral because the default template argument is not enough

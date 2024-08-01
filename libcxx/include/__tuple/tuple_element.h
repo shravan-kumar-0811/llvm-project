@@ -28,16 +28,6 @@ struct _LIBCPP_TEMPLATE_VIS tuple_element<_Ip, const _Tp> {
   typedef _LIBCPP_NODEBUG const typename tuple_element<_Ip, _Tp>::type type;
 };
 
-template <size_t _Ip, class _Tp>
-struct _LIBCPP_TEMPLATE_VIS tuple_element<_Ip, volatile _Tp> {
-  typedef _LIBCPP_NODEBUG volatile typename tuple_element<_Ip, _Tp>::type type;
-};
-
-template <size_t _Ip, class _Tp>
-struct _LIBCPP_TEMPLATE_VIS tuple_element<_Ip, const volatile _Tp> {
-  typedef _LIBCPP_NODEBUG const volatile typename tuple_element<_Ip, _Tp>::type type;
-};
-
 #ifndef _LIBCPP_CXX03_LANG
 
 template <size_t _Ip, class... _Types>

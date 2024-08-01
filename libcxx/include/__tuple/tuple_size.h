@@ -35,17 +35,6 @@ struct _LIBCPP_TEMPLATE_VIS tuple_size<__enable_if_tuple_size_imp< const _Tp,
                                                                    integral_constant<size_t, sizeof(tuple_size<_Tp>)>>>
     : public integral_constant<size_t, tuple_size<_Tp>::value> {};
 
-template <class _Tp>
-struct _LIBCPP_TEMPLATE_VIS tuple_size<__enable_if_tuple_size_imp< volatile _Tp,
-                                                                   __enable_if_t<!is_const<_Tp>::value>,
-                                                                   integral_constant<size_t, sizeof(tuple_size<_Tp>)>>>
-    : public integral_constant<size_t, tuple_size<_Tp>::value> {};
-
-template <class _Tp>
-struct _LIBCPP_TEMPLATE_VIS
-tuple_size<__enable_if_tuple_size_imp<const volatile _Tp, integral_constant<size_t, sizeof(tuple_size<_Tp>)>>>
-    : public integral_constant<size_t, tuple_size<_Tp>::value> {};
-
 #else
 template <class _Tp>
 struct _LIBCPP_TEMPLATE_VIS tuple_size<const _Tp> : public tuple_size<_Tp> {};
