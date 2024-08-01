@@ -1978,7 +1978,7 @@ bool AArch64TargetLowering::shouldExpandPartialReductionIntrinsic(
   assert(I && "shouldExpandPartialReductionIntrinsic expects an intrinisc");
 
   VectorType *RetTy = dyn_cast<VectorType>(I->getType());
-  if (!RetTy)
+  if (!RetTy || !RetTy->isScalableTy())
     return true;
 
   VectorType *InputTy = nullptr;
