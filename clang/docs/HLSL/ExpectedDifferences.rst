@@ -162,6 +162,6 @@ For example:
 
 will produce an error:
 
-.. code-block:: c++
+.. code-block:: console
 
   redeclaration of exported function 'f' must be marked 'export'
