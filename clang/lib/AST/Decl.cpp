@@ -676,8 +676,10 @@ LinkageComputer::getLVForNamespaceScopeDecl(const NamedDecl *D,
     return getLVForNamespaceScopeDecl(VD, computation, IgnoreVarTypeLinkage);
 
   } else if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
-    // HLSL: Functions that are not exported library functions have internal linkage by default.
-    // That includes shader entry point functions, which will be wrapped by an external linkage function with unmangled C-style name during CodeGen.
+    // HLSL: Functions that are not exported library functions have internal
+    // linkage by default. That includes shader entry point functions, which
+    // will be wrapped by an external linkage function with unmangled C-style
+    // name during CodeGen.
     if (Context.getLangOpts().HLSL && !(FD->isInExportDeclContext())) {
       return LinkageInfo::internal();
     }
