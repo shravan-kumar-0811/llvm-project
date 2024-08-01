@@ -721,20 +721,21 @@ void StructurizeCFG::findUndefBlocks(
 bool StructurizeCFG::isCompatible(const BBValueVector &IncomingA,
                                   const BBValueVector &IncomingB,
                                   BBValueVector &Merged) {
-  MapVector<BasicBlock *, Value *> UnionSet;
+  DenseMap<BasicBlock *, Value *> UnionSet;
   for (auto &V : IncomingA)
     UnionSet.insert(V);
 
-  for (auto &V : IncomingB) {
-    if (UnionSet.contains(V.first) && UnionSet[V.first] != V.second)
+  for (auto &[BB, V] : IncomingB) {
+    if (UnionSet.contains(BB) && UnionSet[BB] != V)
       return false;
     // Either IncomingA does not have this value or IncomingA has the same
     // value.
-    UnionSet.insert(V);
+    UnionSet.insert({BB, V});
   }
 
   Merged.clear();
-  Merged.append(UnionSet.takeVector());
+  for (auto &[BB, V] : UnionSet)
+    Merged.push_back({BB, V});
   return true;
 }
 
@@ -743,7 +744,9 @@ void StructurizeCFG::setPhiValues() {
   SmallVector<PHINode *, 8> InsertedPhis;
   SSAUpdater Updater(&InsertedPhis);
 
-  DenseMap<PHINode *, std::shared_ptr<BBValueVector>> MergedPHIMap;
+  SmallVector<BBValueVector> BBValuesPool;
+  // Map PHINode to the index of the merged incoming values in BBValuesPool
+  DenseMap<PHINode *, unsigned> MergedPHIMap;
   // Find out phi nodes that have compatible incoming values (either they have
   // the same value for the same block or one have undefined value, see example
   // below). We only search again the phi's that are referenced by another phi,
@@ -765,51 +768,55 @@ void StructurizeCFG::setPhiValues() {
   // This should be correct, because if a phi node does not have incoming
   // value from certain block, this means the block is not the predecessor
   // of the parent block, so we actually don't care its incoming value.
-  for (const auto &AddedPhi : AddedPhis) {
-    BasicBlock *To = AddedPhi.first;
+  for (const auto &[To, From] : AddedPhis) {
     if (!DeletedPhis.contains(To))
       continue;
     PhiMap &OldPhi = DeletedPhis[To];
-    for (const auto &PI : OldPhi) {
+    for (const auto &[Phi, Incomings] : OldPhi) {
       SmallVector<PHINode *> IncomingPHIs;
-      PHINode *Phi = PI.first;
-      for (const auto &VI : PI.second) {
+      for (const auto &[BB, V] : Incomings) {
         // First, for each phi, check whether it has incoming value which is
         // another phi.
-        if (PHINode *P = dyn_cast<PHINode>(VI.second))
+        if (PHINode *P = dyn_cast<PHINode>(V))
           IncomingPHIs.push_back(P);
       }
 
-      auto GetUpdatedIncoming = [&](PHINode *Phi) {
-        return MergedPHIMap.contains(Phi) ? *MergedPHIMap[Phi]
-                                          : DeletedPhis[Phi->getParent()][Phi];
+      const auto GetUpdatedIncoming = [&](PHINode *Phi) {
+        if (auto It = MergedPHIMap.find(Phi); It != MergedPHIMap.end())
+          return BBValuesPool[It->second];
+        return DeletedPhis[Phi->getParent()][Phi];
       };
+
       for (auto *OtherPhi : IncomingPHIs) {
-        // Skip phis that are not unrelated to the phi reconstruction for now.
+        // Skip phis that are unrelated to the phi reconstruction for now.
         if (!DeletedPhis.contains(OtherPhi->getParent()))
           continue;
 
-        // Skip phis that were already merged with others.
-        if (MergedPHIMap.contains(Phi) && MergedPHIMap.contains(OtherPhi))
+        auto PhiIt = MergedPHIMap.find(Phi);
+        auto OtherPhiIt = MergedPHIMap.find(OtherPhi);
+        // Skip phis that were both already merged with others.
+        if (PhiIt != MergedPHIMap.end() && OtherPhiIt != MergedPHIMap.end())
           continue;
 
-        std::shared_ptr<BBValueVector> MergedIncomings;
-        if (MergedPHIMap.contains(Phi))
-          MergedIncomings = MergedPHIMap[Phi];
-        else if (MergedPHIMap.contains(OtherPhi))
-          MergedIncomings = MergedPHIMap[OtherPhi];
-        else
-          MergedIncomings = std::make_shared<BBValueVector>();
+        unsigned PoolIndex;
+        if (PhiIt != MergedPHIMap.end()) {
+          PoolIndex = PhiIt->second;
+        } else if (OtherPhiIt != MergedPHIMap.end()) {
+          PoolIndex = OtherPhiIt->second;
+        } else {
+          PoolIndex = BBValuesPool.size();
+          BBValuesPool.push_back(BBValueVector());
+        }
 
         const auto &Incoming = GetUpdatedIncoming(Phi);
         const auto &OtherIncoming = GetUpdatedIncoming(OtherPhi);
-        if (isCompatible(Incoming, OtherIncoming, *MergedIncomings)) {
+        if (isCompatible(Incoming, OtherIncoming, BBValuesPool[PoolIndex])) {
           // union the incoming values
           if (!MergedPHIMap.contains(Phi))
-            MergedPHIMap.insert(std::pair(Phi, MergedIncomings));
+            MergedPHIMap.insert({Phi, PoolIndex});
 
           if (!MergedPHIMap.contains(OtherPhi))
-            MergedPHIMap.insert(std::pair(OtherPhi, MergedIncomings));
+            MergedPHIMap.insert({OtherPhi, PoolIndex});
         }
       }
     }
@@ -845,12 +852,13 @@ void StructurizeCFG::setPhiValues() {
       }
 
       // Use updated incoming vector.
+      auto PhiIt = MergedPHIMap.find(Phi);
       const auto &IncomingMap =
-          MergedPHIMap.contains(Phi) ? *MergedPHIMap[Phi] : PI.second;
-      for (const auto &VI : IncomingMap) {
-        Updater.AddAvailableValue(VI.first, VI.second);
-        if (isa<Constant>(VI.second))
-          ConstantPreds.push_back(VI.first);
+          PhiIt != MergedPHIMap.end() ? BBValuesPool[PhiIt->second] : PI.second;
+      for (const auto &[BB, V] : IncomingMap) {
+        Updater.AddAvailableValue(BB, V);
+        if (isa<Constant>(V))
+          ConstantPreds.push_back(BB);
       }
 
       for (auto UB : UndefBlks) {
