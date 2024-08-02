@@ -1224,9 +1224,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     CGM.getOpenMPRuntime().emitFunctionProlog(*this, CurCodeDecl);
 
   // Emit HLSL specific initialization
-  if (getLangOpts().HLSL) {
+  if (getLangOpts().HLSL)
     CGM.getHLSLRuntime().emitFunctionProlog(FD, Fn);
-  }
 
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
 
