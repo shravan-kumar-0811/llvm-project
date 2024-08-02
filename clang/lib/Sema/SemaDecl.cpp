@@ -10466,8 +10466,7 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
                                                 Previous))
           NewFD->setInvalidDecl();
       }
-    } else if (isMemberSpecialization && !FunctionTemplate &&
-               isa<CXXMethodDecl>(NewFD)) {
+    } else if (isMemberSpecialization && !FunctionTemplate) {
       if (CheckMemberSpecialization(NewFD, Previous))
           NewFD->setInvalidDecl();
     }
