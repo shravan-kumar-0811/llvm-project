@@ -22,7 +22,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/VectorUtils.h"
-#include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -160,6 +159,15 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       MVT::nxv1f32, MVT::nxv2f32, MVT::nxv4f32, MVT::nxv8f32, MVT::nxv16f32};
   static const MVT::SimpleValueType F64VecVTs[] = {
       MVT::nxv1f64, MVT::nxv2f64, MVT::nxv4f64, MVT::nxv8f64};
+  static const MVT::SimpleValueType VecTupleVTs[] = {
+      MVT::riscv_mf8x2, MVT::riscv_mf8x3, MVT::riscv_mf8x4, MVT::riscv_mf8x5,
+      MVT::riscv_mf8x6, MVT::riscv_mf8x7, MVT::riscv_mf8x8, MVT::riscv_mf4x2,
+      MVT::riscv_mf4x3, MVT::riscv_mf4x4, MVT::riscv_mf4x5, MVT::riscv_mf4x6,
+      MVT::riscv_mf4x7, MVT::riscv_mf4x8, MVT::riscv_mf2x2, MVT::riscv_mf2x3,
+      MVT::riscv_mf2x4, MVT::riscv_mf2x5, MVT::riscv_mf2x6, MVT::riscv_mf2x7,
+      MVT::riscv_mf2x8, MVT::riscv_m1x2,  MVT::riscv_m1x3,  MVT::riscv_m1x4,
+      MVT::riscv_m1x5,  MVT::riscv_m1x6,  MVT::riscv_m1x7,  MVT::riscv_m1x8,
+      MVT::riscv_m2x2,  MVT::riscv_m2x3,  MVT::riscv_m2x4,  MVT::riscv_m4x2};
 
   if (Subtarget.hasVInstructions()) {
     auto addRegClassForRVV = [this](MVT VT) {
@@ -225,6 +233,39 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
         if (useRVVForFixedLengthVectorVT(VT))
           addRegClassForFixedVectors(VT);
     }
+
+    addRegisterClass(MVT::riscv_mf8x2, &RISCV::VRN2M1RegClass);
+    addRegisterClass(MVT::riscv_mf8x3, &RISCV::VRN3M1RegClass);
+    addRegisterClass(MVT::riscv_mf8x4, &RISCV::VRN4M1RegClass);
+    addRegisterClass(MVT::riscv_mf8x5, &RISCV::VRN5M1RegClass);
+    addRegisterClass(MVT::riscv_mf8x6, &RISCV::VRN6M1RegClass);
+    addRegisterClass(MVT::riscv_mf8x7, &RISCV::VRN7M1RegClass);
+    addRegisterClass(MVT::riscv_mf8x8, &RISCV::VRN8M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x2, &RISCV::VRN2M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x3, &RISCV::VRN3M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x4, &RISCV::VRN4M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x5, &RISCV::VRN5M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x6, &RISCV::VRN6M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x7, &RISCV::VRN7M1RegClass);
+    addRegisterClass(MVT::riscv_mf4x8, &RISCV::VRN8M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x2, &RISCV::VRN2M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x3, &RISCV::VRN3M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x4, &RISCV::VRN4M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x5, &RISCV::VRN5M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x6, &RISCV::VRN6M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x7, &RISCV::VRN7M1RegClass);
+    addRegisterClass(MVT::riscv_mf2x8, &RISCV::VRN8M1RegClass);
+    addRegisterClass(MVT::riscv_m1x2, &RISCV::VRN2M1RegClass);
+    addRegisterClass(MVT::riscv_m1x3, &RISCV::VRN3M1RegClass);
+    addRegisterClass(MVT::riscv_m1x4, &RISCV::VRN4M1RegClass);
+    addRegisterClass(MVT::riscv_m1x5, &RISCV::VRN5M1RegClass);
+    addRegisterClass(MVT::riscv_m1x6, &RISCV::VRN6M1RegClass);
+    addRegisterClass(MVT::riscv_m1x7, &RISCV::VRN7M1RegClass);
+    addRegisterClass(MVT::riscv_m1x8, &RISCV::VRN8M1RegClass);
+    addRegisterClass(MVT::riscv_m2x2, &RISCV::VRN2M2RegClass);
+    addRegisterClass(MVT::riscv_m2x3, &RISCV::VRN3M2RegClass);
+    addRegisterClass(MVT::riscv_m2x4, &RISCV::VRN4M2RegClass);
+    addRegisterClass(MVT::riscv_m4x2, &RISCV::VRN2M4RegClass);
   }
 
   // Compute derived properties from the register classes.
@@ -938,6 +979,13 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
       }
     }
 
+    for (MVT VT : VecTupleVTs) {
+      if (!isTypeLegal(VT))
+        continue;
+
+      setOperationAction({ISD::LOAD, ISD::STORE}, VT, Custom);
+    }
+
     // Expand various CCs to best match the RVV ISA, which natively supports UNE
     // but no other unordered comparisons, and supports all ordered comparisons
     // except ONE. Additionally, we expand GT,OGT,GE,OGE for optimization
@@ -1590,7 +1638,10 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
       MemTy = MemTy->getScalarType();
 
     Info.memVT = getValueType(DL, MemTy);
-    Info.align = Align(DL.getTypeSizeInBits(MemTy->getScalarType()) / 8);
+    if (MemTy->isTargetExtTy())
+      Info.align = DL.getABITypeAlign(MemTy);
+    else
+      Info.align = Align(DL.getTypeSizeInBits(MemTy->getScalarType()) / 8);
     Info.size = MemoryLocation::UnknownSize;
     Info.flags |=
         IsStore ? MachineMemOperand::MOStore : MachineMemOperand::MOLoad;
@@ -1687,7 +1738,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vlseg6ff:
   case Intrinsic::riscv_vlseg7ff:
   case Intrinsic::riscv_vlseg8ff:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 2,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false, /*UsePtrVal*/ true);
   case Intrinsic::riscv_vlseg2_mask:
@@ -1704,7 +1755,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vlseg6ff_mask:
   case Intrinsic::riscv_vlseg7ff_mask:
   case Intrinsic::riscv_vlseg8ff_mask:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 4,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 5,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false, /*UsePtrVal*/ true);
   case Intrinsic::riscv_vlsseg2:
@@ -1728,7 +1779,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vluxseg6:
   case Intrinsic::riscv_vluxseg7:
   case Intrinsic::riscv_vluxseg8:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 4,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vlsseg2_mask:
@@ -1752,7 +1803,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vluxseg6_mask:
   case Intrinsic::riscv_vluxseg7_mask:
   case Intrinsic::riscv_vluxseg8_mask:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 5,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 6,
                                /*IsStore*/ false,
                                /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vsseg2:
@@ -1762,7 +1813,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vsseg6:
   case Intrinsic::riscv_vsseg7:
   case Intrinsic::riscv_vsseg8:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 2,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vsseg2_mask:
@@ -1772,7 +1823,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vsseg6_mask:
   case Intrinsic::riscv_vsseg7_mask:
   case Intrinsic::riscv_vsseg8_mask:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 4,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vssseg2:
@@ -1796,7 +1847,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vsuxseg6:
   case Intrinsic::riscv_vsuxseg7:
   case Intrinsic::riscv_vsuxseg8:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 3,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 4,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
   case Intrinsic::riscv_vssseg2_mask:
@@ -1820,7 +1871,7 @@ bool RISCVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::riscv_vsuxseg6_mask:
   case Intrinsic::riscv_vsuxseg7_mask:
   case Intrinsic::riscv_vsuxseg8_mask:
-    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 4,
+    return SetRVVLoadStoreInfo(/*PtrOp*/ I.arg_size() - 5,
                                /*IsStore*/ true,
                                /*IsUnitStrided*/ false);
   }
@@ -2292,7 +2343,8 @@ bool RISCVTargetLowering::isExtractSubvectorCheap(EVT ResVT, EVT SrcVT,
     return false;
 
   // Only support extracting a fixed from a fixed vector for now.
-  if (ResVT.isScalableVector() || SrcVT.isScalableVector())
+  if (ResVT.isScalableVector() || SrcVT.isScalableVector() ||
+      SrcVT.isRISCVVectorTuple())
     return false;
 
   EVT EltVT = ResVT.getVectorElementType();
@@ -2444,6 +2496,22 @@ static void translateSetCCForBranch(const SDLoc &DL, SDValue &LHS, SDValue &RHS,
 }
 
 RISCVII::VLMUL RISCVTargetLowering::getLMUL(MVT VT) {
+  if (VT.isRISCVVectorTuple()) {
+    if (VT.SimpleTy >= MVT::riscv_mf8x2 && VT.SimpleTy <= MVT::riscv_mf8x8)
+      return RISCVII::LMUL_F8;
+    if (VT.SimpleTy >= MVT::riscv_mf4x2 && VT.SimpleTy <= MVT::riscv_mf4x8)
+      return RISCVII::LMUL_F4;
+    if (VT.SimpleTy >= MVT::riscv_mf2x2 && VT.SimpleTy <= MVT::riscv_mf2x8)
+      return RISCVII::LMUL_F2;
+    if (VT.SimpleTy >= MVT::riscv_m1x2 && VT.SimpleTy <= MVT::riscv_m1x8)
+      return RISCVII::LMUL_1;
+    if (VT.SimpleTy >= MVT::riscv_m2x2 && VT.SimpleTy <= MVT::riscv_m2x4)
+      return RISCVII::LMUL_2;
+    if (VT.SimpleTy == MVT::riscv_m4x2)
+      return RISCVII::LMUL_4;
+    llvm_unreachable("Invalid vector tuple type LMUL.");
+  }
+
   assert(VT.isScalableVector() && "Expecting a scalable vector type");
   unsigned KnownSize = VT.getSizeInBits().getKnownMinValue();
   if (VT.getVectorElementType() == MVT::i1)
@@ -2513,6 +2581,45 @@ unsigned RISCVTargetLowering::getSubregIndexByMVT(MVT VT, unsigned Index) {
 unsigned RISCVTargetLowering::getRegClassIDForVecVT(MVT VT) {
   if (VT.getVectorElementType() == MVT::i1)
     return RISCV::VRRegClassID;
+
+  if (VT.isRISCVVectorTuple()) {
+    unsigned NF = VT.getVectorNumElements();
+    unsigned RegsPerField = std::max(1U, (unsigned)VT.getSizeInBits() /
+                                             (NF * RISCV::RVVBitsPerBlock));
+    switch (RegsPerField) {
+    case 1:
+      if (NF == 2)
+        return RISCV::VRN2M1RegClassID;
+      if (NF == 3)
+        return RISCV::VRN3M1RegClassID;
+      if (NF == 4)
+        return RISCV::VRN4M1RegClassID;
+      if (NF == 5)
+        return RISCV::VRN5M1RegClassID;
+      if (NF == 6)
+        return RISCV::VRN6M1RegClassID;
+      if (NF == 7)
+        return RISCV::VRN7M1RegClassID;
+      if (NF == 8)
+        return RISCV::VRN8M1RegClassID;
+      break;
+    case 2:
+      if (NF == 2)
+        return RISCV::VRN2M2RegClassID;
+      if (NF == 3)
+        return RISCV::VRN3M2RegClassID;
+      if (NF == 4)
+        return RISCV::VRN4M2RegClassID;
+      break;
+    case 4:
+      assert(NF == 2);
+      return RISCV::VRN2M4RegClassID;
+    default:
+      break;
+    }
+    llvm_unreachable("Invalid vector tuple type RegClass.");
+  }
+
   return getRegClassIDForLMUL(getLMUL(VT));
 }
 
@@ -2529,8 +2636,24 @@ RISCVTargetLowering::decomposeSubvectorInsertExtractToSubRegs(
                  RISCV::VRM4RegClassID > RISCV::VRM2RegClassID &&
                  RISCV::VRM2RegClassID > RISCV::VRRegClassID),
                 "Register classes not ordered");
+
   unsigned VecRegClassID = getRegClassIDForVecVT(VecVT);
   unsigned SubRegClassID = getRegClassIDForVecVT(SubVecVT);
+
+  // If VecVT is a vector tuple type, either it's the tuple type with same
+  // RegClass with SubVecVT or SubVecVT is a actually a subvector of the VecVT.
+  if (VecVT.isRISCVVectorTuple()) {
+    if (VecRegClassID == SubRegClassID)
+      return {RISCV::NoSubRegister, 0};
+
+    assert(SubVecVT.isScalableVector() &&
+           "Only allow scalable vector subvector.");
+    assert(getLMUL(VecVT) == getLMUL(SubVecVT) &&
+           "Invalid vector tuple insert/extract for vector and subvector with "
+           "different LMUL.");
+    return {getSubregIndexByMVT(VecVT, InsertExtractIdx), 0};
+  }
+
   // Try to compose a subregister index that takes us from the incoming
   // LMUL>1 register class down to the outgoing one. At each step we half
   // the LMUL:
@@ -6907,18 +7030,96 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     }
     return Vec;
   }
-  case ISD::LOAD:
+  case ISD::LOAD: {
+    auto *Load = cast<LoadSDNode>(Op);
+    EVT VecTy = Load->getMemoryVT();
+    // Handle normal vector tuple load.
+    if (VecTy.isRISCVVectorTuple()) {
+      MachineFunction &MF = DAG.getMachineFunction();
+      MachineFrameInfo &MFI = MF.getFrameInfo();
+      SDLoc DL(Op);
+      MVT XLenVT = Subtarget.getXLenVT();
+      unsigned NF = VecTy.getVectorMinNumElements();
+      unsigned Sz = VecTy.getSizeInBits();
+      unsigned NumElts = Sz / (NF * 8);
+      int Log2LMUL = Log2_64(NumElts) - 3;
+
+      auto Flag = SDNodeFlags();
+      Flag.setNoUnsignedWrap(true);
+      SDValue Ret = DAG.getUNDEF(VecTy);
+      SDValue BasePtr = Load->getBasePtr();
+      if (auto *FI = dyn_cast<FrameIndexSDNode>(BasePtr))
+        MFI.setStackID(FI->getIndex(), TargetStackID::ScalableVector);
+      SDValue VROffset = DAG.getNode(RISCVISD::READ_VLENB, DL, XLenVT);
+      VROffset =
+          DAG.getNode(ISD::SHL, DL, XLenVT, VROffset,
+                      DAG.getConstant(std::max(Log2LMUL, 0), DL, XLenVT));
+
+      // Load NF vector registers and combine them to a vector tuple.
+      for (unsigned i = 0; i < NF; ++i) {
+        SDValue LoadVal = DAG.getLoad(
+            MVT::getScalableVectorVT(MVT::i8, NumElts), DL, DAG.getEntryNode(),
+            BasePtr, Load->getPointerInfo(), Align(8));
+        Ret = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, VecTy, Ret, LoadVal,
+                          DAG.getVectorIdxConstant(i, DL));
+        BasePtr = DAG.getNode(ISD::ADD, DL, XLenVT, BasePtr, VROffset, Flag);
+      }
+      return DAG.getMergeValues({Ret, DAG.getEntryNode()}, DL);
+    }
+
     if (auto V = expandUnalignedRVVLoad(Op, DAG))
       return V;
     if (Op.getValueType().isFixedLengthVector())
       return lowerFixedLengthVectorLoadToRVV(Op, DAG);
     return Op;
-  case ISD::STORE:
+  }
+  case ISD::STORE: {
+    auto *Store = cast<StoreSDNode>(Op);
+    SDValue StoredVal = Store->getValue();
+    EVT VecTy = StoredVal.getValueType();
+    // Handle normal vector tuple store.
+    if (VecTy.isRISCVVectorTuple()) {
+      MachineFunction &MF = DAG.getMachineFunction();
+      MachineFrameInfo &MFI = MF.getFrameInfo();
+      SDLoc DL(Op);
+      MVT XLenVT = Subtarget.getXLenVT();
+      unsigned NF = VecTy.getVectorMinNumElements();
+      unsigned Sz = VecTy.getSizeInBits();
+      unsigned NumElts = Sz / (NF * 8);
+      int Log2LMUL = Log2_64(NumElts) - 3;
+
+      auto Flag = SDNodeFlags();
+      Flag.setNoUnsignedWrap(true);
+      SDValue Ret;
+      SDValue Chain = Store->getChain();
+      SDValue BasePtr = Store->getBasePtr();
+      if (auto *FI = dyn_cast<FrameIndexSDNode>(BasePtr))
+        MFI.setStackID(FI->getIndex(), TargetStackID::ScalableVector);
+      SDValue VROffset = DAG.getNode(RISCVISD::READ_VLENB, DL, XLenVT);
+      VROffset =
+          DAG.getNode(ISD::SHL, DL, XLenVT, VROffset,
+                      DAG.getConstant(std::max(Log2LMUL, 0), DL, XLenVT));
+
+      // Extract subregisters in a vector tuple and store them individually.
+      for (unsigned i = 0; i < NF; ++i) {
+        auto Extract = DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL,
+                                   MVT::getScalableVectorVT(MVT::i8, NumElts),
+                                   StoredVal, DAG.getVectorIdxConstant(i, DL));
+        Ret = DAG.getStore(Chain, DL, Extract, BasePtr, Store->getPointerInfo(),
+                           Store->getOriginalAlign(),
+                           Store->getMemOperand()->getFlags());
+        Chain = Ret.getValue(0);
+        BasePtr = DAG.getNode(ISD::ADD, DL, XLenVT, BasePtr, VROffset, Flag);
+      }
+      return Ret;
+    }
+
     if (auto V = expandUnalignedRVVStore(Op, DAG))
       return V;
     if (Op.getOperand(1).getValueType().isFixedLengthVector())
       return lowerFixedLengthVectorStoreToRVV(Op, DAG);
     return Op;
+  }
   case ISD::MLOAD:
   case ISD::VP_LOAD:
     return lowerMaskedLoad(Op, DAG);
@@ -9078,6 +9279,21 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   switch (IntNo) {
   default:
     break; // Don't custom lower most intrinsics.
+  case Intrinsic::riscv_vector_insert: {
+    SDValue Vec = Op.getOperand(1);
+    SDValue SubVec = Op.getOperand(2);
+    SDValue Index = Op.getOperand(3);
+
+    return DAG.getNode(ISD::INSERT_SUBVECTOR, DL, Op.getValueType(), Vec,
+                       SubVec, Index);
+  }
+  case Intrinsic::riscv_vector_extract: {
+    SDValue Vec = Op.getOperand(1);
+    SDValue Index = Op.getOperand(2);
+
+    return DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL, Op.getValueType(), Vec,
+                       Index);
+  }
   case Intrinsic::thread_pointer: {
     EVT PtrVT = getPointerTy(DAG.getDataLayout());
     return DAG.getRegister(RISCV::X4, PtrVT);
@@ -9417,25 +9633,33 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
     MVT XLenVT = Subtarget.getXLenVT();
     MVT VT = Op->getSimpleValueType(0);
     MVT ContainerVT = getContainerForFixedLengthVector(VT);
+    auto LMUL = static_cast<unsigned>(getLMUL(ContainerVT));
+    auto Log2LMUL = LMUL > 4 ? LMUL - 8 : LMUL;
+    EVT VecTupTy = EVT::getRISCVVectorTupleVT(Log2LMUL, NF);
 
     SDValue VL = DAG.getConstant(VT.getVectorNumElements(), DL, XLenVT);
     SDValue IntID = DAG.getTargetConstant(VlsegInts[NF - 2], DL, XLenVT);
     auto *Load = cast<MemIntrinsicSDNode>(Op);
-    SmallVector<EVT, 9> ContainerVTs(NF, ContainerVT);
-    ContainerVTs.push_back(MVT::Other);
-    SDVTList VTs = DAG.getVTList(ContainerVTs);
-    SmallVector<SDValue, 12> Ops = {Load->getChain(), IntID};
-    Ops.insert(Ops.end(), NF, DAG.getUNDEF(ContainerVT));
-    Ops.push_back(Op.getOperand(2));
-    Ops.push_back(VL);
+
+    SDVTList VTs = DAG.getVTList({VecTupTy, MVT::Other});
+    SDValue Ops[] = {
+        Load->getChain(),
+        IntID,
+        DAG.getUNDEF(VecTupTy),
+        Op.getOperand(2),
+        VL,
+        DAG.getTargetConstant(Log2_64(VT.getScalarSizeInBits()), DL, XLenVT)};
     SDValue Result =
         DAG.getMemIntrinsicNode(ISD::INTRINSIC_W_CHAIN, DL, VTs, Ops,
                                 Load->getMemoryVT(), Load->getMemOperand());
     SmallVector<SDValue, 9> Results;
-    for (unsigned int RetIdx = 0; RetIdx < NF; RetIdx++)
-      Results.push_back(convertFromScalableVector(VT, Result.getValue(RetIdx),
-                                                  DAG, Subtarget));
-    Results.push_back(Result.getValue(NF));
+    for (unsigned int RetIdx = 0; RetIdx < NF; RetIdx++) {
+      SDValue SubVec =
+          DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL, ContainerVT,
+                      Result.getValue(0), DAG.getVectorIdxConstant(RetIdx, DL));
+      Results.push_back(convertFromScalableVector(VT, SubVec, DAG, Subtarget));
+    }
+    Results.push_back(Result.getValue(1));
     return DAG.getMergeValues(Results, DL);
   }
   case Intrinsic::riscv_sf_vc_v_x_se:
@@ -9496,17 +9720,31 @@ SDValue RISCVTargetLowering::LowerINTRINSIC_VOID(SDValue Op,
     MVT XLenVT = Subtarget.getXLenVT();
     MVT VT = Op->getOperand(2).getSimpleValueType();
     MVT ContainerVT = getContainerForFixedLengthVector(VT);
+    auto LMUL = static_cast<unsigned>(getLMUL(ContainerVT));
+    auto Log2LMUL = LMUL > 4 ? LMUL - 8 : LMUL;
+    EVT VecTupTy = EVT::getRISCVVectorTupleVT(Log2LMUL, NF);
 
     SDValue VL = DAG.getConstant(VT.getVectorNumElements(), DL, XLenVT);
     SDValue IntID = DAG.getTargetConstant(VssegInts[NF - 2], DL, XLenVT);
     SDValue Ptr = Op->getOperand(NF + 2);
 
     auto *FixedIntrinsic = cast<MemIntrinsicSDNode>(Op);
-    SmallVector<SDValue, 12> Ops = {FixedIntrinsic->getChain(), IntID};
+
+    SDValue StoredVal = DAG.getUNDEF(VecTupTy);
     for (unsigned i = 0; i < NF; i++)
-      Ops.push_back(convertToScalableVector(
-          ContainerVT, FixedIntrinsic->getOperand(2 + i), DAG, Subtarget));
-    Ops.append({Ptr, VL});
+      StoredVal = DAG.getNode(
+          ISD::INSERT_SUBVECTOR, DL, VecTupTy, StoredVal,
+          convertToScalableVector(
+              ContainerVT, FixedIntrinsic->getOperand(2 + i), DAG, Subtarget),
+          DAG.getVectorIdxConstant(i, DL));
+
+    SDValue Ops[] = {
+        FixedIntrinsic->getChain(),
+        IntID,
+        StoredVal,
+        Ptr,
+        VL,
+        DAG.getTargetConstant(Log2_64(VT.getScalarSizeInBits()), DL, XLenVT)};
 
     return DAG.getMemIntrinsicNode(
         ISD::INTRINSIC_VOID, DL, DAG.getVTList(MVT::Other), Ops,
@@ -18746,6 +18984,66 @@ static const MCPhysReg ArgVRM2s[] = {RISCV::V8M2,  RISCV::V10M2, RISCV::V12M2,
 static const MCPhysReg ArgVRM4s[] = {RISCV::V8M4, RISCV::V12M4, RISCV::V16M4,
                                      RISCV::V20M4};
 static const MCPhysReg ArgVRM8s[] = {RISCV::V8M8, RISCV::V16M8};
+static const MCPhysReg ArgVRN2M1s[] = {
+    RISCV::V8_V9,   RISCV::V9_V10,  RISCV::V10_V11, RISCV::V11_V12,
+    RISCV::V12_V13, RISCV::V13_V14, RISCV::V14_V15, RISCV::V15_V16,
+    RISCV::V16_V17, RISCV::V17_V18, RISCV::V18_V19, RISCV::V19_V20,
+    RISCV::V20_V21, RISCV::V21_V22, RISCV::V22_V23};
+static const MCPhysReg ArgVRN3M1s[] = {
+    RISCV::V8_V9_V10,   RISCV::V9_V10_V11,  RISCV::V10_V11_V12,
+    RISCV::V11_V12_V13, RISCV::V12_V13_V14, RISCV::V13_V14_V15,
+    RISCV::V14_V15_V16, RISCV::V15_V16_V17, RISCV::V16_V17_V18,
+    RISCV::V17_V18_V19, RISCV::V18_V19_V20, RISCV::V19_V20_V21,
+    RISCV::V20_V21_V22, RISCV::V21_V22_V23};
+static const MCPhysReg ArgVRN4M1s[] = {
+    RISCV::V8_V9_V10_V11,   RISCV::V9_V10_V11_V12,  RISCV::V10_V11_V12_V13,
+    RISCV::V11_V12_V13_V14, RISCV::V12_V13_V14_V15, RISCV::V13_V14_V15_V16,
+    RISCV::V14_V15_V16_V17, RISCV::V15_V16_V17_V18, RISCV::V16_V17_V18_V19,
+    RISCV::V17_V18_V19_V20, RISCV::V18_V19_V20_V21, RISCV::V19_V20_V21_V22,
+    RISCV::V20_V21_V22_V23};
+static const MCPhysReg ArgVRN5M1s[] = {
+    RISCV::V8_V9_V10_V11_V12,   RISCV::V9_V10_V11_V12_V13,
+    RISCV::V10_V11_V12_V13_V14, RISCV::V11_V12_V13_V14_V15,
+    RISCV::V12_V13_V14_V15_V16, RISCV::V13_V14_V15_V16_V17,
+    RISCV::V14_V15_V16_V17_V18, RISCV::V15_V16_V17_V18_V19,
+    RISCV::V16_V17_V18_V19_V20, RISCV::V17_V18_V19_V20_V21,
+    RISCV::V18_V19_V20_V21_V22, RISCV::V19_V20_V21_V22_V23};
+static const MCPhysReg ArgVRN6M1s[] = {
+    RISCV::V8_V9_V10_V11_V12_V13,   RISCV::V9_V10_V11_V12_V13_V14,
+    RISCV::V10_V11_V12_V13_V14_V15, RISCV::V11_V12_V13_V14_V15_V16,
+    RISCV::V12_V13_V14_V15_V16_V17, RISCV::V13_V14_V15_V16_V17_V18,
+    RISCV::V14_V15_V16_V17_V18_V19, RISCV::V15_V16_V17_V18_V19_V20,
+    RISCV::V16_V17_V18_V19_V20_V21, RISCV::V17_V18_V19_V20_V21_V22,
+    RISCV::V18_V19_V20_V21_V22_V23};
+static const MCPhysReg ArgVRN7M1s[] = {
+    RISCV::V8_V9_V10_V11_V12_V13_V14,   RISCV::V9_V10_V11_V12_V13_V14_V15,
+    RISCV::V10_V11_V12_V13_V14_V15_V16, RISCV::V11_V12_V13_V14_V15_V16_V17,
+    RISCV::V12_V13_V14_V15_V16_V17_V18, RISCV::V13_V14_V15_V16_V17_V18_V19,
+    RISCV::V14_V15_V16_V17_V18_V19_V20, RISCV::V15_V16_V17_V18_V19_V20_V21,
+    RISCV::V16_V17_V18_V19_V20_V21_V22, RISCV::V17_V18_V19_V20_V21_V22_V23};
+static const MCPhysReg ArgVRN8M1s[] = {RISCV::V8_V9_V10_V11_V12_V13_V14_V15,
+                                       RISCV::V9_V10_V11_V12_V13_V14_V15_V16,
+                                       RISCV::V10_V11_V12_V13_V14_V15_V16_V17,
+                                       RISCV::V11_V12_V13_V14_V15_V16_V17_V18,
+                                       RISCV::V12_V13_V14_V15_V16_V17_V18_V19,
+                                       RISCV::V13_V14_V15_V16_V17_V18_V19_V20,
+                                       RISCV::V14_V15_V16_V17_V18_V19_V20_V21,
+                                       RISCV::V15_V16_V17_V18_V19_V20_V21_V22,
+                                       RISCV::V16_V17_V18_V19_V20_V21_V22_V23};
+static const MCPhysReg ArgVRN2M2s[] = {RISCV::V8M2_V10M2,  RISCV::V10M2_V12M2,
+                                       RISCV::V12M2_V14M2, RISCV::V14M2_V16M2,
+                                       RISCV::V16M2_V18M2, RISCV::V18M2_V20M2,
+                                       RISCV::V20M2_V22M2};
+static const MCPhysReg ArgVRN3M2s[] = {
+    RISCV::V8M2_V10M2_V12M2,  RISCV::V10M2_V12M2_V14M2,
+    RISCV::V12M2_V14M2_V16M2, RISCV::V14M2_V16M2_V18M2,
+    RISCV::V16M2_V18M2_V20M2, RISCV::V18M2_V20M2_V22M2};
+static const MCPhysReg ArgVRN4M2s[] = {
+    RISCV::V8M2_V10M2_V12M2_V14M2, RISCV::V10M2_V12M2_V14M2_V16M2,
+    RISCV::V12M2_V14M2_V16M2_V18M2, RISCV::V14M2_V16M2_V18M2_V20M2,
+    RISCV::V16M2_V18M2_V20M2_V22M2};
+static const MCPhysReg ArgVRN2M4s[] = {RISCV::V8M4_V12M4, RISCV::V12M4_V16M4,
+                                       RISCV::V16M4_V20M4};
 
 ArrayRef<MCPhysReg> RISCV::getArgGPRs(const RISCVABI::ABI ABI) {
   // The GPRs used for passing arguments in the ILP32* and LP64* ABIs, except
@@ -18827,12 +19125,55 @@ static bool CC_RISCVAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
   return false;
 }
 
+static unsigned allocateRVVReg(MVT ValVT, unsigned ValNo,
+                               std::optional<unsigned> FirstMaskArgument,
+                               CCState &State, const RISCVTargetLowering &TLI) {
+  const TargetRegisterClass *RC = TLI.getRegClassFor(ValVT);
+  if (RC == &RISCV::VRRegClass) {
+    // Assign the first mask argument to V0.
+    // This is an interim calling convention and it may be changed in the
+    // future.
+    if (FirstMaskArgument && ValNo == *FirstMaskArgument)
+      return State.AllocateReg(RISCV::V0);
+    return State.AllocateReg(ArgVRs);
+  }
+  if (RC == &RISCV::VRM2RegClass)
+    return State.AllocateReg(ArgVRM2s);
+  if (RC == &RISCV::VRM4RegClass)
+    return State.AllocateReg(ArgVRM4s);
+  if (RC == &RISCV::VRM8RegClass)
+    return State.AllocateReg(ArgVRM8s);
+  if (RC == &RISCV::VRN2M1RegClass)
+    return State.AllocateReg(ArgVRN2M1s);
+  if (RC == &RISCV::VRN3M1RegClass)
+    return State.AllocateReg(ArgVRN3M1s);
+  if (RC == &RISCV::VRN4M1RegClass)
+    return State.AllocateReg(ArgVRN4M1s);
+  if (RC == &RISCV::VRN5M1RegClass)
+    return State.AllocateReg(ArgVRN5M1s);
+  if (RC == &RISCV::VRN6M1RegClass)
+    return State.AllocateReg(ArgVRN6M1s);
+  if (RC == &RISCV::VRN7M1RegClass)
+    return State.AllocateReg(ArgVRN7M1s);
+  if (RC == &RISCV::VRN8M1RegClass)
+    return State.AllocateReg(ArgVRN8M1s);
+  if (RC == &RISCV::VRN2M2RegClass)
+    return State.AllocateReg(ArgVRN2M2s);
+  if (RC == &RISCV::VRN3M2RegClass)
+    return State.AllocateReg(ArgVRN3M2s);
+  if (RC == &RISCV::VRN4M2RegClass)
+    return State.AllocateReg(ArgVRN4M2s);
+  if (RC == &RISCV::VRN2M4RegClass)
+    return State.AllocateReg(ArgVRN2M4s);
+  llvm_unreachable("Unhandled register class for ValueType");
+}
+
 // Implements the RISC-V calling convention. Returns true upon failure.
 bool RISCV::CC_RISCV(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
                      MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
                      ISD::ArgFlagsTy ArgFlags, CCState &State, bool IsFixed,
                      bool IsRet, Type *OrigTy, const RISCVTargetLowering &TLI,
-                     RVVArgDispatcher &RVVDispatcher) {
+                     std::optional<unsigned> FirstMaskArgument) {
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
   assert(XLen == 32 || XLen == 64);
   MVT XLenVT = XLen == 32 ? MVT::i32 : MVT::i64;
@@ -19001,7 +19342,7 @@ bool RISCV::CC_RISCV(const DataLayout &DL, RISCVABI::ABI ABI, unsigned ValNo,
   else if (ValVT == MVT::f64 && !UseGPRForF64)
     Reg = State.AllocateReg(ArgFPR64s);
   else if (ValVT.isVector()) {
-    Reg = RVVDispatcher.getNextPhysReg();
+    Reg = allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI);
     if (!Reg) {
       // For return values, the vector must be passed fully via registers or
       // via the stack.
@@ -19087,15 +19428,9 @@ void RISCVTargetLowering::analyzeInputArgs(
   unsigned NumArgs = Ins.size();
   FunctionType *FType = MF.getFunction().getFunctionType();
 
-  RVVArgDispatcher Dispatcher;
-  if (IsRet) {
-    Dispatcher = RVVArgDispatcher{&MF, this, ArrayRef(Ins)};
-  } else {
-    SmallVector<Type *, 4> TypeList;
-    for (const Argument &Arg : MF.getFunction().args())
-      TypeList.push_back(Arg.getType());
-    Dispatcher = RVVArgDispatcher{&MF, this, ArrayRef(TypeList)};
-  }
+  std::optional<unsigned> FirstMaskArgument;
+  if (Subtarget.hasVInstructions())
+    FirstMaskArgument = preAssignMask(Ins);
 
   for (unsigned i = 0; i != NumArgs; ++i) {
     MVT ArgVT = Ins[i].VT;
@@ -19110,7 +19445,7 @@ void RISCVTargetLowering::analyzeInputArgs(
     RISCVABI::ABI ABI = MF.getSubtarget<RISCVSubtarget>().getTargetABI();
     if (Fn(MF.getDataLayout(), ABI, i, ArgVT, ArgVT, CCValAssign::Full,
            ArgFlags, CCInfo, /*IsFixed=*/true, IsRet, ArgTy, *this,
-           Dispatcher)) {
+           FirstMaskArgument)) {
       LLVM_DEBUG(dbgs() << "InputArg #" << i << " has unhandled type "
                         << ArgVT << '\n');
       llvm_unreachable(nullptr);
@@ -19124,13 +19459,9 @@ void RISCVTargetLowering::analyzeOutputArgs(
     CallLoweringInfo *CLI, RISCVCCAssignFn Fn) const {
   unsigned NumArgs = Outs.size();
 
-  SmallVector<Type *, 4> TypeList;
-  if (IsRet)
-    TypeList.push_back(MF.getFunction().getReturnType());
-  else if (CLI)
-    for (const TargetLowering::ArgListEntry &Arg : CLI->getArgs())
-      TypeList.push_back(Arg.Ty);
-  RVVArgDispatcher Dispatcher{&MF, this, ArrayRef(TypeList)};
+  std::optional<unsigned> FirstMaskArgument;
+  if (Subtarget.hasVInstructions())
+    FirstMaskArgument = preAssignMask(Outs);
 
   for (unsigned i = 0; i != NumArgs; i++) {
     MVT ArgVT = Outs[i].VT;
@@ -19140,7 +19471,7 @@ void RISCVTargetLowering::analyzeOutputArgs(
     RISCVABI::ABI ABI = MF.getSubtarget<RISCVSubtarget>().getTargetABI();
     if (Fn(MF.getDataLayout(), ABI, i, ArgVT, ArgVT, CCValAssign::Full,
            ArgFlags, CCInfo, Outs[i].IsFixed, IsRet, OrigTy, *this,
-           Dispatcher)) {
+           FirstMaskArgument)) {
       LLVM_DEBUG(dbgs() << "OutputArg #" << i << " has unhandled type "
                         << ArgVT << "\n");
       llvm_unreachable(nullptr);
@@ -19321,7 +19652,7 @@ bool RISCV::CC_RISCV_FastCC(const DataLayout &DL, RISCVABI::ABI ABI,
                             ISD::ArgFlagsTy ArgFlags, CCState &State,
                             bool IsFixed, bool IsRet, Type *OrigTy,
                             const RISCVTargetLowering &TLI,
-                            RVVArgDispatcher &RVVDispatcher) {
+                            std::optional<unsigned> FirstMaskArgument) {
   if (LocVT == MVT::i32 || LocVT == MVT::i64) {
     if (unsigned Reg = State.AllocateReg(getFastCCArgGPRs(ABI))) {
       State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
@@ -19399,14 +19730,13 @@ bool RISCV::CC_RISCV_FastCC(const DataLayout &DL, RISCVABI::ABI ABI,
   }
 
   if (LocVT.isVector()) {
-    MCPhysReg AllocatedVReg = RVVDispatcher.getNextPhysReg();
-    if (AllocatedVReg) {
+    if (unsigned Reg =
+            allocateRVVReg(ValVT, ValNo, FirstMaskArgument, State, TLI)) {
       // Fixed-length vectors are located in the corresponding scalable-vector
       // container types.
       if (ValVT.isFixedLengthVector())
         LocVT = TLI.getContainerForFixedLengthVector(LocVT);
-      State.addLoc(
-          CCValAssign::getReg(ValNo, ValVT, AllocatedVReg, LocVT, LocInfo));
+      State.addLoc(CCValAssign::getReg(ValNo, ValVT, Reg, LocVT, LocInfo));
     } else {
       // Try and pass the address via a "fast" GPR.
       if (unsigned GPRReg = State.AllocateReg(getFastCCArgGPRs(ABI))) {
@@ -20034,15 +20364,17 @@ bool RISCVTargetLowering::CanLowerReturn(
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, IsVarArg, MF, RVLocs, Context);
 
-  RVVArgDispatcher Dispatcher{&MF, this, ArrayRef(Outs)};
+  std::optional<unsigned> FirstMaskArgument;
+  if (Subtarget.hasVInstructions())
+    FirstMaskArgument = preAssignMask(Outs);
 
   for (unsigned i = 0, e = Outs.size(); i != e; ++i) {
     MVT VT = Outs[i].VT;
     ISD::ArgFlagsTy ArgFlags = Outs[i].Flags;
     RISCVABI::ABI ABI = MF.getSubtarget<RISCVSubtarget>().getTargetABI();
     if (RISCV::CC_RISCV(MF.getDataLayout(), ABI, i, VT, VT, CCValAssign::Full,
-                        ArgFlags, CCInfo, /*IsFixed=*/true, /*IsRet=*/true,
-                        nullptr, *this, Dispatcher))
+                 ArgFlags, CCInfo, /*IsFixed=*/true, /*IsRet=*/true, nullptr,
+                 *this, FirstMaskArgument))
       return false;
   }
   return true;
@@ -20529,8 +20861,14 @@ RISCVTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
       break;
     }
   } else if (Constraint == "vr") {
-    for (const auto *RC : {&RISCV::VRRegClass, &RISCV::VRM2RegClass,
-                           &RISCV::VRM4RegClass, &RISCV::VRM8RegClass}) {
+    for (const auto *RC :
+         {&RISCV::VRRegClass, &RISCV::VRM2RegClass, &RISCV::VRM4RegClass,
+          &RISCV::VRM8RegClass, &RISCV::VRN2M1RegClass, &RISCV::VRN3M1RegClass,
+          &RISCV::VRN4M1RegClass, &RISCV::VRN5M1RegClass,
+          &RISCV::VRN6M1RegClass, &RISCV::VRN7M1RegClass,
+          &RISCV::VRN8M1RegClass, &RISCV::VRN2M2RegClass,
+          &RISCV::VRN3M2RegClass, &RISCV::VRN4M2RegClass,
+          &RISCV::VRN2M4RegClass}) {
       if (TRI->isTypeLegalForClass(*RC, VT.SimpleTy))
         return std::make_pair(0U, RC);
     }
@@ -21365,6 +21703,23 @@ bool RISCVTargetLowering::splitValueIntoRegisterParts(
       return true;
     }
   }
+
+  if (ValueVT.isRISCVVectorTuple() && PartVT.isRISCVVectorTuple()) {
+    unsigned ValNF = ValueVT.getVectorNumElements();
+    unsigned ValLMUL = std::max(1U, (unsigned)ValueVT.getSizeInBits() /
+                                        (ValNF * RISCV::RVVBitsPerBlock));
+    unsigned PartNF = PartVT.getVectorNumElements();
+    unsigned PartLMUL = std::max(1U, (unsigned)PartVT.getSizeInBits() /
+                                         (PartNF * RISCV::RVVBitsPerBlock));
+    assert(ValNF == PartNF && ValLMUL == PartLMUL &&
+           "RISCV vector tuple type only accepts same register class type "
+           "INSERT_SUBVECTOR");
+
+    Val = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, PartVT, DAG.getUNDEF(PartVT),
+                      Val, DAG.getVectorIdxConstant(0, DL));
+    Parts[0] = Val;
+    return true;
+  }
   return false;
 }
 
@@ -21641,7 +21996,7 @@ bool RISCVTargetLowering::lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *DI,
     return false;
 
   Function *VlsegNFunc;
-  Value *VL;
+  Value *VL, *Return;
   Type *XLenTy = Type::getIntNTy(LI->getContext(), Subtarget.getXLen());
   SmallVector<Value *, 10> Ops;
 
@@ -21650,6 +22005,8 @@ bool RISCVTargetLowering::lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *DI,
         LI->getModule(), FixedVlsegIntrIds[Factor - 2],
         {ResVTy, LI->getPointerOperandType(), XLenTy});
     VL = ConstantInt::get(XLenTy, FVTy->getNumElements());
+    Ops.append({LI->getPointerOperand(), VL});
+    Return = Builder.CreateCall(VlsegNFunc, Ops);
   } else {
     static const Intrinsic::ID IntrIds[] = {
         Intrinsic::riscv_vlseg2, Intrinsic::riscv_vlseg3,
@@ -21657,16 +22014,35 @@ bool RISCVTargetLowering::lowerDeinterleaveIntrinsicToLoad(IntrinsicInst *DI,
         Intrinsic::riscv_vlseg6, Intrinsic::riscv_vlseg7,
         Intrinsic::riscv_vlseg8};
 
+    unsigned SEW = ResVTy->getElementType()->getScalarSizeInBits();
+    unsigned NumElts = ResVTy->getElementCount().getKnownMinValue();
+    Type *VecTupTy = TargetExtType::get(
+        LI->getContext(), "riscv_vec_tuple",
+        ScalableVectorType::get(Type::getInt8Ty(LI->getContext()),
+                                NumElts * SEW / 8),
+        2);
+
     VlsegNFunc = Intrinsic::getDeclaration(LI->getModule(), IntrIds[Factor - 2],
-                                           {ResVTy, XLenTy});
+                                           {VecTupTy, XLenTy});
     VL = Constant::getAllOnesValue(XLenTy);
-    Ops.append(Factor, PoisonValue::get(ResVTy));
+
+    Ops.append({PoisonValue::get(VecTupTy), LI->getPointerOperand(), VL,
+                ConstantInt::get(XLenTy, Log2_64(SEW))});
+    Value *Vlseg = Builder.CreateCall(VlsegNFunc, Ops);
+
+    SmallVector<Type *, 2> AggrTypes{Factor, ResVTy};
+    Return = PoisonValue::get(StructType::get(LI->getContext(), AggrTypes));
+    Function *VecExtractFunc = Intrinsic::getDeclaration(
+        LI->getModule(), Intrinsic::riscv_vector_extract,
+        {ResVTy, VecTupTy, XLenTy});
+    for (unsigned i = 0; i < Factor; ++i) {
+      Value *VecExtract = Builder.CreateCall(
+          VecExtractFunc, {Vlseg, ConstantInt::get(XLenTy, i)});
+      Return = Builder.CreateInsertValue(Return, VecExtract, i);
+    }
   }
 
-  Ops.append({LI->getPointerOperand(), VL});
-
-  Value *Vlseg = Builder.CreateCall(VlsegNFunc, Ops);
-  DI->replaceAllUsesWith(Vlseg);
+  DI->replaceAllUsesWith(Return);
 
   return true;
 }
@@ -21699,6 +22075,8 @@ bool RISCVTargetLowering::lowerInterleaveIntrinsicToStore(IntrinsicInst *II,
         SI->getModule(), FixedVssegIntrIds[Factor - 2],
         {InVTy, SI->getPointerOperandType(), XLenTy});
     VL = ConstantInt::get(XLenTy, FVTy->getNumElements());
+    Builder.CreateCall(VssegNFunc, {II->getOperand(0), II->getOperand(1),
+                                    SI->getPointerOperand(), VL});
   } else {
     static const Intrinsic::ID IntrIds[] = {
         Intrinsic::riscv_vsseg2, Intrinsic::riscv_vsseg3,
@@ -21706,13 +22084,31 @@ bool RISCVTargetLowering::lowerInterleaveIntrinsicToStore(IntrinsicInst *II,
         Intrinsic::riscv_vsseg6, Intrinsic::riscv_vsseg7,
         Intrinsic::riscv_vsseg8};
 
-    VssegNFunc = Intrinsic::getDeclaration(SI->getModule(), IntrIds[Factor - 2],
-                                           {InVTy, XLenTy});
-    VL = Constant::getAllOnesValue(XLenTy);
-  }
+    unsigned SEW = InVTy->getElementType()->getScalarSizeInBits();
+    unsigned NumElts = InVTy->getElementCount().getKnownMinValue();
+    Type *VecTupTy = TargetExtType::get(
+        SI->getContext(), "riscv_vec_tuple",
+        ScalableVectorType::get(Type::getInt8Ty(SI->getContext()),
+                                NumElts * SEW / 8),
+        2);
 
-  Builder.CreateCall(VssegNFunc, {II->getOperand(0), II->getOperand(1),
-                                  SI->getPointerOperand(), VL});
+    VssegNFunc = Intrinsic::getDeclaration(SI->getModule(), IntrIds[Factor - 2],
+                                           {VecTupTy, XLenTy});
+
+    VL = Constant::getAllOnesValue(XLenTy);
+
+    Function *VecInsertFunc = Intrinsic::getDeclaration(
+        SI->getModule(), Intrinsic::riscv_vector_insert,
+        {VecTupTy, InVTy, XLenTy});
+    Value *StoredVal = PoisonValue::get(VecTupTy);
+    for (unsigned i = 0; i < Factor; ++i)
+      StoredVal =
+          Builder.CreateCall(VecInsertFunc, {StoredVal, II->getOperand(i),
+                                             ConstantInt::get(XLenTy, i)});
+
+    Builder.CreateCall(VssegNFunc, {StoredVal, SI->getPointerOperand(), VL,
+                                    ConstantInt::get(XLenTy, Log2_64(SEW))});
+  }
 
   return true;
 }
@@ -21875,181 +22271,6 @@ bool RISCVTargetLowering::shouldFoldSelectWithSingleBitTest(
 
 unsigned RISCVTargetLowering::getMinimumJumpTableEntries() const {
   return Subtarget.getMinimumJumpTableEntries();
-}
-
-// Handle single arg such as return value.
-template <typename Arg>
-void RVVArgDispatcher::constructArgInfos(ArrayRef<Arg> ArgList) {
-  // This lambda determines whether an array of types are constructed by
-  // homogeneous vector types.
-  auto isHomogeneousScalableVectorType = [](ArrayRef<Arg> ArgList) {
-    // First, extract the first element in the argument type.
-    auto It = ArgList.begin();
-    MVT FirstArgRegType = It->VT;
-
-    // Return if there is no return or the type needs split.
-    if (It == ArgList.end() || It->Flags.isSplit())
-      return false;
-
-    ++It;
-
-    // Return if this argument type contains only 1 element, or it's not a
-    // vector type.
-    if (It == ArgList.end() || !FirstArgRegType.isScalableVector())
-      return false;
-
-    // Second, check if the following elements in this argument type are all the
-    // same.
-    for (; It != ArgList.end(); ++It)
-      if (It->Flags.isSplit() || It->VT != FirstArgRegType)
-        return false;
-
-    return true;
-  };
-
-  if (isHomogeneousScalableVectorType(ArgList)) {
-    // Handle as tuple type
-    RVVArgInfos.push_back({(unsigned)ArgList.size(), ArgList[0].VT, false});
-  } else {
-    // Handle as normal vector type
-    bool FirstVMaskAssigned = false;
-    for (const auto &OutArg : ArgList) {
-      MVT RegisterVT = OutArg.VT;
-
-      // Skip non-RVV register type
-      if (!RegisterVT.isVector())
-        continue;
-
-      if (RegisterVT.isFixedLengthVector())
-        RegisterVT = TLI->getContainerForFixedLengthVector(RegisterVT);
-
-      if (!FirstVMaskAssigned && RegisterVT.getVectorElementType() == MVT::i1) {
-        RVVArgInfos.push_back({1, RegisterVT, true});
-        FirstVMaskAssigned = true;
-        continue;
-      }
-
-      RVVArgInfos.push_back({1, RegisterVT, false});
-    }
-  }
-}
-
-// Handle multiple args.
-template <>
-void RVVArgDispatcher::constructArgInfos<Type *>(ArrayRef<Type *> TypeList) {
-  const DataLayout &DL = MF->getDataLayout();
-  const Function &F = MF->getFunction();
-  LLVMContext &Context = F.getContext();
-
-  bool FirstVMaskAssigned = false;
-  for (Type *Ty : TypeList) {
-    StructType *STy = dyn_cast<StructType>(Ty);
-    if (STy && STy->containsHomogeneousScalableVectorTypes()) {
-      Type *ElemTy = STy->getTypeAtIndex(0U);
-      EVT VT = TLI->getValueType(DL, ElemTy);
-      MVT RegisterVT =
-          TLI->getRegisterTypeForCallingConv(Context, F.getCallingConv(), VT);
-      unsigned NumRegs =
-          TLI->getNumRegistersForCallingConv(Context, F.getCallingConv(), VT);
-
-      RVVArgInfos.push_back(
-          {NumRegs * STy->getNumElements(), RegisterVT, false});
-    } else {
-      SmallVector<EVT, 4> ValueVTs;
-      ComputeValueVTs(*TLI, DL, Ty, ValueVTs);
-
-      for (unsigned Value = 0, NumValues = ValueVTs.size(); Value != NumValues;
-           ++Value) {
-        EVT VT = ValueVTs[Value];
-        MVT RegisterVT =
-            TLI->getRegisterTypeForCallingConv(Context, F.getCallingConv(), VT);
-        unsigned NumRegs =
-            TLI->getNumRegistersForCallingConv(Context, F.getCallingConv(), VT);
-
-        // Skip non-RVV register type
-        if (!RegisterVT.isVector())
-          continue;
-
-        if (RegisterVT.isFixedLengthVector())
-          RegisterVT = TLI->getContainerForFixedLengthVector(RegisterVT);
-
-        if (!FirstVMaskAssigned &&
-            RegisterVT.getVectorElementType() == MVT::i1) {
-          RVVArgInfos.push_back({1, RegisterVT, true});
-          FirstVMaskAssigned = true;
-          --NumRegs;
-        }
-
-        RVVArgInfos.insert(RVVArgInfos.end(), NumRegs, {1, RegisterVT, false});
-      }
-    }
-  }
-}
-
-void RVVArgDispatcher::allocatePhysReg(unsigned NF, unsigned LMul,
-                                       unsigned StartReg) {
-  assert((StartReg % LMul) == 0 &&
-         "Start register number should be multiple of lmul");
-  const MCPhysReg *VRArrays;
-  switch (LMul) {
-  default:
-    report_fatal_error("Invalid lmul");
-  case 1:
-    VRArrays = ArgVRs;
-    break;
-  case 2:
-    VRArrays = ArgVRM2s;
-    break;
-  case 4:
-    VRArrays = ArgVRM4s;
-    break;
-  case 8:
-    VRArrays = ArgVRM8s;
-    break;
-  }
-
-  for (unsigned i = 0; i < NF; ++i)
-    if (StartReg)
-      AllocatedPhysRegs.push_back(VRArrays[(StartReg - 8) / LMul + i]);
-    else
-      AllocatedPhysRegs.push_back(MCPhysReg());
-}
-
-/// This function determines if each RVV argument is passed by register, if the
-/// argument can be assigned to a VR, then give it a specific register.
-/// Otherwise, assign the argument to 0 which is a invalid MCPhysReg.
-void RVVArgDispatcher::compute() {
-  uint32_t AssignedMap = 0;
-  auto allocate = [&](const RVVArgInfo &ArgInfo) {
-    // Allocate first vector mask argument to V0.
-    if (ArgInfo.FirstVMask) {
-      AllocatedPhysRegs.push_back(RISCV::V0);
-      return;
-    }
-
-    unsigned RegsNeeded = divideCeil(
-        ArgInfo.VT.getSizeInBits().getKnownMinValue(), RISCV::RVVBitsPerBlock);
-    unsigned TotalRegsNeeded = ArgInfo.NF * RegsNeeded;
-    for (unsigned StartReg = 0; StartReg + TotalRegsNeeded <= NumArgVRs;
-         StartReg += RegsNeeded) {
-      uint32_t Map = ((1 << TotalRegsNeeded) - 1) << StartReg;
-      if ((AssignedMap & Map) == 0) {
-        allocatePhysReg(ArgInfo.NF, RegsNeeded, StartReg + 8);
-        AssignedMap |= Map;
-        return;
-      }
-    }
-
-    allocatePhysReg(ArgInfo.NF, RegsNeeded, 0);
-  };
-
-  for (unsigned i = 0; i < RVVArgInfos.size(); ++i)
-    allocate(RVVArgInfos[i]);
-}
-
-MCPhysReg RVVArgDispatcher::getNextPhysReg() {
-  assert(CurIdx < AllocatedPhysRegs.size() && "Index out of range");
-  return AllocatedPhysRegs[CurIdx++];
 }
 
 SDValue RISCVTargetLowering::expandIndirectJTBranch(const SDLoc &dl,

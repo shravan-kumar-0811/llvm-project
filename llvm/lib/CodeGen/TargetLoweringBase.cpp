@@ -1420,6 +1420,10 @@ void TargetLoweringBase::computeRegisterProperties(
         // Try to widen the vector.
         for (unsigned nVT = i + 1; nVT <= MVT::LAST_VECTOR_VALUETYPE; ++nVT) {
           MVT SVT = (MVT::SimpleValueType) nVT;
+          // Skip RISCV vector tuple types since they don't involve in any
+          // widen/narrow operation.
+          if (SVT.isRISCVVectorTuple())
+            continue;
           if (SVT.getVectorElementType() == EltVT &&
               SVT.isScalableVector() == IsScalable &&
               SVT.getVectorElementCount().getKnownMinValue() >
@@ -1675,16 +1679,8 @@ void llvm::GetReturnInfo(CallingConv::ID CC, Type *ReturnType,
     else if (attr.hasRetAttr(Attribute::ZExt))
       Flags.setZExt();
 
-    for (unsigned i = 0; i < NumParts; ++i) {
-      ISD::ArgFlagsTy OutFlags = Flags;
-      if (NumParts > 1 && i == 0)
-        OutFlags.setSplit();
-      else if (i == NumParts - 1 && i != 0)
-        OutFlags.setSplitEnd();
-
-      Outs.push_back(
-          ISD::OutputArg(OutFlags, PartVT, VT, /*isfixed=*/true, 0, 0));
-    }
+    for (unsigned i = 0; i < NumParts; ++i)
+      Outs.push_back(ISD::OutputArg(Flags, PartVT, VT, /*isfixed=*/true, 0, 0));
   }
 }
 
