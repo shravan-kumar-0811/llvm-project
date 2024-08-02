@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -fsyntax-only -verify=scalar,neon -triple aarch64-arm-none-eabi \
-// RUN: -target-feature -fp8 -target-feature +neon %s
+// RUN: %clang_cc1 -fsyntax-only -verify=scalar,neon,sve -triple aarch64-arm-none-eabi \
+// RUN: -target-feature -fp8 -target-feature +neon  -target-feature +sve %s
 
 // REQUIRES: aarch64-registered-target
 __mfp8 test_static_cast_from_char(char in) {
@@ -51,3 +51,12 @@ void test_vector(mfloat8x8_t a, mfloat8x8_t b, uint8x8_t c) {
   c * b;  // neon-error {{invalid operands to binary expression ('uint8x8_t' (vector of 8 'uint8_t' values) and 'mfloat8x8_t' (vector of 8 'mfloat8_t' values))}}
   c / b;  // neon-error {{invalid operands to binary expression ('uint8x8_t' (vector of 8 'uint8_t' values) and 'mfloat8x8_t' (vector of 8 'mfloat8_t' values))}}
 }
+
+#include <arm_sve.h>
+void test_vector_sve(svmfloat8_t a, svuint8_t c) {
+  a + c;  // sve-error {{cannot convert between vector and non-scalar values ('svmfloat8_t' (aka '__SVMfloat8_t') and 'svuint8_t' (aka '__SVUint8_t'))}}
+  a - c;  // sve-error {{cannot convert between vector and non-scalar values ('svmfloat8_t' (aka '__SVMfloat8_t') and 'svuint8_t' (aka '__SVUint8_t'))}}
+  a * c;  // sve-error {{cannot convert between vector and non-scalar values ('svmfloat8_t' (aka '__SVMfloat8_t') and 'svuint8_t' (aka '__SVUint8_t'))}}
+  a / c;  // sve-error {{cannot convert between vector and non-scalar values ('svmfloat8_t' (aka '__SVMfloat8_t') and 'svuint8_t' (aka '__SVUint8_t'))}}
+}
+
