@@ -291,7 +291,7 @@ public:
 #endif // NDEBUG
 };
 
-class InsertIntoBB : public IRChangeBase {
+class InsertIntoBB final : public IRChangeBase {
   Instruction *InsertedI = nullptr;
 
 public:
