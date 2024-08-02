@@ -256,6 +256,10 @@ class StructurizeCFG {
   BBPhiMap DeletedPhis;
   BB2BBVecMap AddedPhis;
 
+  SmallVector<BBValueVector> BBValuesPool;
+  // Map PHINode to the index of the merged incoming values in BBValuesPool
+  DenseMap<PHINode *, unsigned> MergedPHIMap;
+
   PredMap Predicates;
   BranchVector Conditions;
 
@@ -289,8 +293,7 @@ class StructurizeCFG {
                        const SmallSet<BasicBlock *, 8> &Incomings,
                        SmallVector<BasicBlock *> &UndefBlks) const;
 
-  bool isCompatible(const BBValueVector &IncomingA,
-                    const BBValueVector &IncomingB, BBValueVector &Merged);
+  void mergeIfCompatible(PHINode *A, PHINode *B);
 
   void setPhiValues();
 
@@ -714,29 +717,53 @@ void StructurizeCFG::findUndefBlocks(
   }
 }
 
-// Return true if two PHI nodes have compatible incoming values (for each
+// If two PHI nodes have compatible incoming values (for each
 // incoming block, either they have the same incoming value or only one PHI
-// node has a incoming value). And return the union of the incoming values
-// through \p Merged.
-bool StructurizeCFG::isCompatible(const BBValueVector &IncomingA,
-                                  const BBValueVector &IncomingB,
-                                  BBValueVector &Merged) {
-  DenseMap<BasicBlock *, Value *> UnionSet;
-  for (auto &V : IncomingA)
-    UnionSet.insert(V);
+// node has a incoming value), let them share the merged incoming values.
+void StructurizeCFG::mergeIfCompatible(PHINode *A, PHINode *B) {
 
+  auto ItA = MergedPHIMap.find(A);
+  auto ItB = MergedPHIMap.find(B);
+  bool FoundA = ItA != MergedPHIMap.end();
+  bool FoundB = ItB != MergedPHIMap.end();
+
+  // Skip phis that were both already merged with others.
+  if (FoundA && FoundB)
+    return;
+
+  const auto &IncomingA =
+      FoundA ? BBValuesPool[ItA->second] : DeletedPhis[A->getParent()][A];
+  const auto &IncomingB =
+      FoundB ? BBValuesPool[ItB->second] : DeletedPhis[B->getParent()][B];
+
+  DenseMap<BasicBlock *, Value *> Mergeable(IncomingA.begin(), IncomingA.end());
   for (auto &[BB, V] : IncomingB) {
-    if (UnionSet.contains(BB) && UnionSet[BB] != V)
-      return false;
+    if (Mergeable.contains(BB) && Mergeable[BB] != V)
+      return;
     // Either IncomingA does not have this value or IncomingA has the same
     // value.
-    UnionSet.insert({BB, V});
+    Mergeable.insert({BB, V});
   }
 
-  Merged.clear();
-  for (auto &[BB, V] : UnionSet)
-    Merged.push_back({BB, V});
-  return true;
+  unsigned PoolIndex;
+
+  if (FoundA || FoundB) {
+    PoolIndex = FoundA ? ItA->second : ItB->second;
+    BBValuesPool[PoolIndex].clear();
+    BBValuesPool[PoolIndex].append(Mergeable.begin(), Mergeable.end());
+  } else {
+    PoolIndex = BBValuesPool.size();
+    BBValuesPool.emplace_back(Mergeable.begin(), Mergeable.end());
+  }
+
+  // Skip insertion if Phi was already merged with other phi node.
+  if (!FoundA)
+    MergedPHIMap.insert({A, PoolIndex});
+
+  if (!FoundB)
+    MergedPHIMap.insert({B, PoolIndex});
+
+  return;
 }
 
 /// Add the real PHI value as soon as everything is set up
@@ -744,9 +771,6 @@ void StructurizeCFG::setPhiValues() {
   SmallVector<PHINode *, 8> InsertedPhis;
   SSAUpdater Updater(&InsertedPhis);
 
-  SmallVector<BBValueVector> BBValuesPool;
-  // Map PHINode to the index of the merged incoming values in BBValuesPool
-  DenseMap<PHINode *, unsigned> MergedPHIMap;
   // Find out phi nodes that have compatible incoming values (either they have
   // the same value for the same block or one have undefined value, see example
   // below). We only search again the phi's that are referenced by another phi,
@@ -769,10 +793,11 @@ void StructurizeCFG::setPhiValues() {
   // value from certain block, this means the block is not the predecessor
   // of the parent block, so we actually don't care its incoming value.
   for (const auto &[To, From] : AddedPhis) {
-    if (!DeletedPhis.contains(To))
+    auto OldPhiIt = DeletedPhis.find(To);
+    if (OldPhiIt == DeletedPhis.end())
       continue;
-    PhiMap &OldPhi = DeletedPhis[To];
-    for (const auto &[Phi, Incomings] : OldPhi) {
+
+    for (const auto &[Phi, Incomings] : OldPhiIt->second) {
       SmallVector<PHINode *> IncomingPHIs;
       for (const auto &[BB, V] : Incomings) {
         // First, for each phi, check whether it has incoming value which is
@@ -781,43 +806,11 @@ void StructurizeCFG::setPhiValues() {
           IncomingPHIs.push_back(P);
       }
 
-      const auto GetUpdatedIncoming = [&](PHINode *Phi) {
-        if (auto It = MergedPHIMap.find(Phi); It != MergedPHIMap.end())
-          return BBValuesPool[It->second];
-        return DeletedPhis[Phi->getParent()][Phi];
-      };
-
       for (auto *OtherPhi : IncomingPHIs) {
         // Skip phis that are unrelated to the phi reconstruction for now.
         if (!DeletedPhis.contains(OtherPhi->getParent()))
           continue;
-
-        auto PhiIt = MergedPHIMap.find(Phi);
-        auto OtherPhiIt = MergedPHIMap.find(OtherPhi);
-        // Skip phis that were both already merged with others.
-        if (PhiIt != MergedPHIMap.end() && OtherPhiIt != MergedPHIMap.end())
-          continue;
-
-        unsigned PoolIndex;
-        if (PhiIt != MergedPHIMap.end()) {
-          PoolIndex = PhiIt->second;
-        } else if (OtherPhiIt != MergedPHIMap.end()) {
-          PoolIndex = OtherPhiIt->second;
-        } else {
-          PoolIndex = BBValuesPool.size();
-          BBValuesPool.push_back(BBValueVector());
-        }
-
-        const auto &Incoming = GetUpdatedIncoming(Phi);
-        const auto &OtherIncoming = GetUpdatedIncoming(OtherPhi);
-        if (isCompatible(Incoming, OtherIncoming, BBValuesPool[PoolIndex])) {
-          // union the incoming values
-          if (!MergedPHIMap.contains(Phi))
-            MergedPHIMap.insert({Phi, PoolIndex});
-
-          if (!MergedPHIMap.contains(OtherPhi))
-            MergedPHIMap.insert({OtherPhi, PoolIndex});
-        }
+        mergeIfCompatible(Phi, OtherPhi);
       }
     }
   }
@@ -1318,6 +1311,8 @@ bool StructurizeCFG::run(Region *R, DominatorTree *DT) {
   LoopConds.clear();
   FlowSet.clear();
   TermDL.clear();
+  BBValuesPool.clear();
+  MergedPHIMap.clear();
 
   return true;
 }
