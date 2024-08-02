@@ -14,7 +14,6 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Stmt.h"
-#include "clang/AST/StmtVisitor.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/SourceLocation.h"
@@ -22,12 +21,10 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Casting.h"
-#include <cstddef>
 #include <memory>
 #include <optional>
 #include <queue>
@@ -1081,7 +1078,15 @@ public:
             .bind(Tag));
   }
 
-  const Stmt *getBaseStmt() const override { return Ctor; }
+  const Stmt *getBaseStmt() const { return Ctor; }
+
+  SourceLocation getSourceLoc() const override {return Ctor->getLocation();}
+
+  void handleUnsafeOperation(UnsafeBufferUsageHandler &Handler,
+                             bool IsRelatedToDecl,
+                             ASTContext &Ctx) const override {
+    Handler.handleUnsafeOperation(Ctor, false, Ctx);
+  }
 
   DeclUseList getClaimedVarUseSites() const override {
     // If the constructor call is of the form `std::basic_string_view{ptrVar,
@@ -1356,7 +1361,15 @@ public:
         callExpr(isUnsafeLibcFunctionCall(HasUnsafeStringView)).bind(Tag));
   }
 
-  const Stmt *getBaseStmt() const override { return Call; }
+  const Stmt *getBaseStmt() const { return Call; }
+
+  SourceLocation getSourceLoc() const override { return Call->getBeginLoc(); }
+
+  void handleUnsafeOperation(UnsafeBufferUsageHandler &Handler,
+                             bool IsRelatedToDecl,
+                             ASTContext &Ctx) const override {
+    Handler.handleUnsafeOperation(Call, false, Ctx);
+  }
 
   DeclUseList getClaimedVarUseSites() const override { return {}; }
 };
