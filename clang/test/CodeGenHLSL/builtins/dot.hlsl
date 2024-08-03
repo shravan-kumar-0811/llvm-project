@@ -6,6 +6,8 @@
 // RUN:   dxil-pc-shadermodel6.3-library %s -emit-llvm -disable-llvm-passes \
 // RUN:   -o - | FileCheck %s --check-prefixes=CHECK,NO_HALF
 
+export {
+
 #ifdef __HLSL_ENABLE_16_BIT
 // NATIVE_HALF: %dx.dot = mul i16 %0, %1
 // NATIVE_HALF: ret i16 %dx.dot
@@ -159,3 +161,5 @@ float test_dot_float4_splat(float p0, float4 p1) { return dot(p0, p1); }
 // CHECK: %dx.dot = fmul double %0, %1
 // CHECK: ret double %dx.dot
 double test_dot_double(double p0, double p1) { return dot(p0, p1); }
+
+} // export

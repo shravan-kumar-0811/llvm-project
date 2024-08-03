@@ -13,6 +13,7 @@
 // RUN:   spirv-unknown-vulkan-compute %s -emit-llvm -disable-llvm-passes \
 // RUN:   -o - | FileCheck %s --check-prefixes=CHECK,NO_HALF,SPIR_NO_HALF,SPIR_CHECK
 
+export {
 
 // DXIL_NATIVE_HALF: %hlsl.lerp = call half @llvm.dx.lerp.f16(half %{{.*}}, half %{{.*}}, half %{{.*}})
 // SPIR_NATIVE_HALF: %hlsl.lerp = call half @llvm.spv.lerp.f16(half %{{.*}}, half %{{.*}}, half %{{.*}})
@@ -86,3 +87,5 @@ float3 test_lerp_float3_splat(float p0, float3 p1) { return lerp(p0, p1, p1); }
 // SPIR_CHECK: %hlsl.lerp = call <4 x float> @llvm.spv.lerp.v4f32(<4 x float> %splat.splat, <4 x float> %[[b]], <4 x float> %[[c]])
 // CHECK:  ret <4 x float> %hlsl.lerp
 float4 test_lerp_float4_splat(float p0, float4 p1) { return lerp(p0, p1, p1); }
+
+} // export

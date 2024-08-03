@@ -12371,6 +12371,10 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
   if (D->hasAttr<AliasAttr>() || D->hasAttr<UsedAttr>())
     return true;
 
+  // HLSL entry functions are required.
+  if (D->hasAttr<HLSLShaderAttr>())
+    return true;
+
   if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
     // Forward declarations aren't required.
     if (!FD->doesThisDeclarationHaveABody())

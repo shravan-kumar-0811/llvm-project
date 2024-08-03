@@ -1,6 +1,8 @@
 // RUN: %clang_cc1 -std=hlsl2021 -finclude-default-header -x hlsl -triple \
 // RUN:   spirv-pc-vulkan-library %s -emit-llvm -disable-llvm-passes -o - | FileCheck %s
 
+export {
+
 bool cond();
 void foo();
 
@@ -88,3 +90,5 @@ void test5() {
 
 // CHECK-DAG: attributes [[A0]] = { {{.*}}convergent{{.*}} }
 // CHECK-DAG: attributes [[A3]] = { {{.*}}convergent{{.*}} }
+
+} // export

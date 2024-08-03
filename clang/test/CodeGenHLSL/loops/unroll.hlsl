@@ -1,6 +1,8 @@
 // RUN: %clang_cc1 -std=hlsl2021 -finclude-default-header -x hlsl -triple \
 // RUN: dxil-pc-shadermodel6.3-library -disable-llvm-passes %s -emit-llvm -o - | FileCheck %s
 
+export {
+
 /*** for ***/
 void for_count()
 {
@@ -128,3 +130,5 @@ void do_enable()
 // CHECK: ![[DO_COUNT]]         =  !{!"llvm.loop.unroll.count", i32 16}
 // CHECK: ![[DO_DISABLE]]    =  distinct !{![[DO_DISABLE]],     ![[DISABLE]]}
 // CHECK: ![[DO_ENABLE]]       =  distinct !{![[DO_ENABLE]],        ![[ENABLE]]}
+
+} // export

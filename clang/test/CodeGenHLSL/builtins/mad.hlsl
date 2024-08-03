@@ -14,6 +14,8 @@
 // RUN:   spirv-unknown-vulkan-compute %s -emit-llvm -disable-llvm-passes \
 // RUN:   -o - | FileCheck %s --check-prefixes=CHECK,NO_HALF,SPIR_CHECK
 
+export {
+
 #ifdef __HLSL_ENABLE_16_BIT
 // DXIL_NATIVE_HALF: %dx.umad = call i16 @llvm.dx.umad.i16(i16 %0, i16 %1, i16 %2)
 // DXIL_NATIVE_HALF: ret i16 %dx.umad
@@ -281,3 +283,5 @@ float3 test_mad_float3_splat(float p0, float3 p1, float3 p2) { return mad(p0, p1
 // CHECK:  %hlsl.fmad = call <4 x float>  @llvm.fmuladd.v4f32(<4 x float> %splat.splat, <4 x float> %[[p1]], <4 x float> %[[p2]])
 // CHECK:  ret <4 x float> %hlsl.fmad
 float4 test_mad_float4_splat(float p0, float4 p1, float4 p2) { return mad(p0, p1, p2); }
+
+} // export

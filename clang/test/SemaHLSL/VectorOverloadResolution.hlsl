@@ -1,5 +1,8 @@
 // RUN: %clang_cc1 -triple dxil-unknown-shadermodel6.6-library -S -fnative-half-type -finclude-default-header -o - -ast-dump %s | FileCheck %s
 // RUN: %clang_cc1 -finclude-default-header -triple dxil-pc-shadermodel6.6-library %s -fnative-half-type -emit-llvm -disable-llvm-passes -o - | FileCheck %s --check-prefixes=CHECKIR
+
+export {
+
 void Fn(double2 D);
 void Fn(half2 H);
 
@@ -72,3 +75,5 @@ void Fn4( float2 p0);
 void Call5(int64_t2 p0) {
   Fn4(p0);
 }
+
+} // export

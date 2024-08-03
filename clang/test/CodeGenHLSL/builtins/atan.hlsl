@@ -6,6 +6,8 @@
 // RUN:   spirv-unknown-vulkan-compute %s -emit-llvm -disable-llvm-passes \
 // RUN:   -o - | FileCheck %s --check-prefixes=CHECK,NO_HALF
 
+export {
+
 // CHECK-LABEL: test_atan_half
 // NATIVE_HALF: call half @llvm.atan.f16
 // NO_HALF: call float @llvm.atan.f32
@@ -57,3 +59,5 @@ float3 test_atan_float3 ( float3 p0 ) {
 float4 test_atan_float4 ( float4 p0 ) {
   return atan ( p0 );
 }
+
+} // export

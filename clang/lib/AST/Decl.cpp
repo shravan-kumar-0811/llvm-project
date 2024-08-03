@@ -664,11 +664,25 @@ LinkageComputer::getLVForNamespaceScopeDecl(const NamedDecl *D,
       if (PrevVar->getStorageClass() == SC_Static)
         return LinkageInfo::internal();
     }
+
+    if (Context.getLangOpts().HLSL &&
+        Var->hasAttr<HLSLGroupSharedAddressSpaceAttr>())
+      return LinkageInfo::internal();
+
   } else if (const auto *IFD = dyn_cast<IndirectFieldDecl>(D)) {
     //   - a data member of an anonymous union.
     const VarDecl *VD = IFD->getVarDecl();
     assert(VD && "Expected a VarDecl in this IndirectFieldDecl!");
     return getLVForNamespaceScopeDecl(VD, computation, IgnoreVarTypeLinkage);
+
+  } else if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
+    // HLSL: Functions that are not exported library functions have internal
+    // linkage by default. That includes shader entry point functions, which
+    // will be wrapped by an external linkage function with unmangled C-style
+    // name during CodeGen.
+    if (Context.getLangOpts().HLSL && !(FD->isInExportDeclContext())) {
+      return LinkageInfo::internal();
+    }
   }
   assert(!isa<FieldDecl>(D) && "Didn't expect a FieldDecl!");
 

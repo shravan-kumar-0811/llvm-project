@@ -1673,8 +1673,15 @@ bool Sema::CheckRedeclarationExported(NamedDecl *New, NamedDecl *Old) {
   if (!IsNewExported && !IsOldExported)
     return false;
 
-  if (IsOldExported)
+  if (IsOldExported) {
+    if (LangOpts.HLSL && !IsNewExported) {
+      Diag(New->getLocation(), diag::err_redeclaration_missing_export) << New;
+      Diag(Old->getLocation(), diag::note_previous_declaration);
+      New->setInvalidDecl();
+      return true;
+    }
     return false;
+  }
 
   // If the Old declaration are not attached to named modules
   // and the New declaration are attached to global module.
