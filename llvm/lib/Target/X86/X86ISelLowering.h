@@ -1183,6 +1183,9 @@ namespace llvm {
     preferredShiftLegalizationStrategy(SelectionDAG &DAG, SDNode *N,
                                        unsigned ExpansionFactor) const override;
 
+    bool isDesirableToCommuteWithShift(const SDNode *N,
+                                       CombineLevel Level) const override;
+
     bool shouldSplatInsEltVarIndex(EVT VT) const override;
 
     bool shouldConvertFpToSat(unsigned Op, EVT FPVT, EVT VT) const override {
