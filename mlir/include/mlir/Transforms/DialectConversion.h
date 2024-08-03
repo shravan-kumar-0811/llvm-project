@@ -17,6 +17,7 @@
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringMap.h"
+
 #include <type_traits>
 
 namespace mlir {
@@ -75,6 +76,10 @@ public:
     /// Return the argument types for the new signature.
     ArrayRef<Type> getConvertedTypes() const { return argTypes; }
 
+    /// Get the converted type for the given argument only if there is a
+    /// one-to-one mapping for it. Otherwise, return std::nullptr.
+    std::optional<Type> getConvertedType(unsigned inputo) const;
+
     /// Get the input mapping for the given argument.
     std::optional<InputMapping> getInputMapping(unsigned input) const {
       return remappedInputs[input];
@@ -95,6 +100,10 @@ public:
     /// Remap an input of the original signature to another `replacement`
     /// value. This drops the original argument.
     void remapInput(unsigned origInputNo, Value replacement);
+
+    /// Replace the type of an input that has been previously remapped to a new
+    /// single input.
+    void replaceRemappedInputType(unsigned origInputNo, Type type);
 
   private:
     /// Remap an input of the original signature with a range of types in the

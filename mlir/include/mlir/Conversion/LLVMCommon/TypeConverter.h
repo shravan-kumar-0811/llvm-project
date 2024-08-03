@@ -21,6 +21,7 @@
 namespace mlir {
 
 class DataLayoutAnalysis;
+class FunctionOpInterface;
 class LowerToLLVMOptions;
 
 namespace LLVM {
@@ -56,6 +57,13 @@ public:
   Type convertFunctionSignature(FunctionType funcTy, bool isVariadic,
                                 bool useBarePtrCallConv,
                                 SignatureConversion &result) const;
+
+  /// Replace the type of `llvm.byval` and `llvm.byref` function arguments with
+  /// an LLVM pointer type in the function signature.
+  LLVM::LLVMFunctionType materializePtrForByValByRefFuncArgs(
+      LLVM::LLVMFunctionType funcType,
+      ArrayRef<std::optional<NamedAttribute>> byValRefArgAttrs,
+      LLVMTypeConverter::SignatureConversion &signatureConv) const;
 
   /// Convert a non-empty list of types to be returned from a function into an
   /// LLVM-compatible type. In particular, if more than one value is returned,
