@@ -258,10 +258,13 @@ void MetadataStreamerMsgPackV4::emitKernelAttrs(const Function &Func,
 void MetadataStreamerMsgPackV4::emitKernelArgs(const MachineFunction &MF,
                                                msgpack::MapDocNode Kern) {
   auto &Func = MF.getFunction();
+  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  unsigned HiddenArgOffset = ST.getHiddenArgOffset(MF.getFunction());
   unsigned Offset = 0;
   auto Args = HSAMetadataDoc->getArrayNode();
-  for (auto &Arg : Func.args())
-    emitKernelArg(Arg, Offset, Args);
+  for (unsigned I = 0; I < Func.arg_size() && I < HiddenArgOffset; ++I) {
+    emitKernelArg(*Func.getArg(I), Offset, Args);
+  }
 
   emitHiddenKernelArgs(MF, Offset, Args);
 

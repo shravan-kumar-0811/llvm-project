@@ -610,7 +610,11 @@ uint64_t AMDGPUSubtarget::getExplicitKernArgSize(const Function &F,
   uint64_t ExplicitArgBytes = 0;
   MaxAlign = Align(1);
 
+  unsigned HiddenArgOffset = getHiddenArgOffset(F);
   for (const Argument &Arg : F.args()) {
+    if (Arg.getArgNo() >= HiddenArgOffset)
+      break;
+
     const bool IsByRef = Arg.hasByRefAttr();
     Type *ArgTy = IsByRef ? Arg.getParamByRefType() : Arg.getType();
     Align Alignment = DL.getValueOrABITypeAlignment(
@@ -1033,6 +1037,14 @@ unsigned GCNSubtarget::getNSAThreshold(const MachineFunction &MF) const {
     return std::max(Value, 2);
 
   return 3;
+}
+
+unsigned AMDGPUSubtarget::getHiddenArgOffset(const Function &F) const {
+  if (!F.hasFnAttribute("amdgpu-hidden-arg-offset"))
+    return F.arg_size();
+
+  return F.getFnAttributeAsParsedInteger("amdgpu-amdgpu-hidden-arg-offset",
+                                         F.arg_size());
 }
 
 const AMDGPUSubtarget &AMDGPUSubtarget::get(const MachineFunction &MF) {

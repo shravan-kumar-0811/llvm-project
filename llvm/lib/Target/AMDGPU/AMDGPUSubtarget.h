@@ -303,6 +303,10 @@ public:
   uint64_t getExplicitKernArgSize(const Function &F, Align &MaxAlign) const;
   unsigned getKernArgSegmentSize(const Function &F, Align &MaxAlign) const;
 
+  /// \returns an offset index to the first hidden implicit argument in the
+  /// kernel signature.
+  unsigned getHiddenArgOffset(const Function &F) const;
+
   /// \returns Corresponding DWARF register number mapping flavour for the
   /// \p WavefrontSize.
   AMDGPUDwarfFlavour getAMDGPUDwarfFlavour() const;
