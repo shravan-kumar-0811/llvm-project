@@ -9923,16 +9923,11 @@ SDValue SelectionDAG::simplifySelect(SDValue Cond, SDValue T, SDValue F) {
     return T;
 
   // select true, T, F --> T
+  if (isBoolConstant(Cond, true, /*AllowTruncation=*/true))
+    return T;
   // select false, T, F --> F
-  if (auto *CondC = dyn_cast<ConstantSDNode>(Cond))
-    return CondC->isZero() ? F : T;
-
-  // TODO: This should simplify VSELECT with non-zero constant condition using
-  // something like this (but check boolean contents to be complete?):
-  if (ConstantSDNode *CondC = isConstOrConstSplat(Cond, /*AllowUndefs*/ false,
-                                                  /*AllowTruncation*/ true))
-    if (CondC->isZero())
-      return F;
+  if (isBoolConstant(Cond, false, /*AllowTruncation=*/true))
+    return F;
 
   // select ?, T, T --> T
   if (T == F)
@@ -13139,6 +13134,24 @@ SDNode *SelectionDAG::isConstantFPBuildVectorOrConstantFP(SDValue N) const {
     return N.getNode();
 
   return nullptr;
+}
+
+bool SelectionDAG::isBoolConstant(SDValue N, bool Value,
+                                  bool AllowTruncation) const {
+  ConstantSDNode *Const = isConstOrConstSplat(N, false, AllowTruncation);
+  if (!Const)
+    return false;
+
+  const APInt &CVal = Const->getAPIntValue();
+  switch (TLI->getBooleanContents(N.getValueType())) {
+  case TargetLowering::ZeroOrOneBooleanContent:
+    return Value ? CVal.isOne() : CVal.isZero();
+  case TargetLowering::ZeroOrNegativeOneBooleanContent:
+    return Value ? CVal.isAllOnes() : CVal.isZero();
+    break;
+  case TargetLowering::UndefinedBooleanContent:
+    return Value ? CVal[0] : !CVal[0];
+  }
 }
 
 void SelectionDAG::createOperands(SDNode *Node, ArrayRef<SDValue> Vals) {

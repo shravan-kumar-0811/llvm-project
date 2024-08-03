@@ -2320,6 +2320,11 @@ public:
            isConstantFPBuildVectorOrConstantFP(N);
   }
 
+  /// Check if a value \op N is a \op Value constant using the target's
+  /// BooleanContent for its type.
+  bool isBoolConstant(SDValue N, bool Value,
+                      bool AllowTruncation = false) const;
+
   /// Set CallSiteInfo to be associated with Node.
   void addCallSiteInfo(const SDNode *Node, CallSiteInfo &&CallInfo) {
     SDEI[Node].CSInfo = std::move(CallInfo);

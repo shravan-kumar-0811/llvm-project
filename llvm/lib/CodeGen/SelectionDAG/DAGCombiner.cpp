@@ -3260,26 +3260,10 @@ static SDValue extractBooleanFlip(SDValue V, SelectionDAG &DAG,
   if (V.getOpcode() != ISD::XOR)
     return SDValue();
 
-  ConstantSDNode *Const = isConstOrConstSplat(V.getOperand(1), false);
-  if (!Const)
+  if (!isConstOrConstSplat(V.getOperand(1), false))
     return SDValue();
 
-  EVT VT = V.getValueType();
-
-  bool IsFlip = false;
-  switch(TLI.getBooleanContents(VT)) {
-    case TargetLowering::ZeroOrOneBooleanContent:
-      IsFlip = Const->isOne();
-      break;
-    case TargetLowering::ZeroOrNegativeOneBooleanContent:
-      IsFlip = Const->isAllOnes();
-      break;
-    case TargetLowering::UndefinedBooleanContent:
-      IsFlip = (Const->getAPIntValue() & 0x01) == 1;
-      break;
-  }
-
-  if (IsFlip)
+  if (DAG.isBoolConstant(V.getOperand(1), true))
     return V.getOperand(0);
   if (Force)
     return DAG.getLogicalNOT(SDLoc(V), V, V.getValueType());
