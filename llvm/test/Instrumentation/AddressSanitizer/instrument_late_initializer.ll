@@ -9,7 +9,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @g = internal global i32 0, align 4, sanitize_address_dyninit  ; With dynamic initializer.
 
 ;.
-; CHECK: @llvm.global_ctors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__late_ctor, ptr null }, { i32, ptr, ptr } { i32 1, ptr @asan.module_ctor, ptr @asan.module_ctor }]
+; CHECK: @llvm.global_ctors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65534, ptr @__late_ctor, ptr null }, { i32, ptr, ptr } { i32 1, ptr @asan.module_ctor, ptr @asan.module_ctor }]
 ;.
 ; NOINIT: @llvm.global_ctors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @__late_ctor, ptr null }, { i32, ptr, ptr } { i32 1, ptr @asan.module_ctor, ptr @asan.module_ctor }]
 ;.
