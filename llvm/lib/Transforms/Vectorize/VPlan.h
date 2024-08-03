@@ -919,6 +919,7 @@ public:
     case VPRecipeBase::VPWidenCastSC:
     case VPRecipeBase::VPWidenGEPSC:
     case VPRecipeBase::VPWidenSC:
+    case VPRecipeBase::VPWidenEVLSC:
     case VPRecipeBase::VPWidenSelectSC:
     case VPRecipeBase::VPBlendSC:
     case VPRecipeBase::VPPredInstPHISC:
@@ -1103,6 +1104,7 @@ public:
   static inline bool classof(const VPRecipeBase *R) {
     return R->getVPDefID() == VPRecipeBase::VPInstructionSC ||
            R->getVPDefID() == VPRecipeBase::VPWidenSC ||
+           R->getVPDefID() == VPRecipeBase::VPWidenEVLSC ||
            R->getVPDefID() == VPRecipeBase::VPWidenGEPSC ||
            R->getVPDefID() == VPRecipeBase::VPWidenCastSC ||
            R->getVPDefID() == VPRecipeBase::VPReplicateSC ||
@@ -1406,11 +1408,16 @@ public:
 class VPWidenRecipe : public VPRecipeWithIRFlags {
   unsigned Opcode;
 
+protected:
+  template <typename IterT>
+  VPWidenRecipe(unsigned VPDefOpcode, Instruction &I,
+                iterator_range<IterT> Operands)
+      : VPRecipeWithIRFlags(VPDefOpcode, Operands, I), Opcode(I.getOpcode()) {}
+
 public:
   template <typename IterT>
   VPWidenRecipe(Instruction &I, iterator_range<IterT> Operands)
-      : VPRecipeWithIRFlags(VPDef::VPWidenSC, Operands, I),
-        Opcode(I.getOpcode()) {}
+      : VPWidenRecipe(VPDef::VPWidenSC, I, Operands) {}
 
   ~VPWidenRecipe() override = default;
 
@@ -1432,6 +1439,46 @@ public:
   /// Print the recipe.
   void print(raw_ostream &O, const Twine &Indent,
              VPSlotTracker &SlotTracker) const override;
+#endif
+};
+
+class VPWidenEVLRecipe : public VPWidenRecipe {
+  using VPRecipeWithIRFlags::transferFlags;
+
+public:
+  template <typename IterT>
+  VPWidenEVLRecipe(Instruction &I, iterator_range<IterT> Operands, VPValue &EVL)
+      : VPWidenRecipe(VPDef::VPWidenEVLSC, I, Operands) {
+    addOperand(&EVL);
+  }
+  VPWidenEVLRecipe(VPWidenRecipe *W, VPValue &EVL)
+      : VPWidenEVLRecipe(*W->getUnderlyingInstr(), W->operands(), EVL) {
+    this->transferFlags(*W);
+  }
+
+  ~VPWidenEVLRecipe() override = default;
+
+  VPWidenRecipe *clone() override final {
+    llvm_unreachable("VPWidenStoreEVLRecipe cannot be cloned");
+    return nullptr;
+  }
+
+  VP_CLASSOF_IMPL(VPDef::VPWidenEVLSC);
+
+  VPValue *getEVL() { return getOperand(getNumOperands() - 1); }
+  const VPValue *getEVL() const { return getOperand(getNumOperands() - 1); }
+
+  /// Produce a vp-intrinsic using the opcode and operands of the recipe,
+  /// processing EVL elements.
+  void execute(VPTransformState &State) override final;
+
+  /// Returns true if the recipe only uses the first lane of operand \p Op.
+  bool onlyFirstLaneUsed(const VPValue *Op) const override;
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+  /// Print the recipe.
+  void print(raw_ostream &O, const Twine &Indent,
+             VPSlotTracker &SlotTracker) const override final;
 #endif
 };
 
@@ -2246,7 +2293,7 @@ public:
 /// The Operands are {ChainOp, VecOp, EVL, [Condition]}.
 class VPReductionEVLRecipe : public VPReductionRecipe {
 public:
-  VPReductionEVLRecipe(VPReductionRecipe &R, VPValue &EVL, VPValue *CondOp)
+  VPReductionEVLRecipe(VPReductionRecipe &R, VPValue *CondOp, VPValue &EVL)
       : VPReductionRecipe(
             VPDef::VPReductionEVLSC, R.getRecurrenceDescriptor(),
             cast_or_null<Instruction>(R.getUnderlyingValue()),
@@ -2558,12 +2605,17 @@ struct VPWidenLoadRecipe final : public VPWidenMemoryRecipe, public VPValue {
 /// using the address to load from, the explicit vector length and an optional
 /// mask.
 struct VPWidenLoadEVLRecipe final : public VPWidenMemoryRecipe, public VPValue {
-  VPWidenLoadEVLRecipe(VPWidenLoadRecipe &L, VPValue &EVL, VPValue *Mask)
+  VPWidenLoadEVLRecipe(VPWidenLoadRecipe &L, VPValue *Mask, VPValue &EVL)
       : VPWidenMemoryRecipe(VPDef::VPWidenLoadEVLSC, L.getIngredient(),
                             {L.getAddr(), &EVL}, L.isConsecutive(),
                             L.isReverse(), L.getDebugLoc()),
         VPValue(this, &getIngredient()) {
     setMask(Mask);
+  }
+
+  VPWidenLoadEVLRecipe *clone() override {
+    llvm_unreachable("VPWidenLoadEVLRecipe cannot be cloned");
+    return nullptr;
   }
 
   VP_CLASSOF_IMPL(VPDef::VPWidenLoadEVLSC)
@@ -2634,11 +2686,16 @@ struct VPWidenStoreRecipe final : public VPWidenMemoryRecipe {
 /// using the value to store, the address to store to, the explicit vector
 /// length and an optional mask.
 struct VPWidenStoreEVLRecipe final : public VPWidenMemoryRecipe {
-  VPWidenStoreEVLRecipe(VPWidenStoreRecipe &S, VPValue &EVL, VPValue *Mask)
+  VPWidenStoreEVLRecipe(VPWidenStoreRecipe &S, VPValue *Mask, VPValue &EVL)
       : VPWidenMemoryRecipe(VPDef::VPWidenStoreEVLSC, S.getIngredient(),
                             {S.getAddr(), S.getStoredValue(), &EVL},
                             S.isConsecutive(), S.isReverse(), S.getDebugLoc()) {
     setMask(Mask);
+  }
+
+  VPWidenStoreEVLRecipe *clone() override {
+    llvm_unreachable("VPWidenStoreEVLRecipe cannot be cloned");
+    return nullptr;
   }
 
   VP_CLASSOF_IMPL(VPDef::VPWidenStoreEVLSC)
