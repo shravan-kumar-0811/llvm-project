@@ -7,12 +7,8 @@
 define <2 x i32> @stest_f64i32(<2 x double> %x) {
 ; CHECK-LABEL: stest_f64i32:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    mov d1, v0.d[1]
-; CHECK-NEXT:    fcvtzs w8, d0
-; CHECK-NEXT:    fcvtzs w9, d1
-; CHECK-NEXT:    fmov s0, w8
-; CHECK-NEXT:    mov v0.s[1], w9
-; CHECK-NEXT:    // kill: def $d0 killed $d0 killed $q0
+; CHECK-NEXT:    fcvtzs v0.2d, v0.2d
+; CHECK-NEXT:    sqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %conv = fptosi <2 x double> %x to <2 x i64>
@@ -656,12 +652,8 @@ entry:
 define <2 x i32> @stest_f64i32_mm(<2 x double> %x) {
 ; CHECK-LABEL: stest_f64i32_mm:
 ; CHECK:       // %bb.0: // %entry
-; CHECK-NEXT:    mov d1, v0.d[1]
-; CHECK-NEXT:    fcvtzs w8, d0
-; CHECK-NEXT:    fcvtzs w9, d1
-; CHECK-NEXT:    fmov s0, w8
-; CHECK-NEXT:    mov v0.s[1], w9
-; CHECK-NEXT:    // kill: def $d0 killed $d0 killed $q0
+; CHECK-NEXT:    fcvtzs v0.2d, v0.2d
+; CHECK-NEXT:    sqxtn v0.2s, v0.2d
 ; CHECK-NEXT:    ret
 entry:
   %conv = fptosi <2 x double> %x to <2 x i64>
