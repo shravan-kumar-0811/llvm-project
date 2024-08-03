@@ -158,6 +158,9 @@ Bug Fixes in This Version
   be used in C++.
 - Fixed a failed assertion when checking required literal types in C context. (#GH101304).
 
+- cv- and ref- qualified function types no longer silently produce invalid pointer to
+  qualified function types when they implicitly decay in some places. Fixes (#GH27059).
+
 Bug Fixes to Compiler Builtins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
