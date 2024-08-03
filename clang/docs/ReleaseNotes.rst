@@ -145,6 +145,8 @@ Improvements to Clang's diagnostics
 
 - -Wdangling-assignment-gsl is enabled by default.
 
+- Clang now emits ``-Wnewline-eof`` when the last newline follows a splicing backslash. #GH41571.
+
 Improvements to Clang's time-trace
 ----------------------------------
 
