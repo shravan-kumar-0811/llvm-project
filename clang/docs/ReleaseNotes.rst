@@ -158,6 +158,10 @@ Bug Fixes in This Version
   be used in C++.
 - Fixed a failed assertion when checking required literal types in C context. (#GH101304).
 
+- When passing a qualified rvalue as the controlling expression of a
+  ``_Generic`` selection expression, Clang now properly strips the qualifiers.
+  Fixes #GH96713
+
 Bug Fixes to Compiler Builtins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
