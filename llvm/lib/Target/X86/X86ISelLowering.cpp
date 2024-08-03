@@ -37533,15 +37533,14 @@ void X86TargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
     }
     break;
   }
-  case X86ISD::HADD:
+  case X86ISD::HADD: {
+    Known = computeKnownBitsForHorizontalOperation(Op, DemandedElts, Depth, DAG,
+                                                   KnownBits::add);
+    break;
+  }
   case X86ISD::HSUB: {
-    Known = computeKnownBitsForHorizontalOperation(
-        Op, DemandedElts, Depth, DAG,
-        [Opc](const KnownBits &KnownLHS, const KnownBits &KnownRHS) {
-          return KnownBits::computeForAddSub(
-              /*Add=*/Opc == X86ISD::HADD, /*NSW=*/false, /*NUW=*/false,
-              KnownLHS, KnownRHS);
-        });
+    Known = computeKnownBitsForHorizontalOperation(Op, DemandedElts, Depth, DAG,
+                                                   KnownBits::sub);
     break;
   }
   case ISD::INTRINSIC_WO_CHAIN: {

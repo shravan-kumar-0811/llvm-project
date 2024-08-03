@@ -329,6 +329,19 @@ public:
   static KnownBits computeForSubBorrow(const KnownBits &LHS, KnownBits RHS,
                                        const KnownBits &Borrow);
 
+  /// Compute knownbits resulting from addition of LHS and RHS.
+  /// NSW and NUW flags are assumed to be false.
+  static KnownBits add(const KnownBits& LHS, const KnownBits& RHS) {
+    return computeForAddSub(/*Add=*/true, /*NSW=*/false, /*NUW=*/false, LHS,
+                            RHS);
+  }
+  /// Compute knownbits resulting from subtraction of LHS and RHS.
+  /// NSW and NUW flags are assumed to be false.
+  static KnownBits sub(const KnownBits& LHS, const KnownBits& RHS) {
+    return computeForAddSub(/*Add=*/false, /*NSW=*/false, /*NUW=*/false, LHS,
+                            RHS);
+  }
+
   /// Compute knownbits resulting from llvm.sadd.sat(LHS, RHS)
   static KnownBits sadd_sat(const KnownBits &LHS, const KnownBits &RHS);
 

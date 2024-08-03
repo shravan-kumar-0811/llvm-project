@@ -300,6 +300,14 @@ TEST(KnownBitsTest, BinaryExhaustive) {
         return Known1 ^ Known2;
       },
       [](const APInt &N1, const APInt &N2) { return N1 ^ N2; });
+  testBinaryOpExhaustive(
+      "add", KnownBits::add,
+      [](const APInt &N1, const APInt &N2) { return N1 + N2; },
+      /*CheckOptimality=*/false);
+  testBinaryOpExhaustive(
+      "sub", KnownBits::sub,
+      [](const APInt &N1, const APInt &N2) { return N1 - N2; },
+      /*CheckOptimality=*/false);
   testBinaryOpExhaustive("umax", KnownBits::umax, APIntOps::umax);
   testBinaryOpExhaustive("umin", KnownBits::umin, APIntOps::umin);
   testBinaryOpExhaustive("smax", KnownBits::smax, APIntOps::smax);
