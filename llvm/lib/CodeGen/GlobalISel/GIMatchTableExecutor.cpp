@@ -70,6 +70,35 @@ bool GIMatchTableExecutor::isObviouslySafeToFold(MachineInstr &MI,
   if (MI.isConvergent() && MI.getParent() != IntoMI.getParent())
     return false;
 
-  return !MI.mayLoadOrStore() && !MI.mayRaiseFPException() &&
-         !MI.hasUnmodeledSideEffects() && MI.implicit_operands().empty();
+  if (!MI.mayLoadOrStore() && !MI.mayRaiseFPException() &&
+      !MI.hasUnmodeledSideEffects() && MI.implicit_operands().empty()) {
+    return true;
+  }
+
+  // If the load is simple, check instructions between MI and IntoMI
+  auto CurrMI = MI.getIterator();
+  if (MI.mayLoad() && MI.getParent() == IntoMI.getParent()) {
+    if (MI.memoperands_empty())
+      return false;
+    auto MMO = **(MI.memoperands_begin());
+    if (MMO.isAtomic() || MMO.isVolatile())
+      return false;
+
+    // Ensure instructions between MI and IntoMI sare not affected when combined
+    for (unsigned i = 1; i < 15 && CurrMI != IntoMI.getIterator(); i++) {
+      if (CurrMI->mayStore() || CurrMI->mayRaiseFPException() ||
+          CurrMI->hasUnmodeledSideEffects() ||
+          !CurrMI->implicit_operands().empty()) {
+        return false;
+      }
+
+      CurrMI = std::next(CurrMI);
+    }
+
+    // If there are more than 15 instructions between MI and IntoMI, return
+    // false
+    return CurrMI == IntoMI.getIterator();
+  }
+
+  return false;
 }
