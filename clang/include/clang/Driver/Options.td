@@ -4258,6 +4258,7 @@ defm ptrauth_function_pointer_type_discrimination : OptInCC1FFlag<"ptrauth-funct
   "Enable type discrimination on C function pointers">;
 defm ptrauth_indirect_gotos : OptInCC1FFlag<"ptrauth-indirect-gotos",
   "Enable signing and authentication of indirect goto targets">;
+defm ptrauth_elf_got : OptInCC1FFlag<"ptrauth-elf-got", "Enable authentication of pointers from GOT (ELF only)">;
 }
 
 def fenable_matrix : Flag<["-"], "fenable-matrix">, Group<f_Group>,

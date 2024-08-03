@@ -2,31 +2,34 @@
 //// For example, -fptrauth-init-fini will not affect codegen without -fptrauth-calls, but the preprocessor feature would be set anyway.
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-intrinsics | \
-// RUN:   FileCheck %s --check-prefixes=INTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=INTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-calls | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,CALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,CALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-returns | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,RETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,RETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-vtable-pointer-address-discrimination | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,VPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,VPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-vtable-pointer-type-discrimination | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,VPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,VPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-type-info-vtable-pointer-discrimination | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,TYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,TYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-function-pointer-type-discrimination | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,FUNC,NOINITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,FUNC,NOINITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-init-fini | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,INITFINI,NOGOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,INITFINI,NOGOTOS,NOELFGOT
 
 // RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-indirect-gotos | \
-// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,GOTOS
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,GOTOS,NOELFGOT
+
+// RUN: %clang_cc1 -E %s -triple=aarch64 -fptrauth-elf-got | \
+// RUN:   FileCheck %s --check-prefixes=NOINTRIN,NOCALLS,NORETS,NOVPTR_ADDR_DISCR,NOVPTR_TYPE_DISCR,NOTYPE_INFO_DISCR,NOFUNC,NOINITFINI,NOGOTOS,ELFGOT
 
 #if __has_feature(ptrauth_intrinsics)
 // INTRIN: has_ptrauth_intrinsics
@@ -107,4 +110,12 @@ void has_ptrauth_indirect_gotos() {}
 #else
 // NOGOTOS: no_ptrauth_indirect_gotos
 void no_ptrauth_indirect_gotos() {}
+#endif
+
+#if __has_feature(ptrauth_elf_got)
+// ELFGOT: has_ptrauth_elf_got
+void has_ptrauth_elf_got() {}
+#else
+// NOELFGOT: no_ptrauth_elf_got
+void no_ptrauth_elf_got() {}
 #endif
