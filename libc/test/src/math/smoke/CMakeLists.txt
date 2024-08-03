@@ -4047,8 +4047,8 @@ add_fp_unittest(
   HDRS
     DivTest.h
   DEPENDS
+    libc.hdr.errno_macros
     libc.hdr.fenv_macros
-    libc.src.__support.FPUtil.basic_operations
     libc.src.math.f16div
 )
 
@@ -4061,8 +4061,8 @@ add_fp_unittest(
   HDRS
     DivTest.h
   DEPENDS
+    libc.hdr.errno_macros
     libc.hdr.fenv_macros
-    libc.src.__support.FPUtil.basic_operations
     libc.src.math.f16divf
 )
 
@@ -4075,8 +4075,8 @@ add_fp_unittest(
   HDRS
     DivTest.h
   DEPENDS
+    libc.hdr.errno_macros
     libc.hdr.fenv_macros
-    libc.src.__support.FPUtil.basic_operations
     libc.src.math.f16divl
 )
 
@@ -4089,8 +4089,8 @@ add_fp_unittest(
   HDRS
     DivTest.h
   DEPENDS
+    libc.hdr.errno_macros
     libc.hdr.fenv_macros
-    libc.src.__support.FPUtil.basic_operations
     libc.src.math.f16divf128
 )
 
@@ -4188,6 +4188,84 @@ add_fp_unittest(
     SqrtTest.h
   DEPENDS
     libc.src.math.f16sqrtf128
+)
+
+add_fp_unittest(
+  fdiv_test
+  SUITE
+    libc-math-smoke-tests
+  SRCS
+    fdiv_test.cpp
+  HDRS
+    DivTest.h
+  DEPENDS
+    libc.hdr.errno_macros
+    libc.hdr.fenv_macros
+    libc.src.math.fdiv
+)
+
+add_fp_unittest(
+  fdivl_test
+  SUITE
+    libc-math-smoke-tests
+  SRCS
+    fdivl_test.cpp
+  HDRS
+    DivTest.h
+  DEPENDS
+    libc.hdr.errno_macros
+    libc.hdr.fenv_macros
+    libc.src.math.fdivl
+)
+
+add_fp_unittest(
+  fdivf128_test
+  SUITE
+    libc-math-smoke-tests
+  SRCS
+    fdivf128_test.cpp
+  HDRS
+    DivTest.h
+  DEPENDS
+    libc.hdr.errno_macros
+    libc.hdr.fenv_macros
+    libc.src.math.fdivf128
+)
+
+add_fp_unittest(
+  ffma_test
+  SUITE
+    libc-math-smoke-tests
+  SRCS
+    ffma_test.cpp
+  HDRS
+    FmaTest.h
+  DEPENDS
+    libc.src.math.ffma
+)
+
+add_fp_unittest(
+  ffmal_test
+  SUITE
+    libc-math-smoke-tests
+  SRCS
+    ffmal_test.cpp
+  HDRS
+    FmaTest.h
+  DEPENDS
+    libc.src.math.ffmal
+)
+
+add_fp_unittest(
+  ffmaf128_test
+  SUITE
+    libc-math-smoke-tests
+  SRCS
+    ffmaf128_test.cpp
+  HDRS
+    FmaTest.h
+  DEPENDS
+    libc.src.math.ffmaf128
 )
 
 add_fp_unittest(
