@@ -6456,6 +6456,17 @@ LoopVectorizationCostModel::getInstructionCost(Instruction *I,
     // a predicated block since it will become a fall-through, although we
     // may decide in the future to call TTI for all branches.
   }
+  case Instruction::Switch: {
+    if (VF.isScalar())
+      return TTI.getCFInstrCost(Instruction::Switch, CostKind);
+    auto *Switch = cast<SwitchInst>(I);
+    return Switch->getNumCases() *
+           TTI.getCmpSelInstrCost(
+               Instruction::ICmp,
+               ToVectorTy(Switch->getCondition()->getType(), VF),
+               ToVectorTy(Type::getInt1Ty(I->getContext()), VF),
+               CmpInst::BAD_ICMP_PREDICATE, CostKind);
+  }
   case Instruction::PHI: {
     auto *Phi = cast<PHINode>(I);
 
@@ -7841,6 +7852,61 @@ VPValue *VPRecipeBuilder::createEdgeMask(BasicBlock *Src, BasicBlock *Dst) {
     return ECEntryIt->second;
 
   VPValue *SrcMask = getBlockInMask(Src);
+
+  if (auto *SI = dyn_cast<SwitchInst>(Src->getTerminator())) {
+    assert(!OrigLoop->isLoopExiting(Src) &&
+           all_of(successors(Src),
+                  [this](BasicBlock *Succ) {
+                    return OrigLoop->getHeader() != Succ;
+                  }) &&
+           "unsupported switch either exiting loop or continuing to header");
+    // Create masks where the terminator in Src is a switch. We create mask for
+    // all edges at the same time. This is more efficient, as we can create and
+    // collect compares for all cases once.
+    VPValue *Cond = getVPValueOrAddLiveIn(SI->getCondition(), Plan);
+    BasicBlock *DefaultDst = SI->getDefaultDest();
+    MapVector<BasicBlock *, SmallVector<VPValue *>> Map;
+    for (auto &C : SI->cases()) {
+      auto I = Map.insert({C.getCaseSuccessor(), {}});
+      VPValue *V = getVPValueOrAddLiveIn(C.getCaseValue(), Plan);
+      I.first->second.push_back(Builder.createICmp(CmpInst::ICMP_EQ, Cond, V));
+    }
+
+    // We need to handle 2 separate cases:
+    // 1. Dst is not the default destination. Dst is reached if any of the cases
+    // with destination == Dst are taken. Join the conditions for each case
+    // where destination == Dst using a logical OR.
+    for (const auto &[Dst, Conds] : Map) {
+      VPValue *Mask = Conds[0];
+      for (VPValue *V : ArrayRef<VPValue *>(Conds).drop_front())
+        Mask = Builder.createOr(Mask, V);
+      if (SrcMask)
+        Mask = Builder.createLogicalAnd(SrcMask, Mask);
+      EdgeMaskCache[{Src, Dst}] = Mask;
+    }
+
+    // 2. Dst is the default destination. Dst is reached if none of the cases
+    // with destination != Dst are taken. Join the conditions for each case
+    // where the destination is != Dst using a logical OR and negate it.
+    VPValue *DefaultMask = nullptr;
+    for (const auto &[Dst, Conds] : Map) {
+      if (Dst == DefaultDst)
+        continue;
+      if (!DefaultMask) {
+        DefaultMask = EdgeMaskCache[{Src, Dst}];
+        continue;
+      }
+      DefaultMask = Builder.createOr(DefaultMask, EdgeMaskCache[{Src, Dst}]);
+    }
+    if (DefaultMask) {
+      DefaultMask = Builder.createNot(DefaultMask);
+      if (SrcMask)
+        DefaultMask = Builder.createLogicalAnd(SrcMask, DefaultMask);
+    }
+    EdgeMaskCache[{Src, DefaultDst}] = DefaultMask;
+    assert(EdgeMaskCache.contains(Edge) && "Mask for Edge not created?");
+    return EdgeMaskCache[Edge];
+  }
 
   // The terminator has to be a branch inst!
   BranchInst *BI = dyn_cast<BranchInst>(Src->getTerminator());
