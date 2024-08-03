@@ -31,11 +31,11 @@ FriendDecl *FriendDecl::getNextFriendSlowCase() {
                            NextFriend.get(getASTContext().getExternalSource()));
 }
 
-FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,
-                               SourceLocation L,
-                               FriendUnion Friend,
-                               SourceLocation FriendL,
-                          ArrayRef<TemplateParameterList *> FriendTypeTPLists) {
+FriendDecl *
+FriendDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L,
+                   FriendUnion Friend, SourceLocation FriendL,
+                   SourceLocation EllipsisLoc,
+                   ArrayRef<TemplateParameterList *> FriendTypeTPLists) {
 #ifndef NDEBUG
   if (Friend.is<NamedDecl *>()) {
     const auto *D = Friend.get<NamedDecl*>();
@@ -56,8 +56,8 @@ FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,
   std::size_t Extra =
       FriendDecl::additionalSizeToAlloc<TemplateParameterList *>(
           FriendTypeTPLists.size());
-  auto *FD = new (C, DC, Extra) FriendDecl(DC, L, Friend, FriendL,
-                                           FriendTypeTPLists);
+  auto *FD = new (C, DC, Extra)
+      FriendDecl(DC, L, Friend, FriendL, EllipsisLoc, FriendTypeTPLists);
   cast<CXXRecordDecl>(DC)->pushFriendDecl(FD);
   return FD;
 }
@@ -67,6 +67,26 @@ FriendDecl *FriendDecl::CreateDeserialized(ASTContext &C, GlobalDeclID ID,
   std::size_t Extra =
       additionalSizeToAlloc<TemplateParameterList *>(FriendTypeNumTPLists);
   return new (C, ID, Extra) FriendDecl(EmptyShell(), FriendTypeNumTPLists);
+}
+
+FriendPackDecl *FriendPackDecl::Create(ASTContext &C, DeclContext *DC,
+                                       FriendDecl *InstantiatedFrom,
+                                       ArrayRef<FriendDecl *> FriendDecls) {
+  size_t Extra = additionalSizeToAlloc<FriendDecl *>(FriendDecls.size());
+  return new (C, DC, Extra) FriendPackDecl(DC, InstantiatedFrom, FriendDecls);
+}
+
+FriendPackDecl *FriendPackDecl::CreateDeserialized(ASTContext &C,
+                                                   GlobalDeclID ID,
+                                                   unsigned NumExpansions) {
+  size_t Extra = additionalSizeToAlloc<FriendDecl *>(NumExpansions);
+  auto *Result =
+      new (C, ID, Extra) FriendPackDecl(nullptr, nullptr, std::nullopt);
+  Result->NumExpansions = NumExpansions;
+  auto *Trail = Result->getTrailingObjects<FriendDecl *>();
+  for (unsigned I = 0; I != NumExpansions; ++I)
+    new (Trail + I) FriendDecl *(nullptr);
+  return Result;
 }
 
 FriendDecl *CXXRecordDecl::getFirstFriend() const {

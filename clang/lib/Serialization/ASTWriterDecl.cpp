@@ -130,6 +130,7 @@ namespace clang {
     void VisitImportDecl(ImportDecl *D);
     void VisitAccessSpecDecl(AccessSpecDecl *D);
     void VisitFriendDecl(FriendDecl *D);
+    void VisitFriendPackDecl(FriendPackDecl *D);
     void VisitFriendTemplateDecl(FriendTemplateDecl *D);
     void VisitStaticAssertDecl(StaticAssertDecl *D);
     void VisitBlockDecl(BlockDecl *D);
@@ -1654,7 +1655,16 @@ void ASTDeclWriter::VisitFriendDecl(FriendDecl *D) {
   Record.AddDeclRef(D->getNextFriend());
   Record.push_back(D->UnsupportedFriend);
   Record.AddSourceLocation(D->FriendLoc);
+  Record.AddSourceLocation(D->EllipsisLoc);
   Code = serialization::DECL_FRIEND;
+}
+
+void ASTDeclWriter::VisitFriendPackDecl(FriendPackDecl *D) {
+  Record.push_back(D->NumExpansions);
+  Record.AddDeclRef(D->getInstantiatedFromFriendDecl());
+  for (auto *E : D->expansions())
+    Record.AddDeclRef(E);
+  Code = serialization::DECL_FRIEND_PACK;
 }
 
 void ASTDeclWriter::VisitFriendTemplateDecl(FriendTemplateDecl *D) {

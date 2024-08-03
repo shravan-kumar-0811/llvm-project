@@ -412,6 +412,7 @@ namespace clang {
     void VisitImportDecl(ImportDecl *D);
     void VisitAccessSpecDecl(AccessSpecDecl *D);
     void VisitFriendDecl(FriendDecl *D);
+    void VisitFriendPackDecl(FriendPackDecl *D);
     void VisitFriendTemplateDecl(FriendTemplateDecl *D);
     void VisitStaticAssertDecl(StaticAssertDecl *D);
     void VisitBlockDecl(BlockDecl *BD);
@@ -2354,6 +2355,14 @@ void ASTDeclReader::VisitFriendDecl(FriendDecl *D) {
   D->NextFriend = readDeclID().getRawValue();
   D->UnsupportedFriend = (Record.readInt() != 0);
   D->FriendLoc = readSourceLocation();
+  D->EllipsisLoc = readSourceLocation();
+}
+
+void ASTDeclReader::VisitFriendPackDecl(FriendPackDecl *D) {
+  D->InstantiatedFrom = readDeclAs<FriendDecl>();
+  auto **Expansions = D->getTrailingObjects<FriendDecl *>();
+  for (unsigned I = 0; I != D->NumExpansions; ++I)
+    Expansions[I] = readDeclAs<FriendDecl>();
 }
 
 void ASTDeclReader::VisitFriendTemplateDecl(FriendTemplateDecl *D) {
@@ -3901,6 +3910,9 @@ Decl *ASTReader::ReadDeclRecord(GlobalDeclID ID) {
     break;
   case DECL_FRIEND:
     D = FriendDecl::CreateDeserialized(Context, ID, Record.readInt());
+    break;
+  case DECL_FRIEND_PACK:
+    D = FriendPackDecl::CreateDeserialized(Context, ID, Record.readInt());
     break;
   case DECL_FRIEND_TEMPLATE:
     D = FriendTemplateDecl::CreateDeserialized(Context, ID);
