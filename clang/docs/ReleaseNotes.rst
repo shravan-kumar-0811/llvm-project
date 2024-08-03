@@ -272,6 +272,8 @@ AST Matchers
 clang-format
 ------------
 
+- Adds ``BreakBinaryOperations`` option.
+
 libclang
 --------
 

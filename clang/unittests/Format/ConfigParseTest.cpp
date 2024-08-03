@@ -404,6 +404,14 @@ TEST(ConfigParseTest, ParsesConfiguration) {
   CHECK_PARSE("BreakBeforeBinaryOperators: true", BreakBeforeBinaryOperators,
               FormatStyle::BOS_All);
 
+  Style.BreakBinaryOperations = FormatStyle::BBO_Never;
+  CHECK_PARSE("BreakBinaryOperations: BreakAll", BreakBinaryOperations,
+              FormatStyle::BBO_BreakAll);
+  CHECK_PARSE("BreakBinaryOperations: BreakRespectPrecedence",
+              BreakBinaryOperations, FormatStyle::BBO_BreakRespectPrecedence);
+  CHECK_PARSE("BreakBinaryOperations: Never", BreakBinaryOperations,
+              FormatStyle::BBO_Never);
+
   Style.BreakConstructorInitializers = FormatStyle::BCIS_BeforeColon;
   CHECK_PARSE("BreakConstructorInitializers: BeforeComma",
               BreakConstructorInitializers, FormatStyle::BCIS_BeforeComma);
