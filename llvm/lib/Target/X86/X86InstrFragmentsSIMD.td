@@ -74,11 +74,11 @@ def X86psadbw  : SDNode<"X86ISD::PSADBW",
                                       SDTCVecEltisVT<1, i8>,
                                       SDTCisSameSizeAs<0,1>,
                                       SDTCisSameAs<1,2>]>, [SDNPCommutative]>;
-def X86dbpsadbw : SDNode<"X86ISD::DBPSADBW",
-                  SDTypeProfile<1, 3, [SDTCVecEltisVT<0, i16>,
-                                       SDTCVecEltisVT<1, i8>,
-                                       SDTCisSameSizeAs<0,1>,
-                                       SDTCisSameAs<1,2>, SDTCisVT<3, i8>]>>;
+def SDTX86PSADBW : SDTypeProfile<1, 3, [SDTCVecEltisVT<0, i16>,
+                                        SDTCVecEltisVT<1, i8>,
+                                        SDTCisSameSizeAs<0,1>,
+                                        SDTCisSameAs<1,2>, SDTCisVT<3, i8>]>;
+def X86dbpsadbw : SDNode<"X86ISD::DBPSADBW", SDTX86PSADBW>;
 def X86andnp   : SDNode<"X86ISD::ANDNP",
                  SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisSameAs<0,1>,
                                       SDTCisSameAs<0,2>]>>;
@@ -206,6 +206,12 @@ def X86CmpMaskCC :
       SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCVecEltisVT<0, i1>,
                        SDTCisVec<1>, SDTCisSameAs<2, 1>,
                        SDTCisSameNumEltsAs<0, 1>, SDTCisVT<3, i8>]>;
+
+def X86CmpMaskCC_Int :
+      SDTypeProfile<1, 3, [SDTCisVec<0>, SDTCVecEltisVT<0, i1>,
+                       SDTCisVec<1>, SDTCisSameAs<2, 1>,
+                       SDTCisSameNumEltsAs<0, 1>, SDTCisVT<3, i32>]>;
+
 def X86MaskCmpMaskCC :
       SDTypeProfile<1, 4, [SDTCisVec<0>, SDTCVecEltisVT<0, i1>,
                        SDTCisVec<1>, SDTCisSameAs<2, 1>,
@@ -809,6 +815,8 @@ def X86vpdpbsuds : SDNode<"X86ISD::VPDPBSUDS", SDTVnni>;
 def X86vpdpbuud  : SDNode<"X86ISD::VPDPBUUD",  SDTVnni>;
 def X86vpdpbuuds : SDNode<"X86ISD::VPDPBUUDS", SDTVnni>;
 
+def X86Vmpsadbw : SDNode<"X86ISD::MPSADBW", SDTX86PSADBW>;
+
 //===----------------------------------------------------------------------===//
 // SSE pattern fragments
 //===----------------------------------------------------------------------===//
@@ -1021,6 +1029,10 @@ def X86SubVBroadcastld256 : PatFrag<(ops node:$src),
 // only load a single element.
 // FIXME: We should add more canolicalizing in DAGCombine. Particulary removing
 // the simple_load case.
+def sse_load_bf16 : PatFrags<(ops node:$ptr),
+                            [(v8bf16 (simple_load node:$ptr)),
+                             (v8bf16 (X86vzload16 node:$ptr)),
+                             (v8bf16 (scalar_to_vector (loadf16 node:$ptr)))]>;
 def sse_load_f16 : PatFrags<(ops node:$ptr),
                             [(v8f16 (simple_load node:$ptr)),
                              (v8f16 (X86vzload16 node:$ptr)),
