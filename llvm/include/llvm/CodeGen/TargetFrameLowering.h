@@ -473,6 +473,10 @@ public:
   /// Return the frame base information to be encoded in the DWARF subprogram
   /// debug info.
   virtual DwarfFrameBase getDwarfFrameBase(const MachineFunction &MF) const;
+
+  /// If frame pointer or base pointer is clobbered by an instruction, we should
+  /// spill/restore it around that instruction.
+  virtual void spillFPBP(MachineFunction &MF) const {}
 };
 
 } // End llvm namespace
