@@ -92,6 +92,11 @@ C++2c Feature Support
 Resolutions to C++ Defect Reports
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+- Casts from a bit-field to an integral type is now not considered narrowing if the
+  width of the bit-field means that all potential values are in the range
+  of the target type, even if the type of the bit-field is larger.
+  (`CWG2627: Bit-fields and narrowing conversions <https://cplusplus.github.io/CWG/issues/2627.html>`_).
+
 C Language Changes
 ------------------
 
