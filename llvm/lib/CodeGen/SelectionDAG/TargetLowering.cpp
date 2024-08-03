@@ -10245,8 +10245,11 @@ SDValue TargetLowering::LowerToTLSEmulatedModel(const GlobalAddressSDNode *GA,
 
   ArgListTy Args;
   ArgListEntry Entry;
-  std::string NameString = ("__emutls_v." + GA->getGlobal()->getName()).str();
-  Module *VariableModule = const_cast<Module*>(GA->getGlobal()->getParent());
+  const GlobalValue *GV = GA->getGlobal();
+  GV = GV->stripPointerCastsAndAliases()
+	   ? cast<GlobalValue>(GV->stripPointerCastsAndAliases()) : GV;
+  std::string NameString = ("__emutls_v." + GV->getName()).str();
+  Module *VariableModule = const_cast<Module*>(GV->getParent());
   StringRef EmuTlsVarName(NameString);
   GlobalVariable *EmuTlsVar = VariableModule->getNamedGlobal(EmuTlsVarName);
   assert(EmuTlsVar && "Cannot find EmuTlsVar ");
