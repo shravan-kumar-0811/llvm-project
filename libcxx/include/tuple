@@ -154,11 +154,20 @@ template <class T, class Tuple>
 template <class T> struct tuple_size; // undefined
 template <class... T> struct tuple_size<tuple<T...>>;
 template <class T>
- inline constexpr size_t tuple_size_v = tuple_size<T>::value; // C++17
+  inline constexpr size_t tuple_size_v = tuple_size<T>::value; // C++17
+
+template <class T> struct tuple_size<const T>;
+template <class T> struct tuple_size<volatile T>;       // Deprecated in C++20
+template <class T> struct tuple_size<const volatile T>; // Deprecated in C++20
+
 template <size_t I, class T> struct tuple_element; // undefined
 template <size_t I, class... T> struct tuple_element<I, tuple<T...>>;
 template <size_t I, class T>
   using tuple_element_t = typename tuple_element <I, T>::type; // C++14
+
+template <size_t I, class T> struct tuple_element<I, const T>;
+template <size_t I, class T> struct tuple_element<I, volatile T>;       // Deprecated in C++20
+template <size_t I, class T> struct tuple_element<I, const volatile T>; // Deprecated in C++20
 
 // 20.4.1.5, element access:
 template <size_t I, class... T>
