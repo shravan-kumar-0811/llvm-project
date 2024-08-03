@@ -317,6 +317,13 @@ bool PreISelIntrinsicLowering::expandMemIntrinsicUses(Function &F) const {
       Memset->eraseFromParent();
       break;
     }
+    case Intrinsic::memset_pattern: {
+      auto *Memset = cast<MemSetPatternInst>(Inst);
+      expandMemSetAsLoop(Memset);
+      Changed = true;
+      Memset->eraseFromParent();
+      break;
+    }
     default:
       llvm_unreachable("unhandled intrinsic");
     }
@@ -336,6 +343,7 @@ bool PreISelIntrinsicLowering::lowerIntrinsics(Module &M) const {
     case Intrinsic::memmove:
     case Intrinsic::memset:
     case Intrinsic::memset_inline:
+    case Intrinsic::memset_pattern:
       Changed |= expandMemIntrinsicUses(F);
       break;
     case Intrinsic::load_relative:
