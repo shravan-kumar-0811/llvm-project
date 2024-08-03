@@ -1474,7 +1474,10 @@ SDValue SelectionDAGLegalize::ExpandInsertToVectorThroughStack(SDValue Op) {
       MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), FI);
 
   // First store the whole vector.
-  SDValue Ch = DAG.getStore(DAG.getEntryNode(), dl, Vec, StackPtr, PtrInfo);
+  Align ElementAlignment =
+      DAG.getMachineFunction().getFrameInfo().getObjectAlign(FI);
+  SDValue Ch = DAG.getStore(DAG.getEntryNode(), dl, Vec, StackPtr, PtrInfo,
+                            ElementAlignment);
 
   // Freeze the index so we don't poison the clamping code we're about to emit.
   Idx = DAG.getFreeze(Idx);
@@ -1487,7 +1490,8 @@ SDValue SelectionDAGLegalize::ExpandInsertToVectorThroughStack(SDValue Op) {
     // Store the subvector.
     Ch = DAG.getStore(
         Ch, dl, Part, SubStackPtr,
-        MachinePointerInfo::getUnknownStack(DAG.getMachineFunction()));
+        MachinePointerInfo::getUnknownStack(DAG.getMachineFunction()),
+        ElementAlignment);
   } else {
     SDValue SubStackPtr =
         TLI.getVectorElementPointer(DAG, StackPtr, VecVT, Idx);
@@ -1496,11 +1500,12 @@ SDValue SelectionDAGLegalize::ExpandInsertToVectorThroughStack(SDValue Op) {
     Ch = DAG.getTruncStore(
         Ch, dl, Part, SubStackPtr,
         MachinePointerInfo::getUnknownStack(DAG.getMachineFunction()),
-        VecVT.getVectorElementType());
+        VecVT.getVectorElementType(), ElementAlignment);
   }
 
   // Finally, load the updated vector.
-  return DAG.getLoad(Op.getValueType(), dl, Ch, StackPtr, PtrInfo);
+  return DAG.getLoad(Op.getValueType(), dl, Ch, StackPtr, PtrInfo,
+                     ElementAlignment);
 }
 
 SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
