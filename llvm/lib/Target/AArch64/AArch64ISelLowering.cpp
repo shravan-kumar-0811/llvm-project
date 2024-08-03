@@ -1536,6 +1536,24 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
       }
     }
 
+    // We can lower types that have <vscale x {2|4}> elements to svcompact and
+    // legal i8/i16 types via a compressing store.
+    for (auto VT :
+         {MVT::nxv2i8, MVT::nxv2i16, MVT::nxv2i32, MVT::nxv2i64, MVT::nxv2f32,
+          MVT::nxv2f64, MVT::nxv4i8, MVT::nxv4i16, MVT::nxv4i32, MVT::nxv4f32,
+          MVT::nxv8i8, MVT::nxv8i16, MVT::nxv16i8})
+      setOperationAction(ISD::VECTOR_COMPRESS, VT, Custom);
+
+    // If we have SVE, we can use SVE logic for legal (or smaller than legal)
+    // NEON vectors in the lowest bits of the SVE register.
+    if (Subtarget->hasSVE())
+      for (auto VT :
+           {MVT::v1i8,  MVT::v1i16, MVT::v1i32, MVT::v1i64, MVT::v1f32,
+            MVT::v1f64, MVT::v2i8,  MVT::v2i16, MVT::v2i32, MVT::v2i64,
+            MVT::v2f32, MVT::v2f64, MVT::v4i8,  MVT::v4i16, MVT::v4i32,
+            MVT::v4f32, MVT::v8i8,  MVT::v8i16, MVT::v8i16, MVT::v16i8})
+        setOperationAction(ISD::VECTOR_COMPRESS, VT, Custom);
+
     // NEON doesn't support masked loads/stores, but SME and SVE do.
     for (auto VT :
          {MVT::v4f16, MVT::v8f16, MVT::v2f32, MVT::v4f32, MVT::v1f64,
@@ -6616,6 +6634,132 @@ SDValue AArch64TargetLowering::LowerLOAD(SDValue Op,
   return DAG.getMergeValues({Ext, Chain}, DL);
 }
 
+SDValue AArch64TargetLowering::LowerVECTOR_COMPRESS(SDValue Op,
+                                                    SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+  SDValue Vec = Op.getOperand(0);
+  SDValue Mask = Op.getOperand(1);
+  SDValue Passthru = Op.getOperand(2);
+  EVT VecVT = Vec.getValueType();
+  EVT MaskVT = Mask.getValueType();
+  EVT ElmtVT = VecVT.getVectorElementType();
+  const bool IsFixedLength = VecVT.isFixedLengthVector();
+  const bool HasPassthru = !Passthru.isUndef();
+  unsigned MinElmts = VecVT.getVectorElementCount().getKnownMinValue();
+  EVT FixedVecVT = MVT::getVectorVT(ElmtVT.getSimpleVT(), MinElmts);
+
+  assert(VecVT.isVector() && "Input to VECTOR_COMPRESS must be vector.");
+
+  if (!Subtarget->hasSVE())
+    return SDValue();
+
+  if (IsFixedLength && VecVT.getSizeInBits().getFixedValue() > 128)
+    return SDValue();
+
+  // We can use the SVE register containing the NEON vector in its lowest bits.
+  if (IsFixedLength) {
+    EVT ScalableVecVT =
+        MVT::getScalableVectorVT(ElmtVT.getSimpleVT(), MinElmts);
+    EVT ScalableMaskVT = MVT::getScalableVectorVT(
+        MaskVT.getVectorElementType().getSimpleVT(), MinElmts);
+
+    Vec = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, ScalableVecVT,
+                      DAG.getUNDEF(ScalableVecVT), Vec,
+                      DAG.getConstant(0, DL, MVT::i64));
+    Mask = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, ScalableMaskVT,
+                       DAG.getUNDEF(ScalableMaskVT), Mask,
+                       DAG.getConstant(0, DL, MVT::i64));
+    Mask = DAG.getNode(ISD::TRUNCATE, DL,
+                       ScalableMaskVT.changeVectorElementType(MVT::i1), Mask);
+    Passthru = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, ScalableVecVT,
+                           DAG.getUNDEF(ScalableVecVT), Passthru,
+                           DAG.getConstant(0, DL, MVT::i64));
+
+    VecVT = Vec.getValueType();
+    MaskVT = Mask.getValueType();
+  }
+
+  // Special case where we can't use svcompact but can do a compressing store
+  // and then reload the vector.
+  if (VecVT == MVT::nxv8i8 || VecVT == MVT::nxv16i8 || VecVT == MVT::nxv8i16) {
+    SDValue StackPtr = DAG.CreateStackTemporary(VecVT);
+    int FI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();
+    MachinePointerInfo PtrInfo =
+        MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), FI);
+
+    MachineMemOperand *MMO = DAG.getMachineFunction().getMachineMemOperand(
+        PtrInfo, MachineMemOperand::Flags::MOStore,
+        LocationSize::precise(VecVT.getStoreSize()),
+        DAG.getReducedAlign(VecVT, /*UseABI=*/false));
+
+    SDValue Chain = DAG.getEntryNode();
+    if (HasPassthru)
+      Chain = DAG.getStore(Chain, DL, Passthru, StackPtr, PtrInfo);
+
+    Chain = DAG.getMaskedStore(Chain, DL, Vec, StackPtr, DAG.getUNDEF(MVT::i64),
+                               Mask, VecVT, MMO, ISD::UNINDEXED,
+                               /*IsTruncating=*/false, /*IsCompressing=*/true);
+
+    SDValue Compressed = DAG.getLoad(VecVT, DL, Chain, StackPtr, PtrInfo);
+
+    if (IsFixedLength)
+      Compressed = DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL, FixedVecVT,
+                               Compressed, DAG.getConstant(0, DL, MVT::i64));
+
+    return Compressed;
+  }
+
+  // Only <vscale x {2|4} x {i32|i64}> supported for svcompact.
+  if (MinElmts != 2 && MinElmts != 4)
+    return SDValue();
+
+  // Get legal type for svcompact instruction
+  EVT ContainerVT = getSVEContainerType(VecVT);
+  EVT CastVT = VecVT.changeVectorElementTypeToInteger();
+
+  // Convert to i32 or i64 for smaller types, as these are the only supported
+  // sizes for svcompact.
+  if (ContainerVT != VecVT) {
+    Vec = DAG.getBitcast(CastVT, Vec);
+    Vec = DAG.getNode(ISD::ANY_EXTEND, DL, ContainerVT, Vec);
+  }
+
+  SDValue Compressed = DAG.getNode(
+      ISD::INTRINSIC_WO_CHAIN, DL, Vec.getValueType(),
+      DAG.getConstant(Intrinsic::aarch64_sve_compact, DL, MVT::i64), Mask, Vec);
+
+  // svcompact fills with 0s, so if our passthru is all 0s, do nothing here.
+  if (HasPassthru && !ISD::isConstantSplatVectorAllZeros(Passthru.getNode())) {
+    SDValue Offset = DAG.getNode(
+        ISD::ZERO_EXTEND, DL, MaskVT.changeVectorElementType(MVT::i32), Mask);
+    Offset = DAG.getNode(ISD::VECREDUCE_ADD, DL, MVT::i32, Offset);
+    Compressed =
+        DAG.getNode(ISD::VP_MERGE, DL, VecVT,
+                    DAG.getSplatVector(MaskVT, DL,
+                                       DAG.getAllOnesConstant(
+                                           DL, MaskVT.getVectorElementType())),
+                    Compressed, Passthru, Offset);
+  }
+
+  // Extracting from a legal SVE type before truncating produces better code.
+  if (IsFixedLength) {
+    Compressed = DAG.getNode(
+        ISD::EXTRACT_SUBVECTOR, DL,
+        FixedVecVT.changeVectorElementType(ContainerVT.getVectorElementType()),
+        Compressed, DAG.getConstant(0, DL, MVT::i64));
+    CastVT = FixedVecVT.changeVectorElementTypeToInteger();
+    VecVT = FixedVecVT;
+  }
+
+  // If we changed the element type before, we need to convert it back.
+  if (ContainerVT != VecVT) {
+    Compressed = DAG.getNode(ISD::TRUNCATE, DL, CastVT, Compressed);
+    Compressed = DAG.getBitcast(VecVT, Compressed);
+  }
+
+  return Compressed;
+}
+
 // Generate SUBS and CSEL for integer abs.
 SDValue AArch64TargetLowering::LowerABS(SDValue Op, SelectionDAG &DAG) const {
   MVT VT = Op.getSimpleValueType();
@@ -6996,6 +7140,8 @@ SDValue AArch64TargetLowering::LowerOperation(SDValue Op,
     return LowerDYNAMIC_STACKALLOC(Op, DAG);
   case ISD::VSCALE:
     return LowerVSCALE(Op, DAG);
+  case ISD::VECTOR_COMPRESS:
+    return LowerVECTOR_COMPRESS(Op, DAG);
   case ISD::ANY_EXTEND:
   case ISD::SIGN_EXTEND:
   case ISD::ZERO_EXTEND:
@@ -23085,6 +23231,68 @@ static SDValue combineI8TruncStore(StoreSDNode *ST, SelectionDAG &DAG,
   return Chain;
 }
 
+static SDValue combineVECTOR_COMPRESSStore(SelectionDAG &DAG,
+                                           StoreSDNode *Store,
+                                           const AArch64Subtarget *Subtarget) {
+  // If the regular store is preceded by an VECTOR_COMPRESS, we can combine them
+  // into a compressing store for scalable vectors in SVE.
+  SDValue VecOp = Store->getValue();
+  EVT VecVT = VecOp.getValueType();
+  if (VecOp.getOpcode() != ISD::VECTOR_COMPRESS || !Subtarget->hasSVE())
+    return SDValue();
+
+  bool IsFixedLength = VecVT.isFixedLengthVector();
+  if (IsFixedLength && VecVT.getSizeInBits().getFixedValue() > 128)
+    return SDValue();
+
+  SDLoc DL(Store);
+  SDValue Vec = VecOp.getOperand(0);
+  SDValue Mask = VecOp.getOperand(1);
+  SDValue Passthru = VecOp.getOperand(2);
+  EVT MemVT = Store->getMemoryVT();
+  MachineMemOperand *MMO = Store->getMemOperand();
+  SDValue Chain = Store->getChain();
+
+  // We can use the SVE register containing the NEON vector in its lowest bits.
+  if (IsFixedLength) {
+    EVT ElmtVT = VecVT.getVectorElementType();
+    unsigned NumElmts = VecVT.getVectorNumElements();
+    EVT ScalableVecVT =
+        MVT::getScalableVectorVT(ElmtVT.getSimpleVT(), NumElmts);
+    EVT ScalableMaskVT = MVT::getScalableVectorVT(
+        Mask.getValueType().getVectorElementType().getSimpleVT(), NumElmts);
+
+    Vec = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, ScalableVecVT,
+                      DAG.getUNDEF(ScalableVecVT), Vec,
+                      DAG.getConstant(0, DL, MVT::i64));
+    Mask = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, ScalableMaskVT,
+                       DAG.getUNDEF(ScalableMaskVT), Mask,
+                       DAG.getConstant(0, DL, MVT::i64));
+    Mask = DAG.getNode(ISD::TRUNCATE, DL,
+                       ScalableMaskVT.changeVectorElementType(MVT::i1), Mask);
+    Passthru = DAG.getNode(ISD::INSERT_SUBVECTOR, DL, ScalableVecVT,
+                           DAG.getUNDEF(ScalableVecVT), Passthru,
+                           DAG.getConstant(0, DL, MVT::i64));
+
+    MemVT = ScalableVecVT;
+    MMO->setType(LLT::scalable_vector(NumElmts, ElmtVT.getSizeInBits()));
+  }
+
+  // If the passthru is all 0s, we don't need an explicit passthru store.
+  unsigned MinElmts = VecVT.getVectorMinNumElements();
+  if (ISD::isConstantSplatVectorAllZeros(Passthru.getNode()) &&
+      (MinElmts == 2 || MinElmts == 4))
+    return SDValue();
+
+  if (!Passthru.isUndef())
+    Chain = DAG.getStore(Chain, DL, Passthru, Store->getBasePtr(), MMO);
+
+  return DAG.getMaskedStore(Chain, DL, Vec, Store->getBasePtr(),
+                            DAG.getUNDEF(MVT::i64), Mask, MemVT, MMO,
+                            ISD::UNINDEXED, Store->isTruncatingStore(),
+                            /*IsCompressing=*/true);
+}
+
 static SDValue performSTORECombine(SDNode *N,
                                    TargetLowering::DAGCombinerInfo &DCI,
                                    SelectionDAG &DAG,
@@ -23127,6 +23335,9 @@ static SDValue performSTORECombine(SDNode *N,
     return Store;
 
   if (SDValue Store = combineBoolVectorAndTruncateStore(DAG, ST))
+    return Store;
+
+  if (SDValue Store = combineVECTOR_COMPRESSStore(DAG, ST, Subtarget))
     return Store;
 
   if (ST->isTruncatingStore()) {
@@ -26370,6 +26581,10 @@ void AArch64TargetLowering::ReplaceNodeResults(
   case ISD::VECREDUCE_UMAX:
   case ISD::VECREDUCE_UMIN:
     Results.push_back(LowerVECREDUCE(SDValue(N, 0), DAG));
+    return;
+  case ISD::VECTOR_COMPRESS:
+    if (SDValue Res = LowerVECTOR_COMPRESS(SDValue(N, 0), DAG))
+      Results.push_back(Res);
     return;
   case ISD::ADD:
   case ISD::FADD:
