@@ -46,6 +46,7 @@
 #include "llvm/Support/WithColor.h"
 #include "llvm/Target/CGPassBuilderOption.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
 #include <cassert>
@@ -947,6 +948,9 @@ void TargetPassConfig::addCodeGenPrepare() {
 /// instruction selection.
 void TargetPassConfig::addISelPrepare() {
   addPreISel();
+
+  if (getOptLevel() != CodeGenOptLevel::None)
+    addPass(createObjCARCContractPass());
 
   // Force codegen to run according to the callgraph.
   if (requiresCodeGenSCCOrder())
