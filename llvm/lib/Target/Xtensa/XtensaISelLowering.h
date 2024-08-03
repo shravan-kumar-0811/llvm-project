@@ -40,6 +40,12 @@ enum {
   // the lhs and rhs (ops #0 and #1) of a conditional expression with the
   // condition code in op #4
   SELECT_CC,
+
+  // SRCL(R) performs shift left(right) of the concatenation of 2 registers
+  // and returns high(low) 32-bit part of 64-bit result
+  SRCL,
+  // Shift Right Combined
+  SRCR,
 };
 }
 
@@ -49,6 +55,10 @@ class XtensaTargetLowering : public TargetLowering {
 public:
   explicit XtensaTargetLowering(const TargetMachine &TM,
                                 const XtensaSubtarget &STI);
+
+  MVT getScalarShiftAmountTy(const DataLayout &, EVT LHSTy) const override {
+    return LHSTy.getSizeInBits() <= 32 ? MVT::i32 : MVT::i64;
+  }
 
   EVT getSetCCResultType(const DataLayout &, LLVMContext &,
                          EVT VT) const override {
@@ -82,6 +92,9 @@ public:
                       const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
                       SelectionDAG &DAG) const override;
 
+  bool decomposeMulByConstant(LLVMContext &Context, EVT VT,
+                              SDValue C) const override;
+
   const XtensaSubtarget &getSubtarget() const { return Subtarget; }
 
   MachineBasicBlock *
@@ -101,7 +114,7 @@ private:
 
   SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
 
-  SDValue LowerConstantPool(ConstantPoolSDNode *CP, SelectionDAG &DAG) const;
+  SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
 
@@ -110,6 +123,10 @@ private:
   SDValue LowerSTACKSAVE(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue LowerSTACKRESTORE(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG, bool IsSRA) const;
 
   SDValue getAddrPCRel(SDValue Op, SelectionDAG &DAG) const;
 
