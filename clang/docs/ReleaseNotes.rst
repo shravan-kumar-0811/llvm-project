@@ -145,6 +145,8 @@ Improvements to Clang's diagnostics
 
 - -Wdangling-assignment-gsl is enabled by default.
 
+- Clang now warns for u8 character literals used in C23 with ``-Wpre-c23-compat`` instead of ``-Wpre-c++17-compat``.
+
 Improvements to Clang's time-trace
 ----------------------------------
 
