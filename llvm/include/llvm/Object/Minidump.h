@@ -11,6 +11,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/fallible_iterator.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/BinaryFormat/Minidump.h"
 #include "llvm/Object/Binary.h"
@@ -103,6 +104,13 @@ public:
         minidump::StreamType::MemoryList);
   }
 
+  /// Returns the header to the memory 64 list stream. An error is returned if
+  /// the file does not contain this stream.
+  Expected<minidump::Memory64ListHeader> getMemoryList64Header() const {
+    return getStream<minidump::Memory64ListHeader>(
+        minidump::StreamType::Memory64List);
+  }
+
   class MemoryInfoIterator
       : public iterator_facade_base<MemoryInfoIterator,
                                     std::forward_iterator_tag,
@@ -132,6 +140,71 @@ public:
     size_t Stride;
   };
 
+  class Memory64ListFacade {
+    struct Memory64Iterator {
+    public:
+      Memory64Iterator(size_t Count, uint64_t BaseRVA,
+                       const Memory64ListFacade *Parent)
+          : Parent(Parent), BaseRVA(BaseRVA), Count(Count) {};
+
+      const std::pair<minidump::MemoryDescriptor_64, ArrayRef<uint8_t>>
+      operator*() {
+        return Parent->Next(this);
+      }
+
+      bool operator==(const Memory64Iterator &R) const {
+        return Parent == R.Parent && Count == R.Count;
+      }
+
+      bool operator!=(const Memory64Iterator &R) const { return !(*this == R); }
+
+    private:
+      friend class Memory64ListFacade;
+      const Memory64ListFacade *Parent;
+      uint64_t BaseRVA;
+      size_t Count;
+    };
+
+  public:
+    Memory64ListFacade(ArrayRef<uint8_t> Storage,
+                       std::vector<minidump::MemoryDescriptor_64> Descriptors,
+                       uint64_t BaseRVA)
+        : BaseRVA(BaseRVA), Storage(Storage),
+          Descriptors(std::move(Descriptors)) {};
+
+    Memory64Iterator begin() const {
+      return Memory64Iterator(0, BaseRVA, this);
+    }
+
+    Memory64Iterator end() const {
+      return Memory64Iterator(Descriptors.size(), BaseRVA, this);
+    }
+
+    size_t size() const { return Descriptors.size(); }
+
+  private:
+    uint64_t BaseRVA;
+    ArrayRef<uint8_t> Storage;
+    std::vector<minidump::MemoryDescriptor_64> Descriptors;
+
+    const std::pair<minidump::MemoryDescriptor_64, ArrayRef<uint8_t>>
+    Next(Memory64Iterator *Iterator) const {
+      assert(Descriptors.size() > Iterator->Count);
+      minidump::MemoryDescriptor_64 Descriptor = Descriptors[Iterator->Count];
+      ArrayRef<uint8_t> Content =
+          Storage.slice(Iterator->BaseRVA, Descriptor.DataSize);
+      Iterator->BaseRVA += Descriptor.DataSize;
+      Iterator->Count++;
+      return std::make_pair(Descriptor, Content);
+    }
+  };
+
+  /// Returns an iterator that pairs each descriptor with it's respective
+  /// content from the Memory64List stream. An error is returned if the file
+  /// does not contain a Memory64List stream, or if the descriptor data is
+  /// unreadable.
+  Expected<Memory64ListFacade> getMemory64List() const;
+
   /// Returns the list of descriptors embedded in the MemoryInfoList stream. The
   /// descriptors provide properties (e.g. permissions) of interesting regions
   /// of memory at the time the minidump was taken. An error is returned if the
@@ -152,21 +225,21 @@ private:
   }
 
   /// Return a slice of the given data array, with bounds checking.
-  static Expected<ArrayRef<uint8_t>> getDataSlice(ArrayRef<uint8_t> Data,
-                                                  size_t Offset, size_t Size);
+  static Expected<ArrayRef<uint8_t>>
+  getDataSlice(ArrayRef<uint8_t> Data, uint64_t Offset, uint64_t Size);
 
   /// Return the slice of the given data array as an array of objects of the
   /// given type. The function checks that the input array is large enough to
   /// contain the correct number of objects of the given type.
   template <typename T>
   static Expected<ArrayRef<T>> getDataSliceAs(ArrayRef<uint8_t> Data,
-                                              size_t Offset, size_t Count);
+                                              uint64_t Offset, uint64_t Count);
 
   MinidumpFile(MemoryBufferRef Source, const minidump::Header &Header,
                ArrayRef<minidump::Directory> Streams,
                DenseMap<minidump::StreamType, std::size_t> StreamMap)
       : Binary(ID_Minidump, Source), Header(Header), Streams(Streams),
-        StreamMap(std::move(StreamMap)) {}
+        StreamMap(std::move(StreamMap)) {};
 
   ArrayRef<uint8_t> getData() const {
     return arrayRefFromStringRef(Data.getBuffer());
@@ -199,15 +272,16 @@ Expected<const T &> MinidumpFile::getStream(minidump::StreamType Type) const {
 
 template <typename T>
 Expected<ArrayRef<T>> MinidumpFile::getDataSliceAs(ArrayRef<uint8_t> Data,
-                                                   size_t Offset,
-                                                   size_t Count) {
+                                                   uint64_t Offset,
+                                                   uint64_t Count) {
   // Check for overflow.
-  if (Count > std::numeric_limits<size_t>::max() / sizeof(T))
+  if (Count > std::numeric_limits<uint64_t>::max() / sizeof(T))
     return createEOFError();
   Expected<ArrayRef<uint8_t>> Slice =
       getDataSlice(Data, Offset, sizeof(T) * Count);
   if (!Slice)
     return Slice.takeError();
+
   return ArrayRef<T>(reinterpret_cast<const T *>(Slice->data()), Count);
 }
 
