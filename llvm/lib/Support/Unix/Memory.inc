@@ -15,11 +15,16 @@
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Valgrind.h"
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
+#endif
+
+#ifdef __linux__
+#include <sys/syscall.h>
 #endif
 
 #ifdef __APPLE__
@@ -66,6 +71,25 @@ static int getPosixProtectionFlags(unsigned Flags) {
   // Provide a default return value as required by some compilers.
   return PROT_NONE;
 }
+
+#if defined(__linux__)
+#ifndef MFD_CLOEXEC
+#define MFD_CLOEXEC 0x0001U
+
+// Assume if MFD_CLOEXEC is defined, so is the libc function
+static inline int memfd_create(const char *name, unsigned int flags) {
+#ifdef SYS_memfd_create
+  return syscall(SYS_memfd_create, name, flags);
+#else
+  errno = ENOSYS;
+  return -1;
+#endif
+}
+#endif // MFD_CLOEXEC
+#ifndef MFD_EXEC
+#define MFD_EXEC 0x0010U
+#endif
+#endif
 
 namespace llvm {
 namespace sys {
@@ -177,6 +201,49 @@ std::error_code Memory::protectMappedMemory(const MemoryBlock &M,
       alignAddr((const uint8_t *)M.Address + M.AllocatedSize, PageSize);
 
   bool InvalidateCache = (Flags & MF_EXEC);
+  bool SkipMprotect = false;
+
+#if defined(__linux__)
+  // Check for cases where the EXEC protection flag changes and a possible
+  // strict W^X policy cannot be bypassed via mprotect() alone, e.g. under
+  // PaX's MPROTECT or SELinux's deny_execmem.
+  //
+  // To support such systems, we need to create a fresh mapping with the
+  // target protection flags.
+  if ((M.Flags ^ Flags) & MF_EXEC && execProtectionChangeNeedsNewMapping()) {
+    // The initial version of memfd_create() created executable fds by default.
+    // Since Linux v6.3 the default behaviour depends on a sysctl setting
+    // 'vm.memfd_noexec', requiring users to explicitly request the executable
+    // status by passing MFD_EXEC in the flags. This flag will be rejected by
+    // earlier kernels with EINVAL. Simply retry without the flag in this case,
+    // as mappings will be executable by default on these kernels.
+    static unsigned int flags = MFD_CLOEXEC | MFD_EXEC;
+    int fd = memfd_create("llvm", flags);
+    if (fd < 0 && errno == EINVAL && (flags & MFD_EXEC)) {
+      flags &= ~MFD_EXEC;
+      fd = memfd_create("llvm", flags);
+    }
+    if (fd < 0)
+      return errnoAsErrorCode();
+
+    raw_fd_ostream fdos(fd, /*shouldClose=*/true, /*unbuffered=*/true,
+                        /*simpleStream=*/true);
+
+    fdos.write(reinterpret_cast<char *>(Start), End - Start);
+    if (auto ec = fdos.error())
+      return ec;
+
+    void *addr = ::mmap(reinterpret_cast<void *>(Start), End - Start, Protect,
+                        MAP_PRIVATE | MAP_FIXED, fd, 0);
+    if (addr == MAP_FAILED)
+      return errnoAsErrorCode();
+
+    // We created a new mapping with the final protection bits, therefore
+    // don't need to call mprotect() with the very same flags again -- unless
+    // we have to toggle PROT_READ for ARM.
+    SkipMprotect = true;
+  }
+#endif
 
 #if defined(__arm__) || defined(__aarch64__)
   // Certain ARM implementations treat icache clear instruction as a memory
@@ -190,13 +257,16 @@ std::error_code Memory::protectMappedMemory(const MemoryBlock &M,
 
     Memory::InvalidateInstructionCache(M.Address, M.AllocatedSize);
     InvalidateCache = false;
+    SkipMprotect = false;
   }
 #endif
 
-  int Result = ::mprotect((void *)Start, End - Start, Protect);
+  if (!SkipMprotect) {
+    int Result = ::mprotect((void *)Start, End - Start, Protect);
 
-  if (Result != 0)
-    return errnoAsErrorCode();
+    if (Result != 0)
+      return errnoAsErrorCode();
+  }
 
   if (InvalidateCache)
     Memory::InvalidateInstructionCache(M.Address, M.AllocatedSize);
@@ -249,6 +319,51 @@ void Memory::InvalidateInstructionCache(const void *Addr, size_t Len) {
 #endif // end apple
 
   ValgrindDiscardTranslations(Addr, Len);
+}
+
+static inline bool isPermissionError(int err) {
+  // PaX uses EPERM, SELinux uses EACCES
+  return err == EPERM || err == EACCES;
+}
+
+bool Memory::execProtectionChangeNeedsNewMapping() {
+#if defined(__linux__)
+  static int status = -1;
+
+  if (status != -1)
+    return status;
+
+  // Try to get the status from /proc/self/status, looking for PaX flags.
+  if (auto file = MemoryBuffer::getFileAsStream("/proc/self/status")) {
+    auto pax_flags =
+        (*file)->getBuffer().rsplit("PaX:").second.split('\n').first.trim();
+    if (!pax_flags.empty())
+      // 'M' indicates MPROTECT is enabled
+      return (status = pax_flags.find('M') != StringRef::npos);
+  }
+
+  // Create a temporary writable mapping and try to make it executable.  If
+  // this fails, test 'errno' to ensure it failed because we were not allowed
+  // to create such a mapping and not because of some transient error.
+  size_t size = Process::getPageSizeEstimate();
+  void *addr = ::mmap(NULL, size, PROT_READ | PROT_WRITE,
+                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (addr == MAP_FAILED) {
+    // Must be low on memory or have too many mappings already, not much we can
+    // do here.
+    status = 0;
+  } else {
+    if (::mprotect(addr, size, PROT_READ | PROT_EXEC) < 0)
+      status = isPermissionError(errno);
+    else
+      status = 0;
+    ::munmap(addr, size);
+  }
+
+  return status;
+#else
+  return false;
+#endif
 }
 
 } // namespace sys
