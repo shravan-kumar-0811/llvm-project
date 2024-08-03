@@ -16,6 +16,7 @@
 
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/CodeGen.h"
 
 namespace llvm {
@@ -106,15 +107,30 @@ enum LoadStore {
   isStoreShift = 6
 };
 
-namespace PTXLdStInstCode {
-enum MemorySemantic {
+// Extends LLVM AtomicOrdering with PTX Orderings:
+using OrderingUnderlyingType = unsigned int;
+enum Ordering : OrderingUnderlyingType {
   NotAtomic = 0, // PTX calls these: "Weak"
-  Volatile = 1,
+  // Unordered = 1, // NVPTX maps LLVM Unorderd to Relaxed
   Relaxed = 2,
-  Acquire = 3,
-  Release = 4,
-  RelaxedMMIO = 5
+  // Consume = 3,   // Unimplemented in LLVM; NVPTX would map to "Acquire"
+  Acquire = 4,
+  Release = 5,
+  // AcquireRelease = 6, // TODO
+  SequentiallyConsistent = 7,
+  Volatile = 8,
+  RelaxedMMIO = 9,
+  LAST = RelaxedMMIO
 };
+// Values match LLVM AtomicOrdering for common orderings:
+static_assert(Ordering::NotAtomic == (unsigned)AtomicOrdering::NotAtomic);
+static_assert(Ordering::Relaxed == (unsigned)AtomicOrdering::Monotonic);
+static_assert(Ordering::Acquire == (unsigned)AtomicOrdering::Acquire);
+static_assert(Ordering::Release == (unsigned)AtomicOrdering::Release);
+static_assert(Ordering::SequentiallyConsistent ==
+              (unsigned)AtomicOrdering::SequentiallyConsistent);
+
+namespace PTXLdStInstCode {
 enum AddressSpace {
   GENERIC = 0,
   GLOBAL = 1,
@@ -134,7 +150,7 @@ enum VecType {
   V2 = 2,
   V4 = 4
 };
-}
+} // namespace PTXLdStInstCode
 
 /// PTXCvtMode - Conversion code enumeration
 namespace PTXCvtMode {
