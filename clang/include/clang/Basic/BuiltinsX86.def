@@ -1959,6 +1959,14 @@ TARGET_HEADER_BUILTIN(__readgsword,  "UsUNi", "nh", INTRIN_H, ALL_MS_LANGUAGES, 
 TARGET_HEADER_BUILTIN(__readgsdword, "UNiUNi", "nh", INTRIN_H, ALL_MS_LANGUAGES, "")
 TARGET_HEADER_BUILTIN(__readgsqword, "ULLiUNi", "nh", INTRIN_H, ALL_MS_LANGUAGES, "")
 
+// AVX10.2 VMPSADBW
+TARGET_BUILTIN(__builtin_ia32_mpsadbw512, "V32sV64cV64cIc", "ncV:512:", "avx10.2-512")
+
+// AVX10.2 YMM Rounding
+TARGET_BUILTIN(__builtin_ia32_vaddpd256_round, "V4dV4dV4dIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vaddph256_round, "V16xV16xV16xIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vaddps256_round, "V8fV8fV8fIi", "nV:256:", "avx10.2-256")
+
 // AVX-VNNI-INT16
 TARGET_BUILTIN(__builtin_ia32_vpdpwsud128, "V4iV4iV4iV4i", "nV:128:", "avxvnniint16")
 TARGET_BUILTIN(__builtin_ia32_vpdpwsud256, "V8iV8iV8iV8i", "nV:256:", "avxvnniint16")
@@ -2014,6 +2022,42 @@ TARGET_BUILTIN(__builtin_ia32_vsm4key4256, "V8UiV8UiV8Ui", "nV:256:", "sm4")
 TARGET_BUILTIN(__builtin_ia32_vsm4rnds4128, "V4UiV4UiV4Ui", "nV:128:", "sm4")
 TARGET_BUILTIN(__builtin_ia32_vsm4rnds4256, "V8UiV8UiV8Ui", "nV:256:", "sm4")
 
+TARGET_BUILTIN(__builtin_ia32_vcvtnebf162ibs128, "V8UsV8y", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtnebf162ibs256, "V16UsV16y", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtnebf162ibs512, "V32UsV32y", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvtnebf162iubs128, "V8UsV8y", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtnebf162iubs256, "V16UsV16y", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtnebf162iubs512, "V32UsV32y", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvtph2ibs128_mask, "V8UsV8xV8UsUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtph2ibs256_mask, "V16UsV16xV16UsUsIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtph2ibs512_mask, "V32UsV32xV32UsUiIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvtph2iubs128_mask, "V8UsV8xV8UsUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtph2iubs256_mask, "V16UsV16xV16UsUsIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtph2iubs512_mask, "V32UsV32xV32UsUiIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvtps2ibs128_mask, "V4UiV4fV4UiUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtps2ibs256_mask, "V8UiV8fV8UiUcIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtps2ibs512_mask, "V16UiV16fV16UiUsIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvtps2iubs128_mask, "V4UiV4fV4UiUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtps2iubs256_mask, "V8UiV8fV8UiUcIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvtps2iubs512_mask, "V16UiV16fV16UiUsIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvttnebf162ibs128, "V8UsV8y", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttnebf162ibs256, "V16UsV16y", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttnebf162ibs512, "V32UsV32y", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvttnebf162iubs128, "V8UsV8y", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttnebf162iubs256, "V16UsV16y", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttnebf162iubs512, "V32UsV32y", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvttph2ibs128_mask, "V8UsV8xV8UsUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttph2ibs256_mask, "V16UsV16xV16UsUsIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttph2ibs512_mask, "V32UsV32xV32UsUiIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvttph2iubs128_mask, "V8UsV8xV8UsUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttph2iubs256_mask, "V16UsV16xV16UsUsIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttph2iubs512_mask, "V32UsV32xV32UsUiIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvttps2ibs128_mask, "V4UiV4fV4UiUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttps2ibs256_mask, "V8UiV8fV8UiUcIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttps2ibs512_mask, "V16UiV16fV16UiUsIi", "nV:512:", "avx10.2-512")
+TARGET_BUILTIN(__builtin_ia32_vcvttps2iubs128_mask, "V4UiV4fV4UiUc", "nV:128:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttps2iubs256_mask, "V8UiV8fV8UiUcIi", "nV:256:", "avx10.2-256")
+TARGET_BUILTIN(__builtin_ia32_vcvttps2iubs512_mask, "V16UiV16fV16UiUsIi", "nV:512:", "avx10.2-512")
 #undef BUILTIN
 #undef TARGET_BUILTIN
 #undef TARGET_HEADER_BUILTIN

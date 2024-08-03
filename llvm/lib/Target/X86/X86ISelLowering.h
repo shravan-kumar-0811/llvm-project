@@ -595,6 +595,8 @@ namespace llvm {
     VPDPBSSD,
     VPDPBSSDS,
 
+    MPSADBW,
+
     // Compress and expand.
     COMPRESS,
     EXPAND,
@@ -644,6 +646,27 @@ namespace llvm {
     MCVTTP2UI,
     MCVTSI2P,
     MCVTUI2P,
+
+    VCVTNEBF162IBS,
+    VCVTNEBF162IUBS,
+    VCVTPH2IBS,
+    VCVTPH2IBS_RND,
+    VCVTPH2IUBS,
+    VCVTPH2IUBS_RND,
+    VCVTPS2IBS,
+    VCVTPS2IBS_RND,
+    VCVTTNEBF162IBS,
+    VCVTTNEBF162IUBS,
+    VCVTPS2IUBS,
+    VCVTPS2IUBS_RND,
+    VCVTTPH2IBS,
+    VCVTTPH2IBS_SAE,
+    VCVTTPH2IUBS,
+    VCVTTPH2IUBS_SAE,
+    VCVTTPS2IBS,
+    VCVTTPS2IBS_SAE,
+    VCVTTPS2IUBS,
+    VCVTTPS2IUBS_SAE,
 
     // Vector float to bfloat16.
     // Convert TWO packed single data to one packed BF16 data
