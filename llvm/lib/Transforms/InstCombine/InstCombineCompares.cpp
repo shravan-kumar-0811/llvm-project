@@ -11,9 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstCombineInternal.h"
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/CmpInstAnalysis.h"
@@ -22,13 +24,20 @@
 #include "llvm/Analysis/Utils/Local.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/ConstantRange.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
 #include <bitset>
+#include <cstdint>
 
 using namespace llvm;
 using namespace PatternMatch;
@@ -7879,6 +7888,53 @@ static Instruction *foldFCmpReciprocalAndZero(FCmpInst &I, Instruction *LHSI,
   return new FCmpInst(Pred, LHSI->getOperand(1), RHSC, "", &I);
 }
 
+// Fold trunc(x) < constant --> x < constant if possible.
+static Instruction *foldFCmpFpTrunc(FCmpInst &I, Instruction *LHSI,
+                                    Constant *RHSC) {
+  FCmpInst::Predicate Pred = I.getPredicate();
+
+  // Check that predicates are valid.
+  if ((Pred != FCmpInst::FCMP_OGT) && (Pred != FCmpInst::FCMP_OLT) &&
+      (Pred != FCmpInst::FCMP_OGE) && (Pred != FCmpInst::FCMP_OLE))
+    return nullptr;
+
+  if (ConstantFP *ConstRFp = dyn_cast<ConstantFP>(RHSC)) {
+    Type *LType = LHSI->getOperand(0)->getType();
+    bool lossInfo;
+    APFloat RValue = ConstRFp->getValue();
+    RValue.convert(LType->getFltSemantics(), APFloat::rmNearestTiesToEven,
+                   &lossInfo);
+
+    return new FCmpInst(Pred, LHSI->getOperand(0),
+                        ConstantFP::get(LType, RValue), "", &I);
+  }
+
+  if (RHSC->getType()->isVectorTy()) {
+    Type *LVecType = LHSI->getOperand(0)->getType();
+    Type *LEleType = dyn_cast<VectorType>(LVecType)->getElementType();
+
+    FixedVectorType *VecType = dyn_cast<FixedVectorType>(RHSC->getType());
+    uint64_t EleNum = VecType->getNumElements();
+
+    std::vector<Constant *> EleVec(EleNum);
+    for (uint64_t Idx = 0; Idx < EleNum; ++Idx) {
+      bool lossInfo;
+      APFloat EleValue =
+          dyn_cast<ConstantFP>(RHSC->getAggregateElement(Idx))->getValueAPF();
+      EleValue.convert(LEleType->getFltSemantics(),
+                       APFloat::rmNearestTiesToEven, &lossInfo);
+      EleVec[Idx] = ConstantFP::get(LEleType, EleValue);
+    }
+
+    ArrayRef<Constant *> EleArr(EleVec);
+
+    return new FCmpInst(Pred, LHSI->getOperand(0), ConstantVector::get(EleArr),
+                        "", &I);
+  }
+
+  return nullptr;
+}
+
 /// Optimize fabs(X) compared with zero.
 static Instruction *foldFabsWithFcmpZero(FCmpInst &I, InstCombinerImpl &IC) {
   Value *X;
@@ -8301,6 +8357,10 @@ Instruction *InstCombinerImpl::visitFCmpInst(FCmpInst &I) {
           if (Instruction *Res = foldCmpLoadFromIndexedGlobal(
                   cast<LoadInst>(LHSI), GEP, GV, I))
             return Res;
+      break;
+    case Instruction::FPTrunc:
+      if (Instruction *NV = foldFCmpFpTrunc(I, LHSI, RHSC))
+        return NV;
       break;
   }
   }
