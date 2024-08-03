@@ -310,6 +310,7 @@ Python Binding Changes
 
 OpenMP Support
 --------------
+- Added support for 'omp assume' directive.
 
 Improvements
 ^^^^^^^^^^^^
