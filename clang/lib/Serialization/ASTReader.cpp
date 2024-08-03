@@ -173,27 +173,28 @@ void ChainedASTReaderListener::ReadModuleMapFile(StringRef ModuleMapPath) {
 
 bool
 ChainedASTReaderListener::ReadLanguageOptions(const LangOptions &LangOpts,
+                                              StringRef Filename,
                                               bool Complain,
                                               bool AllowCompatibleDifferences) {
-  return First->ReadLanguageOptions(LangOpts, Complain,
+  return First->ReadLanguageOptions(LangOpts, Filename, Complain,
                                     AllowCompatibleDifferences) ||
-         Second->ReadLanguageOptions(LangOpts, Complain,
+         Second->ReadLanguageOptions(LangOpts, Filename, Complain,
                                      AllowCompatibleDifferences);
 }
 
 bool ChainedASTReaderListener::ReadTargetOptions(
-    const TargetOptions &TargetOpts, bool Complain,
+    const TargetOptions &TargetOpts, StringRef Filename, bool Complain,
     bool AllowCompatibleDifferences) {
-  return First->ReadTargetOptions(TargetOpts, Complain,
+  return First->ReadTargetOptions(TargetOpts, Filename, Complain,
                                   AllowCompatibleDifferences) ||
-         Second->ReadTargetOptions(TargetOpts, Complain,
+         Second->ReadTargetOptions(TargetOpts, Filename, Complain,
                                    AllowCompatibleDifferences);
 }
 
 bool ChainedASTReaderListener::ReadDiagnosticOptions(
-    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts, bool Complain) {
-  return First->ReadDiagnosticOptions(DiagOpts, Complain) ||
-         Second->ReadDiagnosticOptions(DiagOpts, Complain);
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts, StringRef Filename, bool Complain) {
+  return First->ReadDiagnosticOptions(DiagOpts, Filename, Complain) ||
+         Second->ReadDiagnosticOptions(DiagOpts, Filename, Complain);
 }
 
 bool
@@ -204,20 +205,20 @@ ChainedASTReaderListener::ReadFileSystemOptions(const FileSystemOptions &FSOpts,
 }
 
 bool ChainedASTReaderListener::ReadHeaderSearchOptions(
-    const HeaderSearchOptions &HSOpts, StringRef SpecificModuleCachePath,
+    const HeaderSearchOptions &HSOpts, StringRef Filename, StringRef SpecificModuleCachePath,
     bool Complain) {
-  return First->ReadHeaderSearchOptions(HSOpts, SpecificModuleCachePath,
+  return First->ReadHeaderSearchOptions(HSOpts, Filename, SpecificModuleCachePath,
                                         Complain) ||
-         Second->ReadHeaderSearchOptions(HSOpts, SpecificModuleCachePath,
+         Second->ReadHeaderSearchOptions(HSOpts, Filename, SpecificModuleCachePath,
                                          Complain);
 }
 
 bool ChainedASTReaderListener::ReadPreprocessorOptions(
-    const PreprocessorOptions &PPOpts, bool ReadMacros, bool Complain,
+    const PreprocessorOptions &PPOpts, StringRef Filename, bool ReadMacros, bool Complain,
     std::string &SuggestedPredefines) {
-  return First->ReadPreprocessorOptions(PPOpts, ReadMacros, Complain,
+  return First->ReadPreprocessorOptions(PPOpts, Filename, ReadMacros, Complain,
                                         SuggestedPredefines) ||
-         Second->ReadPreprocessorOptions(PPOpts, ReadMacros, Complain,
+         Second->ReadPreprocessorOptions(PPOpts, Filename, ReadMacros, Complain,
                                          SuggestedPredefines);
 }
 
@@ -281,17 +282,17 @@ ASTReaderListener::~ASTReaderListener() = default;
 /// \returns true if the languagae options mis-match, false otherwise.
 static bool checkLanguageOptions(const LangOptions &LangOpts,
                                  const LangOptions &ExistingLangOpts,
-                                 DiagnosticsEngine *Diags,
+                                 StringRef Filename, DiagnosticsEngine *Diags,
                                  bool AllowCompatibleDifferences = true) {
 #define LANGOPT(Name, Bits, Default, Description)                   \
   if (ExistingLangOpts.Name != LangOpts.Name) {                     \
     if (Diags) {                                                    \
       if (Bits == 1)                                                \
-        Diags->Report(diag::err_pch_langopt_mismatch)               \
-          << Description << LangOpts.Name << ExistingLangOpts.Name; \
+        Diags->Report(diag::err_ast_file_langopt_mismatch)          \
+          << Description << LangOpts.Name << ExistingLangOpts.Name << Filename; \
       else                                                          \
-        Diags->Report(diag::err_pch_langopt_value_mismatch)         \
-          << Description;                                           \
+        Diags->Report(diag::err_ast_file_langopt_value_mismatch)    \
+          << Description << Filename;                               \
     }                                                               \
     return true;                                                    \
   }
@@ -299,16 +300,16 @@ static bool checkLanguageOptions(const LangOptions &LangOpts,
 #define VALUE_LANGOPT(Name, Bits, Default, Description)   \
   if (ExistingLangOpts.Name != LangOpts.Name) {           \
     if (Diags)                                            \
-      Diags->Report(diag::err_pch_langopt_value_mismatch) \
-        << Description;                                   \
+      Diags->Report(diag::err_ast_file_langopt_value_mismatch) \
+        << Description << Filename;                       \
     return true;                                          \
   }
 
 #define ENUM_LANGOPT(Name, Type, Bits, Default, Description)   \
   if (ExistingLangOpts.get##Name() != LangOpts.get##Name()) {  \
     if (Diags)                                                 \
-      Diags->Report(diag::err_pch_langopt_value_mismatch)      \
-        << Description;                                        \
+      Diags->Report(diag::err_ast_file_langopt_value_mismatch) \
+        << Description << Filename;                            \
     return true;                                               \
   }
 
@@ -331,22 +332,22 @@ static bool checkLanguageOptions(const LangOptions &LangOpts,
 
   if (ExistingLangOpts.ModuleFeatures != LangOpts.ModuleFeatures) {
     if (Diags)
-      Diags->Report(diag::err_pch_langopt_value_mismatch) << "module features";
+      Diags->Report(diag::err_ast_file_langopt_value_mismatch) << "module features" << Filename;
     return true;
   }
 
   if (ExistingLangOpts.ObjCRuntime != LangOpts.ObjCRuntime) {
     if (Diags)
-      Diags->Report(diag::err_pch_langopt_value_mismatch)
-      << "target Objective-C runtime";
+      Diags->Report(diag::err_ast_file_langopt_value_mismatch)
+      << "target Objective-C runtime" << Filename;
     return true;
   }
 
   if (ExistingLangOpts.CommentOpts.BlockCommandNames !=
       LangOpts.CommentOpts.BlockCommandNames) {
     if (Diags)
-      Diags->Report(diag::err_pch_langopt_value_mismatch)
-        << "block command names";
+      Diags->Report(diag::err_ast_file_langopt_value_mismatch)
+        << "block command names" << Filename;
     return true;
   }
 
@@ -368,8 +369,8 @@ static bool checkLanguageOptions(const LangOptions &LangOpts,
     bool InExistingModule = ExistingSanitizers.has(SanitizerKind::ID);         \
     bool InImportedModule = ImportedSanitizers.has(SanitizerKind::ID);         \
     if (InExistingModule != InImportedModule)                                  \
-      Diags->Report(diag::err_pch_targetopt_feature_mismatch)                  \
-          << InExistingModule << (Flag + NAME);                                \
+      Diags->Report(diag::err_ast_file_targetopt_feature_mismatch)             \
+          << InExistingModule << Filename << (Flag + NAME);                    \
   }
 #include "clang/Basic/Sanitizers.def"
       }
@@ -388,13 +389,13 @@ static bool checkLanguageOptions(const LangOptions &LangOpts,
 /// \returns true if the target options mis-match, false otherwise.
 static bool checkTargetOptions(const TargetOptions &TargetOpts,
                                const TargetOptions &ExistingTargetOpts,
-                               DiagnosticsEngine *Diags,
+                               StringRef Filename, DiagnosticsEngine *Diags,
                                bool AllowCompatibleDifferences = true) {
 #define CHECK_TARGET_OPT(Field, Name)                             \
   if (TargetOpts.Field != ExistingTargetOpts.Field) {             \
     if (Diags)                                                    \
-      Diags->Report(diag::err_pch_targetopt_mismatch)             \
-        << Name << TargetOpts.Field << ExistingTargetOpts.Field;  \
+      Diags->Report(diag::err_ast_file_targetopt_mismatch)        \
+        << Filename << Name << TargetOpts.Field << ExistingTargetOpts.Field; \
     return true;                                                  \
   }
 
@@ -438,11 +439,11 @@ static bool checkTargetOptions(const TargetOptions &TargetOpts,
 
   if (Diags) {
     for (StringRef Feature : UnmatchedReadFeatures)
-      Diags->Report(diag::err_pch_targetopt_feature_mismatch)
-          << /* is-existing-feature */ false << Feature;
+      Diags->Report(diag::err_ast_file_targetopt_feature_mismatch)
+          << /* is-existing-feature */ false << Filename << Feature;
     for (StringRef Feature : UnmatchedExistingFeatures)
-      Diags->Report(diag::err_pch_targetopt_feature_mismatch)
-          << /* is-existing-feature */ true << Feature;
+      Diags->Report(diag::err_ast_file_targetopt_feature_mismatch)
+          << /* is-existing-feature */ true << Filename << Feature;
   }
 
   return !UnmatchedReadFeatures.empty() || !UnmatchedExistingFeatures.empty();
@@ -450,19 +451,20 @@ static bool checkTargetOptions(const TargetOptions &TargetOpts,
 
 bool
 PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts,
+                                  StringRef Filename,
                                   bool Complain,
                                   bool AllowCompatibleDifferences) {
   const LangOptions &ExistingLangOpts = PP.getLangOpts();
-  return checkLanguageOptions(LangOpts, ExistingLangOpts,
+  return checkLanguageOptions(LangOpts, ExistingLangOpts, Filename,
                               Complain ? &Reader.Diags : nullptr,
                               AllowCompatibleDifferences);
 }
 
 bool PCHValidator::ReadTargetOptions(const TargetOptions &TargetOpts,
-                                     bool Complain,
+                                     StringRef Filename, bool Complain,
                                      bool AllowCompatibleDifferences) {
   const TargetOptions &ExistingTargetOpts = PP.getTargetInfo().getTargetOpts();
-  return checkTargetOptions(TargetOpts, ExistingTargetOpts,
+  return checkTargetOptions(TargetOpts, ExistingTargetOpts, Filename,
                             Complain ? &Reader.Diags : nullptr,
                             AllowCompatibleDifferences);
 }
@@ -477,7 +479,7 @@ using DeclsMap = llvm::DenseMap<DeclarationName, SmallVector<NamedDecl *, 8>>;
 
 static bool checkDiagnosticGroupMappings(DiagnosticsEngine &StoredDiags,
                                          DiagnosticsEngine &Diags,
-                                         bool Complain) {
+                                         StringRef Filename, bool Complain) {
   using Level = DiagnosticsEngine::Level;
 
   // Check current mappings for new -Werror mappings, and the stored mappings
@@ -495,8 +497,8 @@ static bool checkDiagnosticGroupMappings(DiagnosticsEngine &StoredDiags,
           StoredDiags.getDiagnosticLevel(DiagID, SourceLocation());
       if (StoredLevel < DiagnosticsEngine::Error) {
         if (Complain)
-          Diags.Report(diag::err_pch_diagopt_mismatch) << "-Werror=" +
-              Diags.getDiagnosticIDs()->getWarningOptionForDiag(DiagID).str();
+          Diags.Report(diag::err_ast_file_diagopt_mismatch) << "-Werror=" +
+              Diags.getDiagnosticIDs()->getWarningOptionForDiag(DiagID).str() << Filename;
         return true;
       }
     }
@@ -513,7 +515,7 @@ static bool isExtHandlingFromDiagsError(DiagnosticsEngine &Diags) {
 }
 
 static bool checkDiagnosticMappings(DiagnosticsEngine &StoredDiags,
-                                    DiagnosticsEngine &Diags, bool IsSystem,
+                                    DiagnosticsEngine &Diags, StringRef Filename, bool IsSystem,
                                     bool SystemHeaderWarningsInModule,
                                     bool Complain) {
   // Top-level options
@@ -525,32 +527,32 @@ static bool checkDiagnosticMappings(DiagnosticsEngine &StoredDiags,
     if (StoredDiags.getSuppressSystemWarnings() &&
         !SystemHeaderWarningsInModule) {
       if (Complain)
-        Diags.Report(diag::err_pch_diagopt_mismatch) << "-Wsystem-headers";
+        Diags.Report(diag::err_ast_file_diagopt_mismatch) << "-Wsystem-headers" << Filename;
       return true;
     }
   }
 
   if (Diags.getWarningsAsErrors() && !StoredDiags.getWarningsAsErrors()) {
     if (Complain)
-      Diags.Report(diag::err_pch_diagopt_mismatch) << "-Werror";
+      Diags.Report(diag::err_ast_file_diagopt_mismatch) << "-Werror" << Filename;
     return true;
   }
 
   if (Diags.getWarningsAsErrors() && Diags.getEnableAllWarnings() &&
       !StoredDiags.getEnableAllWarnings()) {
     if (Complain)
-      Diags.Report(diag::err_pch_diagopt_mismatch) << "-Weverything -Werror";
+      Diags.Report(diag::err_ast_file_diagopt_mismatch) << "-Weverything -Werror" << Filename;
     return true;
   }
 
   if (isExtHandlingFromDiagsError(Diags) &&
       !isExtHandlingFromDiagsError(StoredDiags)) {
     if (Complain)
-      Diags.Report(diag::err_pch_diagopt_mismatch) << "-pedantic-errors";
+      Diags.Report(diag::err_ast_file_diagopt_mismatch) << "-pedantic-errors" << Filename;
     return true;
   }
 
-  return checkDiagnosticGroupMappings(StoredDiags, Diags, Complain);
+  return checkDiagnosticGroupMappings(StoredDiags, Diags, Filename, Complain);
 }
 
 /// Return the top import module if it is implicit, nullptr otherwise.
@@ -579,7 +581,7 @@ static Module *getTopImportImplicitModule(ModuleManager &ModuleMgr,
 }
 
 bool PCHValidator::ReadDiagnosticOptions(
-    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts, bool Complain) {
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts, StringRef Filename, bool Complain) {
   DiagnosticsEngine &ExistingDiags = PP.getDiagnostics();
   IntrusiveRefCntPtr<DiagnosticIDs> DiagIDs(ExistingDiags.getDiagnosticIDs());
   IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
@@ -604,7 +606,7 @@ bool PCHValidator::ReadDiagnosticOptions(
 
   // FIXME: if the diagnostics are incompatible, save a DiagnosticOptions that
   // contains the union of their flags.
-  return checkDiagnosticMappings(*Diags, ExistingDiags, TopM->IsSystem,
+  return checkDiagnosticMappings(*Diags, ExistingDiags, Filename, TopM->IsSystem,
                                  SystemHeaderWarningsInModule, Complain);
 }
 
@@ -664,7 +666,7 @@ enum OptionValidation {
 ///        are no differences in the options between the two.
 static bool checkPreprocessorOptions(
     const PreprocessorOptions &PPOpts,
-    const PreprocessorOptions &ExistingPPOpts, bool ReadMacros,
+    const PreprocessorOptions &ExistingPPOpts, StringRef Filename, bool ReadMacros,
     DiagnosticsEngine *Diags, FileManager &FileMgr,
     std::string &SuggestedPredefines, const LangOptions &LangOpts,
     OptionValidation Validation = OptionValidateContradictions) {
@@ -694,7 +696,7 @@ static bool checkPreprocessorOptions(
           // If strict matches are requested, don't tolerate any extra defines
           // on the command line that are missing in the AST file.
           if (Diags) {
-            Diags->Report(diag::err_pch_macro_def_undef) << MacroName << true;
+            Diags->Report(diag::err_ast_file_macro_def_undef) << MacroName << true << Filename;
           }
           return true;
         }
@@ -720,8 +722,8 @@ static bool checkPreprocessorOptions(
       // conflict.
       if (Existing.second != Known->second.second) {
         if (Diags) {
-          Diags->Report(diag::err_pch_macro_def_undef)
-              << MacroName << Known->second.second;
+          Diags->Report(diag::err_ast_file_macro_def_undef)
+              << MacroName << Known->second.second << Filename;
         }
         return true;
       }
@@ -735,8 +737,8 @@ static bool checkPreprocessorOptions(
 
       // The macro bodies differ; complain.
       if (Diags) {
-        Diags->Report(diag::err_pch_macro_def_conflict)
-            << MacroName << Known->second.first << Existing.first;
+        Diags->Report(diag::err_ast_file_macro_def_conflict)
+            << MacroName << Known->second.first << Existing.first << Filename;
       }
       return true;
     }
@@ -749,7 +751,7 @@ static bool checkPreprocessorOptions(
       // the AST file that are missing on the command line.
       for (const auto &MacroName : ASTFileMacros.keys()) {
         if (Diags) {
-          Diags->Report(diag::err_pch_macro_def_undef) << MacroName << false;
+          Diags->Report(diag::err_ast_file_macro_def_undef) << MacroName << false << Filename;
         }
         return true;
       }
@@ -760,7 +762,7 @@ static bool checkPreprocessorOptions(
   if (PPOpts.UsePredefines != ExistingPPOpts.UsePredefines &&
       Validation != OptionValidateNone) {
     if (Diags) {
-      Diags->Report(diag::err_pch_undef) << ExistingPPOpts.UsePredefines;
+      Diags->Report(diag::err_ast_file_undef) << ExistingPPOpts.UsePredefines << Filename;
     }
     return true;
   }
@@ -770,7 +772,7 @@ static bool checkPreprocessorOptions(
       PPOpts.DetailedRecord != ExistingPPOpts.DetailedRecord &&
       Validation != OptionValidateNone) {
     if (Diags) {
-      Diags->Report(diag::err_pch_pp_detailed_record) << PPOpts.DetailedRecord;
+      Diags->Report(diag::err_ast_file_pp_detailed_record) << PPOpts.DetailedRecord << Filename;
     }
     return true;
   }
@@ -814,19 +816,19 @@ static bool checkPreprocessorOptions(
 }
 
 bool PCHValidator::ReadPreprocessorOptions(const PreprocessorOptions &PPOpts,
-                                           bool ReadMacros, bool Complain,
+                                           StringRef Filename, bool ReadMacros, bool Complain,
                                            std::string &SuggestedPredefines) {
   const PreprocessorOptions &ExistingPPOpts = PP.getPreprocessorOpts();
 
   return checkPreprocessorOptions(
-      PPOpts, ExistingPPOpts, ReadMacros, Complain ? &Reader.Diags : nullptr,
+      PPOpts, ExistingPPOpts, Filename, ReadMacros, Complain ? &Reader.Diags : nullptr,
       PP.getFileManager(), SuggestedPredefines, PP.getLangOpts());
 }
 
 bool SimpleASTReaderListener::ReadPreprocessorOptions(
-    const PreprocessorOptions &PPOpts, bool ReadMacros, bool Complain,
+    const PreprocessorOptions &PPOpts, StringRef Filename, bool ReadMacros, bool Complain,
     std::string &SuggestedPredefines) {
-  return checkPreprocessorOptions(PPOpts, PP.getPreprocessorOpts(), ReadMacros,
+  return checkPreprocessorOptions(PPOpts, PP.getPreprocessorOpts(), Filename, ReadMacros,
                                   nullptr, PP.getFileManager(),
                                   SuggestedPredefines, PP.getLangOpts(),
                                   OptionValidateNone);
@@ -839,7 +841,7 @@ bool SimpleASTReaderListener::ReadPreprocessorOptions(
 static bool checkModuleCachePath(llvm::vfs::FileSystem &VFS,
                                  StringRef SpecificModuleCachePath,
                                  StringRef ExistingModuleCachePath,
-                                 DiagnosticsEngine *Diags,
+                                 StringRef Filename, DiagnosticsEngine *Diags,
                                  const LangOptions &LangOpts,
                                  const PreprocessorOptions &PPOpts) {
   if (!LangOpts.Modules || PPOpts.AllowPCHWithDifferentModulesCachePath ||
@@ -850,18 +852,19 @@ static bool checkModuleCachePath(llvm::vfs::FileSystem &VFS,
   if (EqualOrErr && *EqualOrErr)
     return false;
   if (Diags)
-    Diags->Report(diag::err_pch_modulecache_mismatch)
-        << SpecificModuleCachePath << ExistingModuleCachePath;
+    Diags->Report(diag::err_ast_file_modulecache_mismatch)
+        << SpecificModuleCachePath << ExistingModuleCachePath << Filename;
   return true;
 }
 
 bool PCHValidator::ReadHeaderSearchOptions(const HeaderSearchOptions &HSOpts,
+                                           StringRef Filename,
                                            StringRef SpecificModuleCachePath,
                                            bool Complain) {
   return checkModuleCachePath(Reader.getFileManager().getVirtualFileSystem(),
                               SpecificModuleCachePath,
                               PP.getHeaderSearchInfo().getModuleCachePath(),
-                              Complain ? &Reader.Diags : nullptr,
+                              Filename, Complain ? &Reader.Diags : nullptr,
                               PP.getLangOpts(), PP.getPreprocessorOpts());
 }
 
@@ -2760,7 +2763,7 @@ static bool isDiagnosedResult(ASTReader::ASTReadResult ARR, unsigned Caps) {
 }
 
 ASTReader::ASTReadResult ASTReader::ReadOptionsBlock(
-    BitstreamCursor &Stream, unsigned ClientLoadCapabilities,
+    BitstreamCursor &Stream, StringRef Filename, unsigned ClientLoadCapabilities,
     bool AllowCompatibleConfigurationMismatch, ASTReaderListener &Listener,
     std::string &SuggestedPredefines) {
   if (llvm::Error Err = Stream.EnterSubBlock(OPTIONS_BLOCK_ID)) {
@@ -2805,7 +2808,7 @@ ASTReader::ASTReadResult ASTReader::ReadOptionsBlock(
     switch ((OptionsRecordTypes)MaybeRecordType.get()) {
     case LANGUAGE_OPTIONS: {
       bool Complain = (ClientLoadCapabilities & ARR_ConfigurationMismatch) == 0;
-      if (ParseLanguageOptions(Record, Complain, Listener,
+      if (ParseLanguageOptions(Record, Filename, Complain, Listener,
                                AllowCompatibleConfigurationMismatch))
         Result = ConfigurationMismatch;
       break;
@@ -2813,7 +2816,7 @@ ASTReader::ASTReadResult ASTReader::ReadOptionsBlock(
 
     case TARGET_OPTIONS: {
       bool Complain = (ClientLoadCapabilities & ARR_ConfigurationMismatch) == 0;
-      if (ParseTargetOptions(Record, Complain, Listener,
+      if (ParseTargetOptions(Record, Filename, Complain, Listener,
                              AllowCompatibleConfigurationMismatch))
         Result = ConfigurationMismatch;
       break;
@@ -2830,7 +2833,7 @@ ASTReader::ASTReadResult ASTReader::ReadOptionsBlock(
     case HEADER_SEARCH_OPTIONS: {
       bool Complain = (ClientLoadCapabilities & ARR_ConfigurationMismatch) == 0;
       if (!AllowCompatibleConfigurationMismatch &&
-          ParseHeaderSearchOptions(Record, Complain, Listener))
+          ParseHeaderSearchOptions(Record, Filename, Complain, Listener))
         Result = ConfigurationMismatch;
       break;
     }
@@ -2838,7 +2841,7 @@ ASTReader::ASTReadResult ASTReader::ReadOptionsBlock(
     case PREPROCESSOR_OPTIONS:
       bool Complain = (ClientLoadCapabilities & ARR_ConfigurationMismatch) == 0;
       if (!AllowCompatibleConfigurationMismatch &&
-          ParsePreprocessorOptions(Record, Complain, Listener,
+          ParsePreprocessorOptions(Record, Filename, Complain, Listener,
                                    SuggestedPredefines))
         Result = ConfigurationMismatch;
       break;
@@ -2975,7 +2978,7 @@ ASTReader::ReadControlBlock(ModuleFile &F,
               F.Kind == MK_ExplicitModule || F.Kind == MK_PrebuiltModule;
 
           ASTReadResult Result =
-              ReadOptionsBlock(Stream, ClientLoadCapabilities,
+              ReadOptionsBlock(Stream, F.FileName, ClientLoadCapabilities,
                                AllowCompatibleConfigurationMismatch, *Listener,
                                SuggestedPredefines);
           if (Result == Failure) {
@@ -4864,7 +4867,7 @@ ASTReader::readUnhashedControlBlock(ModuleFile &F, bool WasImportedBy,
   bool DisableValidation = shouldDisableValidationForFile(F);
 
   ASTReadResult Result = readUnhashedControlBlockImpl(
-      &F, F.Data, ClientLoadCapabilities, AllowCompatibleConfigurationMismatch,
+      &F, F.Data, F.FileName, ClientLoadCapabilities, AllowCompatibleConfigurationMismatch,
       Listener.get(),
       WasImportedBy ? false : HSOpts.ModulesValidateDiagnosticOptions);
 
@@ -4908,7 +4911,7 @@ ASTReader::readUnhashedControlBlock(ModuleFile &F, bool WasImportedBy,
 }
 
 ASTReader::ASTReadResult ASTReader::readUnhashedControlBlockImpl(
-    ModuleFile *F, llvm::StringRef StreamData, unsigned ClientLoadCapabilities,
+    ModuleFile *F, llvm::StringRef StreamData, StringRef Filename, unsigned ClientLoadCapabilities,
     bool AllowCompatibleConfigurationMismatch, ASTReaderListener *Listener,
     bool ValidateDiagnosticOptions) {
   // Initialize a stream.
@@ -4978,7 +4981,7 @@ ASTReader::ASTReadResult ASTReader::readUnhashedControlBlockImpl(
       bool Complain = (ClientLoadCapabilities & ARR_OutOfDate) == 0;
       if (Listener && ValidateDiagnosticOptions &&
           !AllowCompatibleConfigurationMismatch &&
-          ParseDiagnosticOptions(Record, Complain, *Listener))
+          ParseDiagnosticOptions(Record, Filename, Complain, *Listener))
         Result = OutOfDate; // Don't return early.  Read the signature.
       break;
     }
@@ -5365,31 +5368,33 @@ namespace {
           ExistingModuleCachePath(ExistingModuleCachePath), FileMgr(FileMgr),
           StrictOptionMatches(StrictOptionMatches) {}
 
-    bool ReadLanguageOptions(const LangOptions &LangOpts, bool Complain,
+    bool ReadLanguageOptions(const LangOptions &LangOpts, StringRef Filename, bool Complain,
                              bool AllowCompatibleDifferences) override {
-      return checkLanguageOptions(ExistingLangOpts, LangOpts, nullptr,
+      return checkLanguageOptions(ExistingLangOpts, LangOpts, Filename, nullptr,
                                   AllowCompatibleDifferences);
     }
 
-    bool ReadTargetOptions(const TargetOptions &TargetOpts, bool Complain,
+    bool ReadTargetOptions(const TargetOptions &TargetOpts, StringRef Filename, bool Complain,
                            bool AllowCompatibleDifferences) override {
-      return checkTargetOptions(ExistingTargetOpts, TargetOpts, nullptr,
+      return checkTargetOptions(ExistingTargetOpts, TargetOpts, Filename, nullptr,
                                 AllowCompatibleDifferences);
     }
 
     bool ReadHeaderSearchOptions(const HeaderSearchOptions &HSOpts,
+                                 StringRef Filename,
                                  StringRef SpecificModuleCachePath,
                                  bool Complain) override {
       return checkModuleCachePath(
           FileMgr.getVirtualFileSystem(), SpecificModuleCachePath,
-          ExistingModuleCachePath, nullptr, ExistingLangOpts, ExistingPPOpts);
+          ExistingModuleCachePath, Filename, nullptr, ExistingLangOpts, ExistingPPOpts);
     }
 
     bool ReadPreprocessorOptions(const PreprocessorOptions &PPOpts,
+                                 StringRef Filename,
                                  bool ReadMacros, bool Complain,
                                  std::string &SuggestedPredefines) override {
       return checkPreprocessorOptions(
-          PPOpts, ExistingPPOpts, ReadMacros, /*Diags=*/nullptr, FileMgr,
+          PPOpts, ExistingPPOpts, Filename, ReadMacros, /*Diags=*/nullptr, FileMgr,
           SuggestedPredefines, ExistingLangOpts,
           StrictOptionMatches ? OptionValidateStrictMatches
                               : OptionValidateContradictions);
@@ -5458,7 +5463,7 @@ bool ASTReader::readASTFileControlBlock(
       switch (Entry.ID) {
       case OPTIONS_BLOCK_ID: {
         std::string IgnoredSuggestedPredefines;
-        if (ReadOptionsBlock(Stream, ClientLoadCapabilities,
+        if (ReadOptionsBlock(Stream, Filename, ClientLoadCapabilities,
                              /*AllowCompatibleConfigurationMismatch*/ false,
                              Listener, IgnoredSuggestedPredefines) != Success)
           return true;
@@ -5684,7 +5689,7 @@ bool ASTReader::readASTFileControlBlock(
 
   // Scan for the UNHASHED_CONTROL_BLOCK_ID block.
   if (readUnhashedControlBlockImpl(
-          nullptr, Bytes, ClientLoadCapabilities,
+          nullptr, Bytes, Filename, ClientLoadCapabilities,
           /*AllowCompatibleConfigurationMismatch*/ false, &Listener,
           ValidateDiagnosticOptions) != Success)
     return true;
@@ -6025,7 +6030,7 @@ llvm::Error ASTReader::ReadSubmoduleBlock(ModuleFile &F,
 ///
 /// \returns true if the listener deems the file unacceptable, false otherwise.
 bool ASTReader::ParseLanguageOptions(const RecordData &Record,
-                                     bool Complain,
+                                     StringRef Filename, bool Complain,
                                      ASTReaderListener &Listener,
                                      bool AllowCompatibleDifferences) {
   LangOptions LangOpts;
@@ -6062,11 +6067,11 @@ bool ASTReader::ParseLanguageOptions(const RecordData &Record,
 
   LangOpts.OMPHostIRFile = ReadString(Record, Idx);
 
-  return Listener.ReadLanguageOptions(LangOpts, Complain,
+  return Listener.ReadLanguageOptions(LangOpts, Filename, Complain,
                                       AllowCompatibleDifferences);
 }
 
-bool ASTReader::ParseTargetOptions(const RecordData &Record, bool Complain,
+bool ASTReader::ParseTargetOptions(const RecordData &Record, StringRef Filename, bool Complain,
                                    ASTReaderListener &Listener,
                                    bool AllowCompatibleDifferences) {
   unsigned Idx = 0;
@@ -6082,11 +6087,11 @@ bool ASTReader::ParseTargetOptions(const RecordData &Record, bool Complain,
     TargetOpts.Features.push_back(ReadString(Record, Idx));
   }
 
-  return Listener.ReadTargetOptions(TargetOpts, Complain,
+  return Listener.ReadTargetOptions(TargetOpts, Filename, Complain,
                                     AllowCompatibleDifferences);
 }
 
-bool ASTReader::ParseDiagnosticOptions(const RecordData &Record, bool Complain,
+bool ASTReader::ParseDiagnosticOptions(const RecordData &Record, StringRef Filename, bool Complain,
                                        ASTReaderListener &Listener) {
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts(new DiagnosticOptions);
   unsigned Idx = 0;
@@ -6100,7 +6105,7 @@ bool ASTReader::ParseDiagnosticOptions(const RecordData &Record, bool Complain,
   for (unsigned N = Record[Idx++]; N; --N)
     DiagOpts->Remarks.push_back(ReadString(Record, Idx));
 
-  return Listener.ReadDiagnosticOptions(DiagOpts, Complain);
+  return Listener.ReadDiagnosticOptions(DiagOpts, Filename, Complain);
 }
 
 bool ASTReader::ParseFileSystemOptions(const RecordData &Record, bool Complain,
@@ -6112,7 +6117,7 @@ bool ASTReader::ParseFileSystemOptions(const RecordData &Record, bool Complain,
 }
 
 bool ASTReader::ParseHeaderSearchOptions(const RecordData &Record,
-                                         bool Complain,
+                                         StringRef Filename, bool Complain,
                                          ASTReaderListener &Listener) {
   HeaderSearchOptions HSOpts;
   unsigned Idx = 0;
@@ -6131,7 +6136,7 @@ bool ASTReader::ParseHeaderSearchOptions(const RecordData &Record,
   HSOpts.UseLibcxx = Record[Idx++];
   std::string SpecificModuleCachePath = ReadString(Record, Idx);
 
-  return Listener.ReadHeaderSearchOptions(HSOpts, SpecificModuleCachePath,
+  return Listener.ReadHeaderSearchOptions(HSOpts, Filename, SpecificModuleCachePath,
                                           Complain);
 }
 
@@ -6168,7 +6173,7 @@ bool ASTReader::ParseHeaderSearchPaths(const RecordData &Record, bool Complain,
 }
 
 bool ASTReader::ParsePreprocessorOptions(const RecordData &Record,
-                                         bool Complain,
+                                         StringRef Filename, bool Complain,
                                          ASTReaderListener &Listener,
                                          std::string &SuggestedPredefines) {
   PreprocessorOptions PPOpts;
@@ -6200,7 +6205,7 @@ bool ASTReader::ParsePreprocessorOptions(const RecordData &Record,
   PPOpts.ObjCXXARCStandardLibrary =
     static_cast<ObjCXXARCStandardLibraryKind>(Record[Idx++]);
   SuggestedPredefines.clear();
-  return Listener.ReadPreprocessorOptions(PPOpts, ReadMacros, Complain,
+  return Listener.ReadPreprocessorOptions(PPOpts, Filename, ReadMacros, Complain,
                                           SuggestedPredefines);
 }
 
