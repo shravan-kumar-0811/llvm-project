@@ -145,6 +145,8 @@ Improvements to Clang's diagnostics
 
 - -Wdangling-assignment-gsl is enabled by default.
 
+- Clang now diagnoses ``-Wunused-member-function`` with a specific message for constructors.
+
 Improvements to Clang's time-trace
 ----------------------------------
 
