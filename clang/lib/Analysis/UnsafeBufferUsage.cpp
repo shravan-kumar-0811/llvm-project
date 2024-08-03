@@ -9,19 +9,21 @@
 #include "clang/Analysis/Analyses/UnsafeBufferUsage.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Stmt.h"
-#include "clang/AST/StmtVisitor.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
-#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/APSInt.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
 #include <optional>
@@ -242,9 +244,14 @@ AST_MATCHER_P(Stmt, notInSafeBufferOptOut, const UnsafeBufferUsageHandler *,
   return !Handler->isSafeBufferOptOut(Node.getBeginLoc());
 }
 
-AST_MATCHER_P(Stmt, ignoreUnsafeBufferInContainer,
+AST_MATCHER_P(Stmt, ignoreSpanTwoParamConstructor,
               const UnsafeBufferUsageHandler *, Handler) {
   return Handler->ignoreUnsafeBufferInContainer(Node.getBeginLoc());
+}
+
+AST_MATCHER_P(Stmt, ignoreStringViewUnsafeConstructor,
+              const UnsafeBufferUsageHandler *, Handler) {
+  return Handler->ignoreUnsafeBufferInStringView(Node.getBeginLoc());
 }
 
 AST_MATCHER_P(CastExpr, castSubExpr, internal::Matcher<Expr>, innerMatcher) {
@@ -443,6 +450,271 @@ AST_MATCHER(ArraySubscriptExpr, isSafeArraySubscript) {
   return false;
 }
 
+AST_MATCHER_P(CallExpr, isUnsafeLibcFunctionCall, internal::Matcher<Expr>,
+              hasUnsafeStringView) {
+  static const std::set<StringRef> PredefinedNames{
+      // numeric conversion:
+      "atof",
+      "atoi",
+      "atol",
+      "atoll",
+      "strtol",
+      "strtoll",
+      "strtoul",
+      "strtoull",
+      "strtof",
+      "strtod",
+      "strtold",
+      "strtoimax",
+      "strtoumax",
+      // "strfromf",  "strfromd", "strfroml", // C23?
+      // string manipulation:
+      "strcpy",
+      "strncpy",
+      "strlcpy",
+      "strcat",
+      "strncat",
+      "strlcat",
+      "strxfrm",
+      "strdup",
+      "strndup",
+      // string examination:
+      "strlen",
+      "strnlen",
+      "strcmp",
+      "strncmp",
+      "stricmp",
+      "strcasecmp",
+      "strcoll",
+      "strchr",
+      "strrchr",
+      "strspn",
+      "strcspn",
+      "strpbrk",
+      "strstr",
+      "strtok",
+      // "mem-" functions
+      "memchr",
+      "wmemchr",
+      "memcmp",
+      "wmemcmp",
+      "memcpy",
+      "memccpy",
+      "mempcpy",
+      "wmemcpy",
+      "memmove",
+      "wmemmove",
+      "memset",
+      "wmemset",
+      // IO:
+      "fread",
+      "fwrite",
+      "fgets",
+      "fgetws",
+      "gets",
+      "fputs",
+      "fputws",
+      "puts",
+      // others
+      "strerror_s",
+      "strerror_r",
+      "bcopy",
+      "bzero",
+      "bsearch",
+      "qsort",
+  };
+
+  // A tiny name parser for unsafe libc function names with additional
+  // checks for `printf`s:
+  struct FuncNameMatch {
+    const CallExpr *const Call;
+    const bool hasUnsafeStringView;
+    FuncNameMatch(const CallExpr *Call, bool hasUnsafeStringView)
+        : Call(Call), hasUnsafeStringView(hasUnsafeStringView) {}
+
+    // For a name `S` in `PredefinedNames` or a member of the printf/scanf
+    // family, define matching function names with `S` by the grammar below:
+    //
+    //  CoreName     := S | S["wcs"/"str"]
+    //  LibcName     := CoreName | CoreName + "_s"
+    //  MatchingName := "__builtin_" + LibcName              |
+    //                  "__builtin___" + LibcName + "_chk"   |
+    //                  "__asan_" + LibcName
+    //
+    // (Note S["wcs"/"str"] means substitute "str" with "wcs" in S.)
+    bool matchName(StringRef FunName) {
+      // Try to match __builtin_:
+      if (FunName.starts_with("__builtin_"))
+        // Then either it is __builtin_LibcName or __builtin___LibcName_chk or
+        // no match:
+        return matchLibcNameOrBuiltinChk(
+            FunName.drop_front(10 /* truncate "__builtin_" */));
+      // Try to match __asan_:
+      if (FunName.starts_with("__asan_"))
+        return matchLibcName(FunName.drop_front(7 /* truncate of "__asan_" */));
+      return matchLibcName(FunName);
+    }
+
+    // Parameter `Name` is the substring after stripping off the prefix
+    // "__builtin_".
+    bool matchLibcNameOrBuiltinChk(StringRef Name) {
+      if (Name.starts_with("__") && Name.ends_with("_chk"))
+        return matchLibcName(
+            Name.drop_front(2).drop_back(4) /* truncate "__" and "_chk" */);
+      return matchLibcName(Name);
+    }
+
+    bool matchLibcName(StringRef Name) {
+      if (Name.ends_with("_s"))
+        return matchCoreName(Name.drop_back(2 /* truncate "_s" */));
+      return matchCoreName(Name);
+    }
+
+    bool matchCoreName(StringRef Name) {
+      if (PredefinedNames.find(Name.str()) != PredefinedNames.end())
+        return !isSafeStrlen(Name); // match unless it's a safe strlen call
+
+      std::string NameWCS = Name.str();
+      size_t WcsPos = NameWCS.find("wcs");
+
+      while (WcsPos != std::string::npos) {
+        NameWCS[WcsPos++] = 's';
+        NameWCS[WcsPos++] = 't';
+        NameWCS[WcsPos++] = 'r';
+        WcsPos = NameWCS.find("wcs", WcsPos);
+      }
+      if (PredefinedNames.find(NameWCS) != PredefinedNames.end())
+        return !isSafeStrlen(NameWCS);
+      return matchPrintfOrScanfFamily(Name);
+    }
+
+    bool matchPrintfOrScanfFamily(StringRef Name) {
+      if (Name.ends_with("scanf"))
+        return true; // simply warn about scanf functions
+      if (!Name.ends_with("printf"))
+        return false; // neither printf nor scanf
+      if (Name.starts_with("v"))
+        // cannot check args for va_list, so `vprintf`s are treated as regular
+        // unsafe libc calls:
+        return true;
+
+      // Truncate "printf", focus on prefixes.  There are different possible
+      // name prefixes: "k", "f", "s", "sn", "fw", ..., "snw".  We strip off the
+      // 'w' and handle printfs differently by "k", "f", "s", "sn" or no prefix:
+      StringRef Prefix = Name.drop_back(6);
+
+      if (Prefix.ends_with("w"))
+        Prefix = Prefix.drop_back(1);
+      return isUnsafePrintf(Prefix);
+    }
+
+    // A pointer type expression is known to be null-terminated, if it has the
+    // form: E.c_str(), for any expression E of `std::string` type.
+    static bool isNullTermPointer(const Expr *Ptr,
+                                  bool UnsafeStringView = true) {
+      if (isa<StringLiteral>(Ptr->IgnoreParenImpCasts()))
+        return true;
+      if (auto *MCE = dyn_cast<CXXMemberCallExpr>(Ptr->IgnoreParenImpCasts())) {
+        const CXXMethodDecl *MD = MCE->getMethodDecl();
+        const CXXRecordDecl *RD = MCE->getRecordDecl()->getCanonicalDecl();
+
+        if (MD && RD && RD->isInStdNamespace()) {
+          if (MD->getName() == "c_str" && RD->getName() == "basic_string")
+            return true;
+          if (!UnsafeStringView && MD->getName() == "data" &&
+              RD->getName() == "basic_string_view")
+            return true;
+        }
+      }
+      return false;
+    }
+
+    // Check safe patterns for printfs w.r.t their prefixes:
+    bool isUnsafePrintf(StringRef Prefix /* empty, 'k', 'f', 's', or 'sn' */) {
+      const bool hasUnsafeStringView = this->hasUnsafeStringView;
+      auto AnyUnsafeStrPtr = [&hasUnsafeStringView](const Expr *Arg) -> bool {
+        return Arg->getType()->isPointerType() &&
+               !isNullTermPointer(Arg, hasUnsafeStringView);
+      };
+
+      if (Prefix.empty() ||
+          Prefix == "k") // printf: all pointer args should be null-terminated
+        return llvm::any_of(Call->arguments(), AnyUnsafeStrPtr);
+
+      if (Prefix == "f" && Call->getNumArgs() > 1) {
+        // fprintf, same as printf but skip the first arg
+        auto Range = llvm::make_range(Call->arg_begin() + 1, Call->arg_end());
+        return llvm::any_of(Range, AnyUnsafeStrPtr);
+      }
+      if (Prefix == "sn" && Call->getNumArgs() > 2) {
+        // The first two arguments need to be in safe patterns, which is checked
+        // by `isSafeSizedby`:
+        auto Range = llvm::make_range(Call->arg_begin() + 2, Call->arg_end());
+        return !isSafeSizedby(*Call->arg_begin(), *(Call->arg_begin() + 1)) ||
+               llvm::any_of(Range, AnyUnsafeStrPtr);
+      }
+      // Note `sprintf`s should be changed to `snprintf`s, so they are treated
+      // as regular unsafe libc calls:
+      return true;
+    }
+
+    // Checks if the two Exprs `SizedByPtr` and `Size` are in the pattern:
+    // SizedByPtr := DRE.data()
+    // Size       := DRE.size_bytes(), for a same DRE of sized-container/view
+    // type.
+    bool isSafeSizedby(const Expr *SizedByPtr, const Expr *Size) {
+      static StringRef SizedObjs[] = {"span", "array", "vector",
+                                      "basic_string_view", "basic_string"};
+      if (auto *MCEPtr = dyn_cast<CXXMemberCallExpr>(SizedByPtr))
+        if (auto *MCESize = dyn_cast<CXXMemberCallExpr>(Size)) {
+          if (auto *DREPtr =
+                  dyn_cast<DeclRefExpr>(MCEPtr->getImplicitObjectArgument()))
+            if (auto *DRESize =
+                    dyn_cast<DeclRefExpr>(MCESize->getImplicitObjectArgument()))
+              if (DREPtr->getDecl() ==
+                  DRESize->getDecl()) // coming out of the same variable
+                if (MCEPtr->getMethodDecl()->getName() == "data")
+                  if (MCESize->getMethodDecl()->getName() == "size_bytes")
+                    for (StringRef SizedObj : SizedObjs)
+                      if (MCEPtr->getRecordDecl()->isInStdNamespace() &&
+                          MCEPtr->getRecordDecl()
+                                  ->getCanonicalDecl()
+                                  ->getName() == SizedObj)
+                        return true;
+        }
+      return false;
+    }
+
+    // This is safe: strlen("hello").  We don't want to be noisy on this case.
+    bool isSafeStrlen(StringRef Name) {
+      return Name == "strlen" && Call->getNumArgs() == 1 &&
+             isa<StringLiteral>(Call->getArg(0)->IgnoreParenImpCasts());
+    }
+  } FuncNameMatch{&Node, hasUnsafeStringView.matches(Node, Finder, Builder)};
+
+  const FunctionDecl *FD = Node.getDirectCallee();
+  const IdentifierInfo *II;
+
+  if (!FD)
+    return false;
+  II = FD->getIdentifier();
+  // If this is a special C++ name without IdentifierInfo, it can't be a
+  // C library function.
+  if (!II)
+    return false;
+
+  // Look through 'extern "C"' and anything similar invented in the future.
+  // If this function is not in TU directly, it is not a C library function.
+  if (!FD->getDeclContext()->getRedeclContext()->isTranslationUnit())
+    return false;
+
+  // If this function is not externally visible, it is not a C library function.
+  // Note that we make an exception for inline functions, which may be
+  // declared in header files without external linkage.
+  if (!FD->isInlined() && !FD->isExternallyVisible())
+    return false;
+  return FuncNameMatch.matchName(II->getName());
+}
 } // namespace clang::ast_matchers
 
 namespace {
@@ -778,6 +1050,55 @@ public:
   }
 };
 
+class StringViewUnsafeConstructorGadget : public WarningGadget {
+  static constexpr const char *const Tag = "StringViewUnsafeConstructor";
+  const CXXConstructExpr *Ctor;
+
+public:
+  StringViewUnsafeConstructorGadget(const MatchFinder::MatchResult &Result)
+      : WarningGadget(Kind::StringViewUnsafeConstructor),
+        Ctor(Result.Nodes.getNodeAs<CXXConstructExpr>(Tag)) {}
+
+  static bool classof(const Gadget *G) {
+    return G->getKind() == Kind::StringViewUnsafeConstructor;
+  }
+
+  // Matches any `basic_string_view` constructor call that is not a copy
+  // constructor or on a string literal:
+  static Matcher matcher() {
+    auto isStringViewDecl = hasDeclaration(cxxConstructorDecl(
+        hasDeclContext(isInStdNamespace()), hasName("basic_string_view")));
+
+    return stmt(
+        cxxConstructExpr(
+            isStringViewDecl,
+            unless(
+                hasArgument(0, expr(ignoringParenImpCasts(stringLiteral())))),
+            unless(hasDeclaration(cxxConstructorDecl(isCopyConstructor()))))
+            .bind(Tag));
+  }
+
+  const Stmt *getBaseStmt() const { return Ctor; }
+
+  SourceLocation getSourceLoc() const override {return Ctor->getLocation();}
+
+  void handleUnsafeOperation(UnsafeBufferUsageHandler &Handler,
+                             bool IsRelatedToDecl,
+                             ASTContext &Ctx) const override {
+    Handler.handleUnsafeOperation(Ctor, false, Ctx);
+  }
+
+  DeclUseList getClaimedVarUseSites() const override {
+    // If the constructor call is of the form `std::basic_string_view{ptrVar,
+    // ...}`, `ptrVar` is considered an unsafe variable.
+    if (auto *DRE = dyn_cast<DeclRefExpr>(Ctor->getArg(0))) {
+      if (DRE->getType()->isPointerType() && isa<VarDecl>(DRE->getDecl()))
+        return {DRE};
+    }
+    return {};
+  }
+};
+
 /// A pointer initialization expression of the form:
 ///  \code
 ///  int *p = q;
@@ -1021,6 +1342,34 @@ public:
     Handler.handleUnsafeOperation(Op, IsRelatedToDecl, Ctx);
   }
   SourceLocation getSourceLoc() const override { return Op->getBeginLoc(); }
+
+  DeclUseList getClaimedVarUseSites() const override { return {}; }
+};
+
+class UnsafeLibcFunctionCallGadget : public WarningGadget {
+  const CallExpr *const Call;
+  constexpr static const char *const Tag = "UnsafeLibcFunctionCall";
+
+public:
+  UnsafeLibcFunctionCallGadget(const MatchFinder::MatchResult &Result)
+      : WarningGadget(Kind::UnsafeLibcFunctionCall),
+        Call(Result.Nodes.getNodeAs<CallExpr>(Tag)) {}
+
+  static Matcher
+  matcher(ast_matchers::internal::Matcher<Expr> HasUnsafeStringView) {
+    return stmt(
+        callExpr(isUnsafeLibcFunctionCall(HasUnsafeStringView)).bind(Tag));
+  }
+
+  const Stmt *getBaseStmt() const { return Call; }
+
+  SourceLocation getSourceLoc() const override { return Call->getBeginLoc(); }
+
+  void handleUnsafeOperation(UnsafeBufferUsageHandler &Handler,
+                             bool IsRelatedToDecl,
+                             ASTContext &Ctx) const override {
+    Handler.handleUnsafeOperation(Call, false, Ctx);
+  }
 
   DeclUseList getClaimedVarUseSites() const override { return {}; }
 };
@@ -1447,10 +1796,13 @@ findGadgets(const Decl *D, const UnsafeBufferUsageHandler &Handler,
 #define WARNING_GADGET(x)                                                      \
           allOf(x ## Gadget::matcher().bind(#x),                               \
                 notInSafeBufferOptOut(&Handler)),
+#define WARNING_LIBC_GADGET(x)                                                          \
+          allOf(x ## Gadget::matcher(ignoreStringViewUnsafeConstructor(&Handler)).bind(#x), \
+                notInSafeBufferOptOut(&Handler)),
 #define WARNING_CONTAINER_GADGET(x)                                            \
           allOf(x ## Gadget::matcher().bind(#x),                               \
                 notInSafeBufferOptOut(&Handler),                               \
-                unless(ignoreUnsafeBufferInContainer(&Handler))),
+                unless(ignore ## x(&Handler))),
 #include "clang/Analysis/Analyses/UnsafeBufferUsageGadgets.def"
             // Avoid a hanging comma.
             unless(stmt())

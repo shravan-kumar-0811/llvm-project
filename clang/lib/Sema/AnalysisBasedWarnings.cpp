@@ -2256,6 +2256,17 @@ public:
         Range = UO->getSubExpr()->getSourceRange();
         MsgParam = 1;
       }
+    } else if (const auto *CtorExpr = dyn_cast<CXXConstructExpr>(Operation)) {
+      if (CtorExpr->getConstructor()->getCanonicalDecl()->getNameAsString() ==
+          "span")
+        S.Diag(CtorExpr->getLocation(),
+               diag::warn_unsafe_buffer_usage_in_container)
+            << CtorExpr->getSourceRange();
+      else // it is warning about "string_view":
+        S.Diag(CtorExpr->getLocation(),
+               diag::warn_unsafe_buffer_usage_in_string_view)
+            << CtorExpr->getSourceRange();
+      return;
     } else {
       if (isa<CallExpr>(Operation) || isa<CXXConstructExpr>(Operation)) {
         // note_unsafe_buffer_operation doesn't have this mode yet.
@@ -2368,6 +2379,12 @@ public:
 
   bool ignoreUnsafeBufferInContainer(const SourceLocation &Loc) const override {
     return S.Diags.isIgnored(diag::warn_unsafe_buffer_usage_in_container, Loc);
+  }
+
+  bool
+  ignoreUnsafeBufferInStringView(const SourceLocation &Loc) const override {
+    return S.Diags.isIgnored(diag::warn_unsafe_buffer_usage_in_string_view,
+                             Loc);
   }
 
   // Returns the text representation of clang::unsafe_buffer_usage attribute.
