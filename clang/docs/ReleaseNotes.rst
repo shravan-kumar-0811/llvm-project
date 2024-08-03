@@ -173,6 +173,9 @@ Bug Fixes to C++ Support
 - Clang now correctly parses potentially declarative nested-name-specifiers in pointer-to-member declarators.
 - Fix a crash when checking the initialzier of an object that was initialized
   with a string literal. (#GH82167)
+- Clang now correctly recognizes the correct context for parameter
+  substitutions in concepts, so it doesn't incorrectly complain of missing
+  module imports in those situations. (#GH60336)
 
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
