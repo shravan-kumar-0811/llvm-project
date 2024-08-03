@@ -709,9 +709,7 @@ ExprResult Sema::DefaultLvalueConversion(Expr *E) {
     T = T.getUnqualifiedType();
 
   // Under the MS ABI, lock down the inheritance model now.
-  if (T->isMemberPointerType() &&
-      Context.getTargetInfo().getCXXABI().isMicrosoft())
-    (void)isCompleteType(E->getExprLoc(), T);
+  microsoftCompleteMemberPointer(E->getExprLoc(), T);
 
   ExprResult Res = CheckLValueToRValueConversionOperand(E);
   if (Res.isInvalid())
@@ -14105,8 +14103,7 @@ QualType Sema::CheckAddressOfOperand(ExprResult &OrigOp, SourceLocation OpLoc) {
     }
 
     // Under the MS ABI, lock down the inheritance model now.
-    if (Context.getTargetInfo().getCXXABI().isMicrosoft())
-      (void)isCompleteType(OpLoc, MPTy);
+    microsoftCompleteMemberPointer(OpLoc, MPTy);
     return MPTy;
   } else if (lval != Expr::LV_Valid && lval != Expr::LV_IncompleteVoidType) {
     // C99 6.5.3.2p1
@@ -14176,8 +14173,7 @@ QualType Sema::CheckAddressOfOperand(ExprResult &OrigOp, SourceLocation OpLoc) {
               op->getType(),
               Context.getTypeDeclType(cast<RecordDecl>(Ctx)).getTypePtr());
           // Under the MS ABI, lock down the inheritance model now.
-          if (Context.getTargetInfo().getCXXABI().isMicrosoft())
-            (void)isCompleteType(OpLoc, MPTy);
+          microsoftCompleteMemberPointer(OpLoc, MPTy);
           return MPTy;
         }
       }
